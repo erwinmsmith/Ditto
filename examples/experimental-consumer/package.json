@@ -1,0 +1,16 @@
+{
+  "name": "ditto-experimental-consumer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node index.ts",
+    "check": "tsc -p tsconfig.json && node index.ts"
+  },
+  "dependencies": {
+    "@ditto/core": "file:../.."
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "typescript": "^7.0.2"
+  }
+}

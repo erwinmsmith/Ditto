@@ -1,4 +1,4 @@
-# Ditto
+# Ditto 开发与接入指南
 
 Ditto 是面向 Agent 系统的轻量 TypeScript Node-native Runtime。Node 表达语义能力，Worker 承载实现与资源，Graph 描述逻辑组合，Runtime 负责执行、路由和通信。
 
@@ -47,7 +47,7 @@ console.log(result.infer);
 - Core 默认本地直调、异步事件分发。IPC/RPC/PubSub 通过可注入接口扩展。
 - 原 Contract 规定的空类保留为兼容导出；新 Runtime 不依赖这些类。
 
-[架构说明](docs/architecture.md) 描述机制与当前限制；[架构差异分析](docs/architecture-review-2026-09-09.md) 记录参考文档与本次取舍；[固定 Contract](docs/13-node-api-contract.md) 保持独立。
+[架构说明](architecture.md) 描述机制与当前限制；[架构差异分析](architecture-review-2026-09-09.md) 记录参考文档与本次取舍；[固定 Contract](13-node-api-contract.md) 保持独立。
 
 ## 扩容与替换
 
@@ -84,7 +84,7 @@ npm --prefix examples/experimental-consumer install
 npm --prefix examples/experimental-consumer run check
 ```
 
-后续提交到 Git 后可使用固定 commit 的 Git 依赖；`prepare` 会编译源码。当前尚未验证远端 Git 安装，因为这些初始化改动尚未推送。npm 分发入口已预留，尚未启用发布流程。
+Git 依赖应指向已提交的固定 commit；`prepare` 会编译源码。当前已验证本地 file 依赖，远端 Git 安装尚未验证。npm 分发入口已预留，尚未启用发布流程。
 
 ## 质量检查
 
