@@ -113,7 +113,6 @@ Start with the [documentation map](docs/README.md). Current guides are maintaine
 - [Development and package integration](docs/getting-started.md)
 - [Local and remote Worker communication](docs/worker-communication.md)
 - [Providers, tools, MCP, Skills and Sandbox](docs/interaction-runtime.md)
-- [Refactor decisions](docs/refactor-2026-09-10.md)
 - [Node API v1.0 contract](docs/13-node-api-contract.md)
 
 Use [GitHub Issues](https://github.com/erwinmsmith/Ditto/issues) for concrete use cases, bugs and architecture discussions.

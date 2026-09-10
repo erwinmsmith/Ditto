@@ -113,7 +113,6 @@ try {
 - [开发与包接入](docs/getting-started.md)
 - [本地与跨服务器 Worker 通信](docs/worker-communication.md)
 - [Provider、工具、MCP、Skill 与 Sandbox](docs/interaction-runtime.md)
-- [本次重构说明](docs/refactor-2026-09-10.md)
 - [Node API v1.0 契约](docs/13-node-api-contract.md)
 
 通过 [GitHub Issues](https://github.com/erwinmsmith/Ditto/issues) 提交具体使用场景、缺陷与架构讨论。
