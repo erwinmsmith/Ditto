@@ -58,6 +58,8 @@ Node 是 Worker 内的操作。例如真实记忆检索实现应放 `worker/memo
 
 `defineWorker({ nodes, expose })` 中，`nodes` 是内部实现集合；`expose` 是参与 Runtime 路由、允许远端调用的入口集合。省略 `expose` 时，为兼容旧代码公开所有已实现 Node。推荐 Agent Worker 只公开 `INTERACTION.RUN`，内部的模型、工具、Skill Node 通过内部 Graph 使用。
 
+`defineNode(workerType, nodeType, handler)` 显式记录所属 Worker 类型。Worker 组装时拒绝归属不同或 Node 键不匹配的定义；内联 handler 自动绑定当前 Worker，结构化定义经过校验并复制为不可变定义。归属约束针对 Worker 类型：同类型副本可以共用定义，资源各自独立。只有所属 Worker 注册后，定义才能通过 Runtime 执行；这不阻止应用在 Runtime 之外直接调用 JavaScript 函数。
+
 每次 `register(definition)` 都创建一个副本，并执行一次 `resources()`。资源可存放副本私有缓存、连接或业务状态；`config` 是同一 Worker 定义共享的只读业务配置。模型、Key、权限等基础配置来自执行端的 `ctx.services`，不进入 Node 业务输入。
 
 在多副本之间需要共享的数据，应放在显式共享存储中。定义闭包中的对象也会被各副本共享；如 `ToolRegistry` 中存在可变执行状态，应改用 `ctx.resources` 或单独定义 Worker。异步连接可以先建立，或将资源中的 Promise 交给 handler 等待；关闭资源使用 `dispose(resources)`。

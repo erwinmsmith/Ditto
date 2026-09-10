@@ -1,6 +1,7 @@
 import type {
   NodeDefinition, NodeHandler, NodeType, WorkerContext, WorkerType,
 } from "./node.js";
+import { defineNode } from "./node.js";
 
 export type WorkerNodes<R = undefined, C = undefined> = {
   readonly [N in NodeType]?: NodeHandler<N, R, C> | NodeDefinition<N, R, C>;
@@ -66,20 +67,24 @@ export function defineWorker<R = undefined, C = undefined>(
   }
   // Type erasure is limited to this heterogeneous lookup. Definitions are
   // checked per key by WorkerNodes, and dispatch checks capability membership.
-  const handlers = new Map<NodeType, (input: unknown, ctx: WorkerContext<R, C>) => Promise<unknown>>();
+  const nodes = new Map<NodeType, NodeDefinition<NodeType, R, C>>();
   for (const [key, entry] of Object.entries(options.nodes)) {
     const node = key as NodeType;
-    const definition = entry as NodeHandler<NodeType, R, C> | NodeDefinition<NodeType, R, C>;
-    if (typeof definition !== "function" && definition?.type !== node) {
+    const definition = typeof entry === "function"
+      ? defineNode(options.type, node, entry as NodeHandler<NodeType, R, C>)
+      : entry as NodeDefinition<NodeType, R, C>;
+    if (definition?.type !== node) {
       throw new Error(`Node definition does not match ${node}`);
     }
-    const handler = typeof definition === "function" ? definition : definition.execute;
-    if (typeof handler !== "function") throw new Error(`Missing handler for ${node}`);
-    handlers.set(node, handler as (input: unknown, ctx: WorkerContext<R, C>) => Promise<unknown>);
+    if (definition.workerType !== options.type) {
+      throw new Error(`Node ${node} belongs to Worker ${definition.workerType}, not ${options.type}`);
+    }
+    // Normalize structural definitions too: validate and snapshot before registration.
+    nodes.set(node, typeof entry === "function" ? definition : defineNode(options.type, node, definition.execute));
   }
-  if (handlers.size === 0) throw new Error("A Worker must implement at least one Node");
-  const capabilities = [...new Set(options.expose ?? handlers.keys())];
-  if (!capabilities.length || capabilities.some((node) => !handlers.has(node))) {
+  if (nodes.size === 0) throw new Error("A Worker must implement at least one Node");
+  const capabilities = [...new Set(options.expose ?? nodes.keys())];
+  if (!capabilities.length || capabilities.some((node) => !nodes.has(node))) {
     throw new Error("Worker must expose at least one implemented Node");
   }
   const resourceFactory = options.resources;
@@ -87,15 +92,17 @@ export function defineWorker<R = undefined, C = undefined>(
   return Object.freeze({
     type: options.type,
     capabilities: Object.freeze(capabilities),
-    nodeTypes: Object.freeze([...handlers.keys()]),
+    nodeTypes: Object.freeze([...nodes.keys()]),
     ...(options.concurrency === undefined ? {} : { concurrency: options.concurrency }),
     instantiate(): WorkerExecutor {
       const resources = resourceFactory?.() as R;
       return {
         dispose: () => options.dispose?.(resources),
         execute(node, input, services) {
-          const handler = handlers.get(node);
-          if (!handler) throw new Error(`Worker does not implement ${node}`);
+          const definition = nodes.get(node);
+          if (!definition) throw new Error(`Worker does not implement ${node}`);
+          // Type erasure stays inside this heterogeneous dispatch table.
+          const handler = definition.execute as (input: unknown, ctx: WorkerContext<R, C>) => Promise<unknown>;
           return handler(input, { ...services, resources, config });
         },
       };

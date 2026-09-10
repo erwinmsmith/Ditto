@@ -45,7 +45,7 @@ flowchart LR
 
 Core **没有第三方运行时依赖**，原有 18 个 Node 契约保持 v1.0。项目目前为 private package，尚未发布至 npm。
 
-Node 是 Graph 中对执行操作的抽象表示，可选用 `defineNode` 命名；实际 handler 由 Worker 提供。契约和实现直接归对应能力模块，不为各 Worker 建立 `node/` 目录，也没有独立 Agent 子系统或 Node 类继承层级。
+Node 是 Graph 中对执行操作的抽象表示，可选用 `defineNode(workerType, nodeType, handler)` 定义。Node 定义必须声明所属 Worker 类型；内联 handler 自动绑定，Worker 组装时拒绝归属不匹配的定义。实际执行由 Worker 提供。契约和实现直接归对应能力模块，不为各 Worker 建立 `node/` 目录，也没有独立 Agent 子系统或 Node 类继承层级。
 
 ```text
 src/

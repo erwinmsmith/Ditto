@@ -33,6 +33,21 @@ const memory = extendWorker("MEMORY", {
 
 The empty result here illustrates only the contract. The Memory Worker's resources and handlers supply actual retrieval logic and database connections. `extendWorker` creates a new definition; it neither supplies missing operations nor modifies deployed Workers.
 
+## Creating Nodes and Worker Instances
+
+`defineNode(workerType, nodeType, handler)` creates an immutable `{ workerType, type, execute }` definition. The first argument is mandatory. For example, `defineNode("MEMORY", "MEMORY.RETRIEVE", handler)` declares a Node owned by the MEMORY Worker type. Mounting it in a Worker with a different type fails during definition, before any resources are created. The previous two-argument form is no longer supported.
+
+A function supplied directly in `Worker.nodes` is automatically bound to that Worker. A Node's semantic name remains independent of its owning Worker's deployment role: a custom `assistant` Worker can explicitly own a REASONING Node. The owner must match the Worker that actually mounts the definition, not necessarily the Node name's prefix.
+
+Creating a Worker has two stages:
+
+1. `defineWorker({ type, nodes, ... })`, or `extendWorker(type, { nodes, ... })` with short operation names, creates a Worker definition. It must contain at least one implemented Node and expose at least one implemented entry.
+2. `runtime.register(worker)` creates a replica and its resources. Register again for another independent replica; use the returned handle's `close()` to drain and release it.
+
+Defining a Node or Worker does not register it automatically. Runtime execution always selects a registered Worker, including for internal Graphs. There is no standalone Node registration API. Ownership is associated with a Worker type; multiple replicas of that type may use the same immutable definition. This is an API composition rule, not an OS isolation boundary for directly called JavaScript functions.
+
+For a new semantic Node, declare its input/output in NodeContractMap and provide the handler. The following example creates a custom Worker with a new SEARCH.QUERY Node:
+
 ## Custom Workers and Nodes
 
 ```ts
@@ -51,7 +66,7 @@ const search = defineWorker({
   resources: () => ({ queries: 0 }),
   nodes: {
     "SEARCH.QUERY": defineNode<"SEARCH.QUERY", { queries: number }>(
-      "SEARCH.QUERY",
+      "research-assistant", "SEARCH.QUERY",
       async (input, ctx) => {
         ctx.resources.queries++;
         return [{ title: input.query }];

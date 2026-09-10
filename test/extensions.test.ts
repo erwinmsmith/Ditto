@@ -12,7 +12,7 @@ declare module "../src/contracts/node-contract-map.js" {
 test("an experiment extends an existing capability and creates a custom Worker", async () => {
   const ditto = createDitto({ workers: [
     defineWorker({ type: "MEMORY", nodes: {
-      "MEMORY.ARCHIVE": defineNode("MEMORY.ARCHIVE", async (input) => ({ archived: input.ids.length })),
+      "MEMORY.ARCHIVE": defineNode("MEMORY", "MEMORY.ARCHIVE", async (input) => ({ archived: input.ids.length })),
     } }),
     extendWorker("BROWSER", { nodes: {
       OPEN: async (input) => ({ title: input.url }),

@@ -88,7 +88,7 @@ test("direct path preserves identity without encoding even when artifact thresho
   const input = { messages: [message] };
   const ditto = createDitto({ artifacts, inlineLimitBytes: 0, workers: [defineWorker({
     type: "REASONING", nodes: {
-      "REASONING.INFER": defineNode("REASONING.INFER", async (received) => {
+      "REASONING.INFER": defineNode("REASONING", "REASONING.INFER", async (received) => {
         assert.equal(received, input);
         return received.messages[0]!;
       }),

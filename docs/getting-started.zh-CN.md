@@ -33,6 +33,21 @@ const memory = extendWorker("MEMORY", {
 
 此处空结果仅演示契约；实际检索逻辑与数据库连接由 Memory Worker 的资源和 handler 提供。`extendWorker` 创建新定义，不自动补齐其余操作，也不修改已部署 Worker。
 
+## 创建 Node 与 Worker 副本
+
+`defineNode(workerType, nodeType, handler)` 创建不可变的 `{ workerType, type, execute }` 定义，第一个参数必填。例如 `defineNode("MEMORY", "MEMORY.RETRIEVE", handler)` 声明该 Node 归属 MEMORY Worker 类型。将它挂到其他类型的 Worker，会在定义阶段、创建资源之前报错。原有两个参数的写法不再支持。
+
+直接写在 `Worker.nodes` 中的函数会自动绑定当前 Worker。Node 的语义名称与所属 Worker 的部署角色仍然独立：自定义的 `assistant` Worker 可以显式拥有一个 REASONING Node。归属必须匹配实际挂载它的 Worker，不要求匹配 Node 名称的前缀。
+
+创建 Worker 分为两步：
+
+1. `defineWorker({ type, nodes, ... })`，或使用短操作名的 `extendWorker(type, { nodes, ... })`，创建 Worker 定义。定义必须至少包含一个已实现 Node，并公开至少一个已实现入口。
+2. `runtime.register(worker)` 创建副本及其资源；再次注册得到独立副本，使用返回 handle 的 `close()` 等待执行收尾并释放资源。
+
+定义 Node 或 Worker 不会自动注册。Runtime 执行始终经过已注册 Worker，内部 Graph 也绑定当前 Worker；没有独立注册 Node 的入口。归属以 Worker 类型为单位，同类型的多个副本可以使用同一份不可变定义。这是 API 组合约束，不是对直接调用 JavaScript 函数的操作系统隔离。
+
+新增语义 Node 时，在 NodeContractMap 声明输入输出并提供 handler。下面创建一个自定义 Worker，包含新的 SEARCH.QUERY Node：
+
 ## 自定义 Worker 和 Node
 
 ```ts
@@ -51,7 +66,7 @@ const search = defineWorker({
   resources: () => ({ queries: 0 }),
   nodes: {
     "SEARCH.QUERY": defineNode<"SEARCH.QUERY", { queries: number }>(
-      "SEARCH.QUERY",
+      "research-assistant", "SEARCH.QUERY",
       async (input, ctx) => {
         ctx.resources.queries++;
         return [{ title: input.query }];

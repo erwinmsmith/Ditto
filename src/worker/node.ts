@@ -13,13 +13,21 @@ export type NodeHandler<N extends NodeType, R = undefined, C = undefined> = (
 ) => Promise<OutputOf<N>>;
 
 export interface NodeDefinition<N extends NodeType, R = undefined, C = undefined> {
+  /** Owning Worker definition type; replicas share the definition, not resources. */
+  readonly workerType: WorkerType;
   readonly type: N;
   readonly execute: NodeHandler<N, R, C>;
 }
 
 export function defineNode<N extends NodeType, R = undefined, C = undefined>(
+  workerType: WorkerType,
   type: N,
   execute: NodeHandler<NoInfer<N>, R, C>,
 ): NodeDefinition<N, R, C> {
-  return Object.freeze({ type, execute });
+  if (typeof workerType !== "string" || !workerType.trim()) throw new Error("Node requires an owning Worker type");
+  if (typeof type !== "string" || !/^[^.\s]+(?:\.[^.\s]+)+$/.test(type)) {
+    throw new Error("Node type must be a fully qualified name");
+  }
+  if (typeof execute !== "function") throw new Error(`Missing handler for ${type}`);
+  return Object.freeze({ workerType, type, execute });
 }

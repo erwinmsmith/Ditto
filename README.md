@@ -45,7 +45,7 @@ flowchart LR
 
 Core has **no third-party runtime dependencies**. The original 18 Node contracts remain at v1.0. The package is private and is not published to npm.
 
-A Node is the abstract representation of an operation in a Graph, optionally named with `defineNode`. Workers provide the actual handlers. Contracts and implementations live directly in their capability modules, without per-Worker `node/` directories, an Agent subsystem, or a Node class hierarchy.
+A Node is the abstract representation of an operation in a Graph, optionally defined with `defineNode(workerType, nodeType, handler)`. Each Node definition declares its owning Worker type; inline handlers are bound automatically, and Worker assembly rejects ownership mismatches. Workers provide the actual execution. Contracts and implementations live directly in their capability modules, without per-Worker `node/` directories, an Agent subsystem, or a Node class hierarchy.
 
 ```text
 src/

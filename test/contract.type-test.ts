@@ -34,6 +34,8 @@ void invalidRequest;
 import { createDitto, defineNode, defineWorker, extendWorker, graph, createInteractionNodes } from "../src/index.js";
 export function checkPublicTypes(): void {
   const runtime = createDitto();
+  // @ts-expect-error The owning Worker type is required; the old two-argument form is removed.
+  defineNode("MEMORY.RETRIEVE", async () => []);
   extendWorker("MEMORY", { nodes: {
     // @ts-expect-error Operation belongs to reasoning, not the memory namespace.
     INFER: async () => ({ role: "assistant", content: "wrong namespace" }),
@@ -56,7 +58,7 @@ export function checkPublicTypes(): void {
   // @ts-expect-error Runtime fields do not belong in Node input.
   runtime.invoke("REASONING.INFER", { messages: [], host: "remote" });
   // @ts-expect-error The output of INFER must be Message.
-  defineNode("REASONING.INFER", async () => ({ items: [] }));
+  defineNode("REASONING", "REASONING.INFER", async () => ({ items: [] }));
   defineWorker({ type: "MEMORY", nodes: {
     // Deployment roles may compose Nodes from any semantic namespace.
     "REASONING.INFER": async () => ({ role: "assistant", content: "bad" }),
