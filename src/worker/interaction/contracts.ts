@@ -22,6 +22,10 @@ export interface InteractionRunOutput { readonly content: string; readonly messa
 
 declare module "../../contracts/node-contract-map.js" {
   interface NodeContractMap {
+    "INTERACTION.ACT": NodeContract<InteractionActInput, InteractionActOutput>;
+    "INTERACTION.OBSERVE": NodeContract<InteractionObserveInput, InteractionObserveOutput>;
+    "INTERACTION.COMMUNICATE": NodeContract<InteractionCommunicateInput, InteractionCommunicateOutput>;
+    "INTERACTION.OUTPUT": NodeContract<InteractionOutputInput, InteractionOutputOutput>;
     "INTERACTION.RUN": NodeContract<InteractionRunInput, InteractionRunOutput>;
     "INTERACTION.TOOL": NodeContract<{ readonly name: string; readonly arguments: JsonObject }, JsonValue>;
     "INTERACTION.SKILL": NodeContract<{ readonly name: string }, Skill>;

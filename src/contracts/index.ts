@@ -1,3 +1,4 @@
+/** Type-only public entry; importing it includes the built-in Worker contracts. */
 export type * from "./common.js";
 export type * from "../worker/context/contracts.js";
 export type * from "../worker/memory/contracts.js";

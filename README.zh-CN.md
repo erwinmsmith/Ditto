@@ -75,7 +75,7 @@ npm run check
 cp .env.example .env
 ```
 
-构建后运行 `node examples/worker-graph.ts`，无需 Key 即可执行四个 Worker 的确定性本地示例。接入真实模型时，在 `.env` 配置 Provider/模型和权限，详见 [Interaction 配置](docs/interaction-runtime.md)。
+`examples/` 当前留空，后续用于通过 npm 包构建不同 Agent 的完整例子。接入真实模型时，在 `.env` 配置 Provider/模型和权限，详见 [Interaction 配置](docs/interaction-runtime.md)。
 
 ```ts
 import { createDitto, defineWorker, createInteractionNodes, loadRuntimeConfig } from "@ditto/core";

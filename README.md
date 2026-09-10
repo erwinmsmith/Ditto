@@ -75,7 +75,7 @@ npm run check
 cp .env.example .env
 ```
 
-Run `node examples/worker-graph.ts` after building for a local, deterministic four-Worker example with no credentials. For real models, configure a provider/model and permissions in `.env`; see the [Interaction configuration guide](docs/interaction-runtime.md).
+`examples/` is reserved for future Agents built using the npm package and is currently empty. Configure a provider/model and permissions in `.env` for real models; see the [Interaction configuration guide](docs/interaction-runtime.md).
 
 ```ts
 import { createDitto, defineWorker, createInteractionNodes, loadRuntimeConfig } from "@ditto/core";

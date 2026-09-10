@@ -17,12 +17,13 @@
 
 | 代码/示例 | 阅读位置 |
 | --- | --- |
-| `src/contracts/`、`src/worker/node.ts` | 契约文档、开发与接入 |
+| `src/contracts/` | 共享数据类型和通用类型协议，见架构中的 contracts 边界 |
+| `src/worker/*/contracts.ts`、`src/worker/node.ts` | 各 Worker 的 Node 契约、共享 handler 类型；见开发与接入 |
 | `src/worker/define-worker.ts`、`src/runtime/graph.ts`、`router.ts` | 架构、Worker 通信 |
 | `src/runtime/config.ts`、`services.ts`、`src/worker/reasoning/providers/`、`src/runtime/sandbox/` | Agent 与运行配置 |
 | `src/runtime/communication/`、`src/runtime/artifact.ts` | Worker 通信 |
 | `src/worker/interaction/` | Agent 与运行配置；`INTERACTION.*` 是单独的 Node 扩展，不改写 v1.0 契约 |
-| `examples/worker-graph.ts` | 四个领域 Worker 的无 Key 本地运行示例 |
+| `examples/`（当前留空） | 后续基于 npm 包的 Agent 示例 |
 | [.env.example](../.env.example) | 环境变量完整示例 |
 
 修改公共行为时同步对应指南；修改 v1.0 输入输出时遵循契约版本规则。历史决策文档保留时间背景，不用来覆盖当前实现。

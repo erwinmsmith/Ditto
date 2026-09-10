@@ -37,3 +37,14 @@ export interface MemoryEvictInput {
   memories: readonly MemoryReference[];
 }
 export type MemoryEvictOutput = readonly MemoryReference[];
+
+
+declare module "../../contracts/node-contract-map.js" {
+  interface NodeContractMap {
+    "MEMORY.RETRIEVE": NodeContract<MemoryRetrieveInput, MemoryRetrieveOutput>;
+    "MEMORY.WRITE": NodeContract<MemoryWriteInput, MemoryWriteOutput>;
+    "MEMORY.UPDATE": NodeContract<MemoryUpdateInput, MemoryUpdateOutput>;
+    "MEMORY.CONSOLIDATE": NodeContract<MemoryConsolidateInput, MemoryConsolidateOutput>;
+    "MEMORY.EVICT": NodeContract<MemoryEvictInput, MemoryEvictOutput>;
+  }
+}

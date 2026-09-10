@@ -30,7 +30,7 @@ DITTO_ALLOW_TOOLS=echo
 DITTO_ALLOW_SKILLS=concise
 ```
 
-上面的 echo/concise 仅表示白名单配置格式，应用需要自行注册对应工具与 Skill；环境变量不会自动创建能力。`examples/worker-graph.ts` 是无需网络的结构示例，不使用这些配置。
+上面的 echo/concise 仅表示白名单配置格式，应用需要自行注册对应工具与 Skill；环境变量不会自动创建能力。`examples/` 当前留空。
 
 ## 多 Provider
 

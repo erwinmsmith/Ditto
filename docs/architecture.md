@@ -23,7 +23,7 @@ flowchart TB
 
 | 模块 | 职责 |
 | --- | --- |
-| `contracts/` | 通用 Message/Reference、NodeContractMap 汇总注册；具体业务类型归所属 Worker |
+| `contracts/` | 仅共享 Message/Reference/JSON、通用 NodeContractMap 接口与类型导出 |
 | `worker/node.ts`、`worker/execution-context.ts` | 共享 typed handler、`defineNode` 与执行上下文，不放领域操作 |
 | `worker/define-worker.ts` | `defineWorker` / `extendWorker`、公开能力与副本资源 |
 | `worker/memory/` | `contracts.ts`：Memory 实体与 RETRIEVE / WRITE / UPDATE / CONSOLIDATE / EVICT 契约 |
@@ -34,9 +34,21 @@ flowchart TB
 | `runtime/communication/` | InvokeTransport、HTTP、异步事件；调用与事件语义分离 |
 | `runtime/sandbox/` | 权限检查、工作区文件操作、隔离执行器接口 |
 
-Node 是对执行操作的抽象表示，不是每个 Worker 都需要建立的物理模块层。记忆检索直接属于 memory，模型生成直接属于 reasoning，交互循环直接属于 interaction；不再设置 `worker/<capability>/node/`，也没有独立 agent/ 目录。共享的类型化 Node 定义留在 `worker/node.ts`，18 个原有语义契约直接收在各能力模块的 `contracts.ts`；中央 `NodeContractMap` 只做类型映射。`createInteractionNodes` 返回的是 handler 映射，并不创建独立 Node 子系统。Graph 构建与调度同在 `runtime/graph.ts`，实例注册与生命周期同在 `runtime/runtime.ts`，不为目录对称增加空管理器。
+Node 是对执行操作的抽象表示，不是每个 Worker 都需要建立的物理模块层。记忆检索直接属于 memory，模型生成直接属于 reasoning，交互循环直接属于 interaction；不再设置 `worker/<capability>/node/`，也没有独立 agent/ 目录。共享的类型化 Node 定义留在 `worker/node.ts`，18 个原有语义契约直接收在各能力模块的 `contracts.ts`；各 Worker 在自己的 `contracts.ts` 中扩展 `NodeContractMap`，中央只保留通用接口。`createInteractionNodes` 返回的是 handler 映射，并不创建独立 Node 子系统。Graph 构建与调度同在 `runtime/graph.ts`，实例注册与生命周期同在 `runtime/runtime.ts`，不为目录对称增加空管理器。
 
 Memory 与 Context 这次初始化到契约层，具体存储、检索、选择、压缩策略由应用实现；不会用假实现冒充完整后端。Reasoning 已有可替换模型适配器和生成 Node；Interaction 保留可运行的工具循环。模型生成实现属于 reasoning，`createInteractionNodes` 显式组合它，避免重复实现。
+
+## contracts 放什么
+
+`contracts/` 是类型协议，不是独立业务层，也没有执行器、存储或模型逻辑：
+
+- `common.ts`：跨 Worker 共享的 Message、Reference 和 JSON 数据类型。
+- `node-contract-map.ts`：通用 NodeContract<Input, Output>、开放的 NodeContractMap 接口，以及 InputOf / OutputOf 类型推导。
+- `index.ts`：仅用 type 导出，作为 npm 包的统一类型入口；包含各 Worker 的契约声明。
+
+具体类型和 Node 名称的映射一起归属对应 Worker。例如 MemoryItem、MemoryRetrieveInput 和 MEMORY.RETRIEVE 的声明都在 `worker/memory/contracts.ts`。增加 Memory 的操作时，在 Memory 内补充契约及 handler；不需要修改 Runtime 或中央操作枚举。这些 TypeScript 类型在编译后擦除，不参与运行路由，也不提供网络输入校验。
+
+Node 是 Worker 内的操作。例如真实记忆检索实现应放 `worker/memory/retrieve.ts`，其 handler 挂到 Memory Worker 的 nodes 中；只有实现确实需要时才建文件。`worker/node.ts` 只共享 handler/defineNode 的类型和定义工具，不拥有 Memory 的能力。目前 Memory / Context 初始化到契约，尚未提供数据库、检索、压缩实现。
 
 ## Worker 是 Node 的容器
 

@@ -16,7 +16,7 @@ npm run check
 
 复制 `.env.example` 为 `.env`，按 [Agent 与运行配置](interaction-runtime.md) 设置 Provider、模型、Key 和权限。库本身不会隐式加载环境文件；由应用启动代码显式加载并调用 `loadRuntimeConfig()`。
 
-运行 `npm run build && node examples/worker-graph.ts` 可验证 Memory → Context → Reasoning → Interaction 的本地链路。示例使用确定性 handler，不访问模型或数据库；包仍未发布，通过仓库内 npm 自引用验证包入口。
+`examples/` 当前留空，后续用于通过 npm 包构建不同 Agent 的完整例子。包目前尚未发布；下面的代码仅用于说明 API。
 
 公开入口：`@ditto/core`、`contracts`、`worker`、`worker/node`、`worker/memory`、`worker/context`、`worker/reasoning`、`worker/reasoning/providers`、`worker/interaction`、`runtime`、`runtime/sandbox`。不保留顶层 `node` / `agent` / `providers` / `sandbox` 旧入口；根入口仍提供通用导出。
 

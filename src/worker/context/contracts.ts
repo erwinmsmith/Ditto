@@ -37,3 +37,14 @@ export interface ContextResetInput {
   context: Context;
 }
 export type ContextResetOutput = Context;
+
+
+declare module "../../contracts/node-contract-map.js" {
+  interface NodeContractMap {
+    "CONTEXT.LOAD": NodeContract<ContextLoadInput, ContextLoadOutput>;
+    "CONTEXT.SELECT": NodeContract<ContextSelectInput, ContextSelectOutput>;
+    "CONTEXT.UPDATE": NodeContract<ContextUpdateInput, ContextUpdateOutput>;
+    "CONTEXT.COMPRESS": NodeContract<ContextCompressInput, ContextCompressOutput>;
+    "CONTEXT.RESET": NodeContract<ContextResetInput, ContextResetOutput>;
+  }
+}

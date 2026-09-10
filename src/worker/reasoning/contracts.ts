@@ -7,6 +7,10 @@ export type GenerateOutput = ModelResponse;
 
 declare module "../../contracts/node-contract-map.js" {
   interface NodeContractMap {
+    "REASONING.INFER": NodeContract<InferInput, InferOutput>;
+    "REASONING.DELIBERATE": NodeContract<DeliberateInput, DeliberateOutput>;
+    "REASONING.REFLECT": NodeContract<ReflectInput, ReflectOutput>;
+    "REASONING.SAMPLE": NodeContract<SampleInput, SampleOutput>;
     "REASONING.GENERATE": NodeContract<GenerateInput, GenerateOutput>;
   }
 }
