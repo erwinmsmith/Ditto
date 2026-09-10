@@ -24,7 +24,7 @@ The framework aims to make development capabilities composable as nodes, expand 
 | Goal | What it means |
 | --- | --- |
 | **Agent-native** | Treat agents as first-class participants in the development workflow, with nodes as the units for organizing their capabilities. |
-| **On-demand scaling** | Add development nodes as workload and task complexity grow. |
+| **On-demand scaling** | Add Worker instances as workload and task complexity grow. |
 | **Low-cost evolution** | Make local changes to agent responsibilities and node composition with less rework across the system. |
 
 ## The node model
@@ -32,14 +32,37 @@ The framework aims to make development capabilities composable as nodes, expand 
 A development node is intended to be a composable unit of agent capability. Nodes provide a way to organize work while allowing the overall agent structure to evolve.
 
 - **Start small.** Define only the nodes needed for the current workflow.
-- **Expand as needed.** Add nodes when new capabilities or more capacity are required.
+- **Expand as needed.** Add Nodes for new semantic capabilities and Worker instances for more capacity.
 - **Evolve incrementally.** Adjust responsibilities and how nodes work together as the workflow changes.
 
-This is the conceptual model guiding the project; implementation details are still being developed.
+The initialized runtime separates semantic Nodes, Worker instances, logical Execution Graphs, and Runtime execution. Capacity scales through Worker replicas; changing a model or database implementation does not require a new Node Type.
 
 ## Project status
 
-Ditto is in its early stages. This repository currently contains the project introduction and logo. The goals above describe the intended direction; a runnable framework, installation instructions, and usage examples are not yet available.
+Ditto now contains a lightweight TypeScript framework initialization: typed Node Contracts, declarative Workers, capability-aware routing, DAG execution, invoke/emit communication, and Inline/Reference payload support. The fixed Node API remains at version 1.0.
+
+Core has no third-party runtime dependencies. The package is private and has not been published to npm. Production IPC/RPC, distributed deployment, and automatic scaling controllers remain optional future work; transport boundaries are currently verified with test adapters.
+
+## Development
+
+Requirements: Node.js 24+ and npm 11+.
+
+```bash
+npm ci
+npm run check
+```
+
+The check runs strict type checking, 15 tests, and a clean build. For local dependency consumption and the runnable example:
+
+```bash
+npm --prefix examples/experimental-consumer ci
+npm --prefix examples/experimental-consumer run check
+```
+
+- [Development and integration guide (Chinese)](docs/getting-started.md)
+- [Architecture and current boundaries (Chinese)](docs/architecture.md)
+- [Architecture review and decisions (Chinese)](docs/architecture-review-2026-09-09.md)
+- [Fixed Node API contract (Chinese)](docs/13-node-api-contract.md)
 
 ## Feedback
 
