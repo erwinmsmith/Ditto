@@ -13,24 +13,70 @@
   <a href="./README.md">English</a> · <strong>简体中文</strong>
 </p>
 
-## 概览
+## 先定义 Graph
 
-Ditto 是轻量、可扩展的 TypeScript Agent Runtime。通过增加 **Worker** 扩充容量，用 **Graph** 组合 Worker 内部的 **Node**，相同类型契约可以在本地或跨服务器执行。
+Ditto 是围绕 **Graph** 构建 Agent 的轻量 TypeScript Runtime。先声明有哪些 **Node**、它们如何连接，以及下游输入如何由上游输出生成，再由所属 **Worker** 提供实现与执行资源。
 
-Worker 是部署和资源边界，内部可以包含推理、记忆、工具、MCP 与 Skill Node；Runtime 提供路由、通信、配置和执行服务。
+一个 Graph 可表示为 **G = (V, E)**：
+
+- **V：Node 集合。** 每个顶点是一项具体操作，例如 `MEMORY.RETRIEVE` 或 `REASONING.INFER`，其实现归属某个 Worker。
+- **E：有向连接集合。** `A → B` 表示 B 等待 A 完成；`bind` 函数将依赖结果转换为 B 的输入。
+
+下面定义一个“检索 → 上下文 → 推理 → 输出”的 Graph。`retrieve` 等名称是图内逻辑 ID，`MEMORY.RETRIEVE` 等名称是对应的 Node 类型：
+
+```ts
+import { graph, type Message } from "@ditto/core";
+
+const agent = graph<Message>("retrieve-and-respond")
+  .node("retrieve", "MEMORY.RETRIEVE", [], (query) => ({ query }))
+  .node("context", "CONTEXT.LOAD", ["retrieve"], (_query, result) => ({
+    sources: result.retrieve.map((item) => item.message),
+  }))
+  .node("infer", "REASONING.INFER", ["context"], (query, result) => ({
+    messages: [query, ...result.context.items.map((item) => ({
+      role: "user" as const, content: item.content,
+    }))],
+  }))
+  .node("output", "INTERACTION.OUTPUT", ["infer"], (_query, result) => ({
+    message: result.infer,
+  }));
+```
+
+## Graph 连接图
+
+代码中的四个 Node 对应图中的四个顶点，外框标明各 Node 的 Worker 归属。Runtime 根据 Graph 执行依赖，在本地或远端选择已注册的 Worker 副本。
 
 ```mermaid
 flowchart LR
-  App[应用 Graph] --> Runtime[Runtime / Router]
-  Runtime --> Worker[Worker 副本]
-  Runtime --> HTTP[HTTP 通信]
-  HTTP --> Remote[远端 Worker]
-  Worker --> Entry[公开入口 Node]
-  Entry --> Graph[内部 Graph]
-  Graph --> Model[模型 Node]
-  Graph --> Tools[工具 / MCP Node]
-  Graph --> Skills[Skill Node]
+  subgraph M["Worker: MEMORY"]
+    R["retrieve<br/>MEMORY.RETRIEVE"]
+  end
+  subgraph C["Worker: CONTEXT"]
+    L["context<br/>CONTEXT.LOAD"]
+  end
+  subgraph T["Worker: REASONING"]
+    I["infer<br/>REASONING.INFER"]
+  end
+  subgraph X["Worker: INTERACTION"]
+    O["output<br/>INTERACTION.OUTPUT"]
+  end
+  R --> L
+  L --> I
+  I --> O
 ```
+
+同一个连接结构也可以写成邻接矩阵。按 `retrieve, context, infer, output` 排列，**行是起点、列是终点**，`1` 表示存在直接连接，`0` 表示不存在：
+
+| 从 ↓ / 到 → | retrieve | context | infer | output |
+| --- | ---: | ---: | ---: | ---: |
+| retrieve | 0 | 1 | 0 | 0 |
+| context | 0 | 0 | 1 | 0 |
+| infer | 0 | 0 | 0 | 1 |
+| output | 0 | 0 | 0 | 0 |
+
+连接图和矩阵描述同一份依赖关系；具体的数据转换由代码中的 `bind` 函数定义。一个 Node 类型可在图中出现多次，每次使用不同逻辑 ID。当前 Graph 是有向无环图（DAG），也支持独立分支并发及多路依赖汇合。
+
+**Node 定义能力，Graph 定义连接，Worker 承载执行。** 调整 Agent 结构时修改 Node 与连接；增加执行容量时注册更多 Worker 副本，Graph 定义无需改变。
 
 ## 当前能力
 
@@ -77,27 +123,23 @@ cp .env.example .env
 
 `examples/` 当前留空，后续用于通过 npm 包构建不同 Agent 的完整例子。接入真实模型时，在 `.env` 配置 Provider/模型和权限，详见 [Interaction 配置](docs/interaction-runtime.zh-CN.md)。
 
-```ts
-import { createDitto, defineWorker, createInteractionNodes, loadRuntimeConfig } from "@ditto/core";
+继续使用上面定义的 `agent` Graph。应用提供实现这四项能力的 Worker 定义，通过 `runtime.run` 得到各 Node 的结果：
 
-const worker = defineWorker({
-  type: "INTERACTION",
-  concurrency: 4,
-  expose: ["INTERACTION.RUN"],
-  nodes: createInteractionNodes(),
-});
-const runtime = createDitto({ config: loadRuntimeConfig(), workers: [worker] });
-try {
-  runtime.register(worker); // 增加容量，不需要改变内部 Graph。
-  console.log(await runtime.invoke("INTERACTION.RUN", {
-    messages: [{ role: "user", content: "你好" }],
-  }));
-} finally {
-  await runtime.close();
+```ts
+import { createDitto, loadRuntimeConfig, type WorkerDefinition } from "@ditto/core";
+
+async function runAgent(workers: readonly WorkerDefinition[], query: Message) {
+  const runtime = createDitto({ config: loadRuntimeConfig(), workers });
+  try {
+    const result = await runtime.run(agent, query);
+    return result.output;
+  } finally {
+    await runtime.close();
+  }
 }
 ```
 
-这段库接入代码需要配置 Provider/模型；npm 包目前尚未发布。
+`workers` 中的定义由应用实现并传入；创建 Runtime 时会注册这些 Worker。Memory / Context 的数据策略与 Reasoning 的模型实现按需接入，使用模型适配器时需配置 Provider/模型。npm 包目前尚未发布。
 
 ## 执行边界
 

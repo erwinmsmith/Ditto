@@ -13,24 +13,70 @@
   <strong>English</strong> · <a href="./README.zh-CN.md">简体中文</a>
 </p>
 
-## Overview
+## Define the Graph First
 
-Ditto is a lightweight, extensible TypeScript Agent runtime. Scale **Workers**, compose their internal **Nodes** with **Graphs**, and use the same typed capabilities locally or across servers.
+Ditto is a lightweight TypeScript runtime for building Agents around a **Graph**. Declare the **Nodes**, their connections, and how upstream outputs form downstream inputs. Their owning **Workers** then supply implementations and execution resources.
 
-A Worker is a deployment and resource boundary. Its internal Graph can combine reasoning, memory, tools, MCP and Skills; the Runtime handles routing, communication, configuration and execution services.
+A Graph can be expressed as **G = (V, E)**:
+
+- **V: the set of Nodes.** Each vertex is a concrete operation, such as `MEMORY.RETRIEVE` or `REASONING.INFER`, whose implementation belongs to a Worker.
+- **E: the set of directed connections.** `A → B` means B waits for A; a `bind` function transforms dependency results into B's input.
+
+The following Graph connects retrieval, context loading, reasoning, and output. Names such as `retrieve` are logical IDs within the graph; names such as `MEMORY.RETRIEVE` identify the corresponding Node types:
+
+```ts
+import { graph, type Message } from "@ditto/core";
+
+const agent = graph<Message>("retrieve-and-respond")
+  .node("retrieve", "MEMORY.RETRIEVE", [], (query) => ({ query }))
+  .node("context", "CONTEXT.LOAD", ["retrieve"], (_query, result) => ({
+    sources: result.retrieve.map((item) => item.message),
+  }))
+  .node("infer", "REASONING.INFER", ["context"], (query, result) => ({
+    messages: [query, ...result.context.items.map((item) => ({
+      role: "user" as const, content: item.content,
+    }))],
+  }))
+  .node("output", "INTERACTION.OUTPUT", ["infer"], (_query, result) => ({
+    message: result.infer,
+  }));
+```
+
+## Graph Connections
+
+The four Nodes in the code are the four vertices below. The surrounding groups identify their owning Workers. The Runtime follows the Graph's dependencies and selects registered Worker replicas locally or remotely.
 
 ```mermaid
 flowchart LR
-  App[Application Graph] --> Runtime[Runtime / Router]
-  Runtime --> Worker[Worker replica]
-  Runtime --> HTTP[HTTP transport]
-  HTTP --> Remote[Remote Worker]
-  Worker --> Entry[Public entry Node]
-  Entry --> Graph[Internal Graph]
-  Graph --> Model[Model Node]
-  Graph --> Tools[Tool / MCP Node]
-  Graph --> Skills[Skill Node]
+  subgraph M["Worker: MEMORY"]
+    R["retrieve<br/>MEMORY.RETRIEVE"]
+  end
+  subgraph C["Worker: CONTEXT"]
+    L["context<br/>CONTEXT.LOAD"]
+  end
+  subgraph T["Worker: REASONING"]
+    I["infer<br/>REASONING.INFER"]
+  end
+  subgraph X["Worker: INTERACTION"]
+    O["output<br/>INTERACTION.OUTPUT"]
+  end
+  R --> L
+  L --> I
+  I --> O
 ```
+
+The same structure can be expressed as an adjacency matrix. In the order `retrieve, context, infer, output`, **rows are sources and columns are destinations**. A `1` indicates a direct connection; a `0` indicates none:
+
+| From ↓ / To → | retrieve | context | infer | output |
+| --- | ---: | ---: | ---: | ---: |
+| retrieve | 0 | 1 | 0 | 0 |
+| context | 0 | 0 | 1 | 0 |
+| infer | 0 | 0 | 0 | 1 |
+| output | 0 | 0 | 0 | 0 |
+
+The diagram and matrix describe the same dependencies; the `bind` functions in code define the actual data transformations. A Node type may appear multiple times with distinct logical IDs. Graphs are currently directed acyclic graphs (DAGs), with support for concurrent independent branches and joins across multiple dependencies.
+
+**Nodes define capabilities, Graphs define connections, and Workers execute them.** Change Nodes and connections to reshape an Agent. Register more Worker replicas to add capacity without changing the Graph definition.
 
 ## What is implemented
 
@@ -77,27 +123,23 @@ cp .env.example .env
 
 `examples/` is reserved for future Agents built using the npm package and is currently empty. Configure a provider/model and permissions in `.env` for real models; see the [Interaction configuration guide](docs/interaction-runtime.md).
 
-```ts
-import { createDitto, defineWorker, createInteractionNodes, loadRuntimeConfig } from "@ditto/core";
+Use the `agent` Graph defined above. Supply application-owned Worker definitions implementing its four capabilities, then execute it through `runtime.run` to obtain the Node results:
 
-const worker = defineWorker({
-  type: "INTERACTION",
-  concurrency: 4,
-  expose: ["INTERACTION.RUN"],
-  nodes: createInteractionNodes(),
-});
-const runtime = createDitto({ config: loadRuntimeConfig(), workers: [worker] });
-try {
-  runtime.register(worker); // Add capacity without changing the internal Graph.
-  console.log(await runtime.invoke("INTERACTION.RUN", {
-    messages: [{ role: "user", content: "Hello" }],
-  }));
-} finally {
-  await runtime.close();
+```ts
+import { createDitto, loadRuntimeConfig, type WorkerDefinition } from "@ditto/core";
+
+async function runAgent(workers: readonly WorkerDefinition[], query: Message) {
+  const runtime = createDitto({ config: loadRuntimeConfig(), workers });
+  try {
+    const result = await runtime.run(agent, query);
+    return result.output;
+  } finally {
+    await runtime.close();
+  }
 }
 ```
 
-This library snippet requires a configured model/provider. The npm package has not been published yet.
+The application implements and supplies `workers`; creating the Runtime registers those definitions. Provide the Memory/Context data strategies and Reasoning implementation your application needs, and configure a provider/model when using model adapters. The npm package has not been published yet.
 
 ## Execution boundaries
 
