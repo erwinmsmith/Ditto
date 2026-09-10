@@ -1,7 +1,6 @@
 import type {
   InputOf,
   Message,
-  NodeRequest,
   OutputOf,
 } from "../src/index.js";
 
@@ -21,16 +20,10 @@ type SampleOutputIsFixed = Expect<
   Equal<OutputOf<"REASONING.SAMPLE">, readonly Message[]>
 >;
 
-const validRequest: NodeRequest<"REASONING.SAMPLE"> = {
-  node: "REASONING.SAMPLE",
-  input: { messages: [], count: 2 },
-};
+const validRequest: InputOf<"REASONING.SAMPLE"> = { messages: [], count: 2 };
 
-const invalidRequest: NodeRequest<"REASONING.SAMPLE"> = {
-  node: "REASONING.SAMPLE",
-  // @ts-expect-error count is fixed and required by the contract.
-  input: { messages: [] },
-};
+// @ts-expect-error count is fixed and required by the contract.
+const invalidRequest: InputOf<"REASONING.SAMPLE"> = { messages: [] };
 
 void (null as unknown as InferInputIsFixed);
 void (null as unknown as SampleOutputIsFixed);
@@ -38,9 +31,14 @@ void validRequest;
 void invalidRequest;
 
 // This body is compiled, never executed. Negative checks protect API inference.
-import { createDitto, defineNode, defineWorker, graph } from "../src/index.js";
+import { createDitto, defineNode, defineWorker, graph, createAgentNodes } from "../src/index.js";
 export function checkPublicTypes(): void {
   const runtime = createDitto();
+  defineWorker({ type: "assistant", resources: () => ({ count: 0 }),
+    nodes: createAgentNodes<{ count: number }>(), expose: ["AGENT.RUN"],
+  });
+  // @ts-expect-error Tool arguments must be a JSON object.
+  runtime.invoke("AGENT.TOOL", { name: "echo", arguments: "bad" });
   // @ts-expect-error Model providers are not automatically new semantic Nodes.
   runtime.invoke("REASONING.INFER.PROVIDER", { messages: [] });
   // @ts-expect-error SAMPLE keeps its required count.
@@ -50,7 +48,7 @@ export function checkPublicTypes(): void {
   // @ts-expect-error The output of INFER must be Message.
   defineNode("REASONING.INFER", async () => ({ items: [] }));
   defineWorker({ type: "MEMORY", nodes: {
-    // @ts-expect-error A Worker declares Nodes in its own namespace.
+    // Deployment roles may compose Nodes from any semantic namespace.
     "REASONING.INFER": async () => ({ role: "assistant", content: "bad" }),
   } });
   defineWorker({ type: "REASONING", nodes: {
@@ -63,7 +61,7 @@ export function checkPublicTypes(): void {
   // @ts-expect-error Runtime cannot widen the Graph input type to fit a caller.
   runtime.run(agent, 1);
   // @ts-expect-error Declared resources must have an instance factory.
-  defineWorker<"REASONING", { model: string }>({ type: "REASONING", nodes: {
+  defineWorker<{ model: string }>({ type: "REASONING", nodes: {
     "REASONING.INFER": async () => ({ role: "assistant", content: "ok" }),
   } });
   agent.node("later", "REASONING.REFLECT", ["infer"], (_input, outputs) => {

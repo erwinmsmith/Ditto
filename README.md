@@ -15,55 +15,87 @@
 
 ## Overview
 
-Ditto is an agent-native development node framework built around a simple idea: your agent system should be able to grow and change with the work it does.
+Ditto is a lightweight, extensible TypeScript Agent runtime. Scale **Workers**, compose their internal **Nodes** with **Graphs**, and use the same typed capabilities locally or across servers.
 
-The framework aims to make development capabilities composable as nodes, expand capacity when needed, and reduce the effort required to update agent structures. Start with a small setup, then adapt its capabilities and organization as requirements evolve.
+A Worker is a deployment and resource boundary. Its internal Graph can combine reasoning, memory, tools, MCP and Skills; the Runtime handles routing, communication, configuration and execution services.
 
-## Design goals
+```mermaid
+flowchart LR
+  App[Application Graph] --> Runtime[Runtime / Router]
+  Runtime --> Worker[Worker replica]
+  Runtime --> HTTP[HTTP transport]
+  HTTP --> Remote[Remote Worker]
+  Worker --> Entry[Public entry Node]
+  Entry --> Graph[Internal Graph]
+  Graph --> Model[Model Node]
+  Graph --> Tools[Tool / MCP Node]
+  Graph --> Skills[Skill Node]
+```
 
-| Goal | What it means |
+## What is implemented
+
+| Area | Support |
 | --- | --- |
-| **Agent-native** | Treat agents as first-class participants in the development workflow, with nodes as the units for organizing their capabilities. |
-| **On-demand scaling** | Add Worker instances as workload and task complexity grow. |
-| **Low-cost evolution** | Make local changes to agent responsibilities and node composition with less rework across the system. |
+| Worker composition | Mixed Node namespaces, explicit public entries, per-replica resources, concurrency limits and cleanup |
+| Graphs | Typed immutable DAGs; application-wide routing or execution pinned inside one Worker |
+| Communication | Direct local calls, authenticated HTTP across processes/servers, custom transport interface, separate events and artifacts |
+| Models | Named providers, runtime defaults and per-Worker model selection; OpenAI-compatible and Anthropic text/tool adapters |
+| Agent Nodes | Bounded model/tool loop, validated local tools, connected MCP client adapter, explicit Skill registration/loading |
+| Configuration | Explicit environment parsing, model/key/timeout/workspace settings and default-deny permission services |
 
-## The node model
+Core has **no third-party runtime dependencies**. The original 18 Node contracts remain at v1.0. The package is private and is not published to npm.
 
-A development node is intended to be a composable unit of agent capability. Nodes provide a way to organize work while allowing the overall agent structure to evolve.
+A Node is a typed function, optionally named with `defineNode`. Core definitions live in `node.ts` and `worker.ts`; there is no parallel `nodes/` class hierarchy. The former `@ditto/core/nodes` empty-class entry has been removed.
 
-- **Start small.** Define only the nodes needed for the current workflow.
-- **Expand as needed.** Add Nodes for new semantic capabilities and Worker instances for more capacity.
-- **Evolve incrementally.** Adjust responsibilities and how nodes work together as the workflow changes.
+## Quick start
 
-The initialized runtime separates semantic Nodes, Worker instances, logical Execution Graphs, and Runtime execution. Capacity scales through Worker replicas; changing a model or database implementation does not require a new Node Type.
-
-## Project status
-
-Ditto now contains a lightweight TypeScript framework initialization: typed Node Contracts, declarative Workers, capability-aware routing, DAG execution, invoke/emit communication, and Inline/Reference payload support. The fixed Node API remains at version 1.0.
-
-Core has no third-party runtime dependencies. The package is private and has not been published to npm. Production IPC/RPC, distributed deployment, and automatic scaling controllers remain optional future work; transport boundaries are currently verified with test adapters.
-
-## Development
-
-Requirements: Node.js 24+ and npm 11+.
+Requirements: Node.js 24+ and npm 11+ (`.nvmrc` is included).
 
 ```bash
 npm ci
 npm run check
+cp .env.example .env
 ```
 
-The check runs strict type checking, 15 tests, and a clean build. For local dependency consumption and the runnable example:
+Configure a provider/model and the required permissions in `.env`; see the [Agent configuration guide](docs/agent-runtime.md). `examples/` is currently empty and reserved for future examples that build different Agents using the npm package.
 
-```bash
-npm --prefix examples/experimental-consumer ci
-npm --prefix examples/experimental-consumer run check
+```ts
+import { createDitto, defineWorker, createAgentNodes, loadRuntimeConfig } from "@ditto/core";
+
+const worker = defineWorker({
+  type: "assistant",
+  concurrency: 4,
+  expose: ["AGENT.RUN"],
+  nodes: createAgentNodes(),
+});
+const runtime = createDitto({ config: loadRuntimeConfig(), workers: [worker] });
+try {
+  runtime.register(worker); // Add capacity without changing the internal Graph.
+  console.log(await runtime.invoke("AGENT.RUN", {
+    messages: [{ role: "user", content: "Hello" }],
+  }));
+} finally {
+  await runtime.close();
+}
 ```
 
-- [Development and integration guide (Chinese)](docs/getting-started.md)
-- [Architecture and current boundaries (Chinese)](docs/architecture.md)
-- [Architecture review and decisions (Chinese)](docs/architecture-review-2026-09-09.md)
-- [Fixed Node API contract (Chinese)](docs/13-node-api-contract.md)
+This library snippet requires a configured model/provider. The npm package has not been published yet.
 
-## Feedback
+## Execution boundaries
 
-Use [GitHub Issues](https://github.com/erwinmsmith/Ditto/issues) to share use cases, discuss the node model, or suggest improvements. Concrete examples of how your agent workflow needs to scale or change are especially useful.
+`runtime.run(graph, input)` routes public Node capabilities across Workers. `ctx.run(graph, input)` runs the entire graph inside the current Worker replica, including private Nodes. `ctx.invoke(node, input)` explicitly routes another public capability.
+
+Scaling is manual registration/deployment; automatic provisioning and durable workflow recovery are not implemented. HTTP timeouts do not cancel remote effects, and calls are not automatically retried. Sandbox provides cooperative permission checks; untrusted code requires an application-supplied OS/container isolation boundary. MCP connections and external client lifecycles are owned by the application.
+
+## Documentation
+
+Start with the [documentation map](docs/README.md). Current guides are maintained in Chinese:
+
+- [Architecture and extension boundaries](docs/architecture.md)
+- [Development and package integration](docs/getting-started.md)
+- [Local and remote Worker communication](docs/worker-communication.md)
+- [Providers, tools, MCP, Skills and Sandbox](docs/agent-runtime.md)
+- [Refactor decisions](docs/refactor-2026-09-10.md)
+- [Node API v1.0 contract](docs/13-node-api-contract.md)
+
+Use [GitHub Issues](https://github.com/erwinmsmith/Ditto/issues) for concrete use cases, bugs and architecture discussions.

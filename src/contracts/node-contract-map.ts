@@ -1,7 +1,7 @@
-import type { Context, ContextItem, ContextSource } from "./context.js";
-import type { Action, Observation, Recipient } from "./interaction.js";
-import type { MemoryDraft, MemoryItem, MemoryReference } from "./memory.js";
-import type { Message } from "./message.js";
+import type {
+  Action, Context, ContextItem, ContextSource, MemoryDraft, MemoryItem, MemoryReference,
+  Message, Observation, Recipient,
+} from "./index.js";
 
 export interface InferInput {
   messages: readonly Message[];

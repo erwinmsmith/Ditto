@@ -13,57 +13,89 @@
   <a href="./README.md">English</a> · <strong>简体中文</strong>
 </p>
 
-## 项目介绍
+## 概览
 
-Ditto 是一个 agent-native 的开发节点框架，核心理念很简单：Agent 系统应该能够随着开发任务的变化而扩展和调整。
+Ditto 是轻量、可扩展的 TypeScript Agent Runtime。通过增加 **Worker** 扩充容量，用 **Graph** 组合 Worker 内部的 **Node**，相同类型契约可以在本地或跨服务器执行。
 
-框架旨在将开发能力组织成可组合的节点，在需要时扩展处理能力，并降低更新 Agent 结构所需的改造成本。从一组精简的节点开始，随着需求演进，逐步调整系统的能力和组织方式。
+Worker 是部署和资源边界，内部可以包含推理、记忆、工具、MCP 与 Skill Node；Runtime 提供路由、通信、配置和执行服务。
 
-## 设计目标
+```mermaid
+flowchart LR
+  App[应用 Graph] --> Runtime[Runtime / Router]
+  Runtime --> Worker[Worker 副本]
+  Runtime --> HTTP[HTTP 通信]
+  HTTP --> Remote[远端 Worker]
+  Worker --> Entry[公开入口 Node]
+  Entry --> Graph[内部 Graph]
+  Graph --> Model[模型 Node]
+  Graph --> Tools[工具 / MCP Node]
+  Graph --> Skills[Skill Node]
+```
 
-| 目标 | 含义 |
+## 当前能力
+
+| 方向 | 已实现 |
 | --- | --- |
-| **Agent 原生** | 将 Agent 作为开发工作流的一等参与者，以节点组织其开发能力。 |
-| **按需扩容** | 随着工作量和任务复杂度增长，按需增加 Worker 实例。 |
-| **低成本演进** | 通过局部调整 Agent 职责和节点组合，减少结构变化带来的整体改造。 |
+| Worker 组合 | 混合 Node 命名空间、公开入口声明、副本独立资源、并发上限与资源释放 |
+| Graph | 类型化不可变 DAG；支持应用全局路由和固定于当前 Worker 的内部执行 |
+| 通信 | 同进程直调、带认证的跨进程/服务器 HTTP、自定义 Transport、独立事件与 Artifact |
+| 多模型 | Provider 注册、Runtime 默认模型、Worker 模型覆盖；OpenAI 兼容和 Anthropic 文本/工具协议 |
+| Agent Node | 有界工具循环、本地工具参数校验、已连接 MCP 客户端适配、Skill 注册与显式加载 |
+| 运行配置 | 显式环境变量解析、模型/Key/超时/工作区设置、默认拒绝的权限服务 |
 
-## 节点模型
+Core **没有第三方运行时依赖**，原有 18 个 Node 契约保持 v1.0。项目目前为 private package，尚未发布至 npm。
 
-开发节点被设想为可组合的 Agent 能力单元。节点用于组织开发任务，同时让整体 Agent 结构能够持续演进。
+Node 就是带类型的处理函数，可选用 `defineNode` 命名。核心定义集中在 `node.ts`、`worker.ts`，不再并存 `node/`、`nodes/` 或空类继承体系；旧 `@ditto/core/nodes` 入口已删除。
 
-- **从小规模开始。** 只定义当前工作流需要的节点。
-- **按实际需求扩展。** 新增语义能力时增加 Node，需要更多处理容量时增加 Worker 实例。
-- **逐步调整结构。** 随着工作流变化，更新节点职责和协作方式。
+## 快速开始
 
-初始化框架明确区分语义 Node、Worker 实例、逻辑 Execution Graph 和 Runtime。容量通过 Worker 副本扩展；更换模型或数据库实现无需新增 Node Type。
-
-## 项目状态
-
-Ditto 已包含轻量 TypeScript 框架初始化：固定 Node Contract、声明式 Worker、能力感知路由、DAG 执行、invoke/emit 通信及 Inline/Reference 载荷。Node API 保持 v1.0。
-
-Core 没有第三方运行时依赖，package 仍为 private，暂未发布 npm。生产 IPC/RPC、分布式部署和自动扩容控制器属于后续可选实现；当前通过测试适配器验证传输边界。
-
-## 开发与使用
-
-要求 Node.js 24+、npm 11+。
+需要 Node.js 24+、npm 11+，仓库提供 `.nvmrc`。
 
 ```bash
 npm ci
 npm run check
+cp .env.example .env
 ```
 
-检查包括严格类型检查、15 个测试和干净构建。独立实验仓库示例：
+在 `.env` 配置 Provider/模型与所需权限，详见 [Agent 配置](docs/agent-runtime.md)。`examples/` 当前留空，后续用于展示通过 npm 包构建不同 Agent 的完整例子。
 
-```bash
-npm --prefix examples/experimental-consumer ci
-npm --prefix examples/experimental-consumer run check
+```ts
+import { createDitto, defineWorker, createAgentNodes, loadRuntimeConfig } from "@ditto/core";
+
+const worker = defineWorker({
+  type: "assistant",
+  concurrency: 4,
+  expose: ["AGENT.RUN"],
+  nodes: createAgentNodes(),
+});
+const runtime = createDitto({ config: loadRuntimeConfig(), workers: [worker] });
+try {
+  runtime.register(worker); // 增加容量，不需要改变内部 Graph。
+  console.log(await runtime.invoke("AGENT.RUN", {
+    messages: [{ role: "user", content: "你好" }],
+  }));
+} finally {
+  await runtime.close();
+}
 ```
 
-- [开发与接入指南](docs/getting-started.md)
-- [架构及当前边界](docs/architecture.md)
-- [架构差异分析与取舍](docs/architecture-review-2026-09-09.md)
-- [固定 Node API Contract](docs/13-node-api-contract.md)
+这段库接入代码需要配置 Provider/模型；npm 包目前尚未发布。
 
-## 交流与反馈
+## 执行边界
 
-欢迎通过 [GitHub Issues](https://github.com/erwinmsmith/Ditto/issues) 分享使用场景、讨论节点模型或提出改进建议。尤其欢迎描述你的 Agent 工作流在什么情况下需要扩容或调整结构。
+`runtime.run(graph, input)` 在 Worker 之间路由公开 Node；`ctx.run(graph, input)` 将整个 Graph 固定在当前 Worker 副本，可使用未公开 Node；`ctx.invoke(node, input)` 明确路由另一项公开能力。
+
+当前通过注册和部署扩容，没有自动开机器或持久化工作流恢复。HTTP 超时不会取消远端副作用，也不会自动重试。Sandbox 提供合作式权限检查；不可信代码需要应用提供 OS/容器隔离。MCP 连接和外部客户端生命周期由应用管理。
+
+## 文档
+
+从 [文档地图](docs/README.md) 开始：
+
+- [整体架构与扩展边界](docs/architecture.md)
+- [开发与包接入](docs/getting-started.md)
+- [本地与跨服务器 Worker 通信](docs/worker-communication.md)
+- [Provider、工具、MCP、Skill 与 Sandbox](docs/agent-runtime.md)
+- [本次重构说明](docs/refactor-2026-09-10.md)
+- [Node API v1.0 契约](docs/13-node-api-contract.md)
+
+通过 [GitHub Issues](https://github.com/erwinmsmith/Ditto/issues) 提交具体使用场景、缺陷与架构讨论。

@@ -1,55 +1,69 @@
-export type { JsonObject, JsonPrimitive, JsonValue } from "./json.js";
-export type {
-  Message,
-  MessageContent,
-  MessagePart,
-  MessageRole,
-  Reference,
-} from "./message.js";
-export type { Context, ContextItem, ContextSource } from "./context.js";
-export type { MemoryDraft, MemoryItem, MemoryReference } from "./memory.js";
-export type { Action, Observation, Recipient } from "./interaction.js";
-export type {
-  ContextCompressInput,
-  ContextCompressOutput,
-  ContextLoadInput,
-  ContextLoadOutput,
-  ContextResetInput,
-  ContextResetOutput,
-  ContextSelectInput,
-  ContextSelectOutput,
-  ContextUpdateInput,
-  ContextUpdateOutput,
-  DeliberateInput,
-  DeliberateOutput,
-  InferInput,
-  InferOutput,
-  InputOf,
-  InteractionActInput,
-  InteractionActOutput,
-  InteractionCommunicateInput,
-  InteractionCommunicateOutput,
-  InteractionObserveInput,
-  InteractionObserveOutput,
-  InteractionOutputInput,
-  InteractionOutputOutput,
-  L2NodeType,
-  MemoryConsolidateInput,
-  MemoryConsolidateOutput,
-  MemoryEvictInput,
-  MemoryEvictOutput,
-  MemoryRetrieveInput,
-  MemoryRetrieveOutput,
-  MemoryUpdateInput,
-  MemoryUpdateOutput,
-  MemoryWriteInput,
-  MemoryWriteOutput,
-  NodeContract,
-  NodeContractMap,
-  OutputOf,
-  ReflectInput,
-  ReflectOutput,
-  SampleInput,
-  SampleOutput,
-} from "./node-contract-map.js";
+export type JsonPrimitive = string | number | boolean | null;
 
+export type JsonValue =
+  | JsonPrimitive
+  | readonly JsonValue[]
+  | { readonly [key: string]: JsonValue };
+
+export type JsonObject = Readonly<Record<string, JsonValue>>;
+
+export type MessageRole = "system" | "user" | "assistant" | "tool";
+
+export interface Reference {
+  uri: string;
+  mediaType?: string;
+}
+
+export type MessagePart =
+  | { type: "text"; text: string }
+  | { type: "json"; data: JsonValue }
+  | { type: "reference"; reference: Reference };
+
+export type MessageContent = string | JsonValue | readonly MessagePart[];
+
+export interface Message {
+  role: MessageRole;
+  content: MessageContent;
+  name?: string;
+}
+
+export interface ContextItem {
+  id: string;
+  content: MessageContent;
+}
+
+export interface Context {
+  items: readonly ContextItem[];
+}
+
+export type ContextSource = Message | Reference;
+
+export interface MemoryDraft {
+  message: Message;
+}
+
+export interface MemoryItem {
+  id: string;
+  message: Message;
+}
+
+export interface MemoryReference {
+  id: string;
+}
+
+export interface Action {
+  name: string;
+  arguments: JsonObject;
+}
+
+export interface Observation {
+  source: string;
+  message: Message;
+}
+
+export interface Recipient {
+  id: string;
+  channel?: string;
+}
+
+export type * from "./node-contract-map.js";

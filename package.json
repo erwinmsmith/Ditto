@@ -18,21 +18,29 @@
       "types": "./dist/contracts/index.d.ts",
       "import": "./dist/contracts/index.js"
     },
-    "./nodes": {
-      "types": "./dist/nodes/index.d.ts",
-      "import": "./dist/nodes/index.js"
-    },
     "./node": {
-      "types": "./dist/node/index.d.ts",
-      "import": "./dist/node/index.js"
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js"
     },
     "./worker": {
-      "types": "./dist/worker/index.d.ts",
-      "import": "./dist/worker/index.js"
+      "types": "./dist/worker.d.ts",
+      "import": "./dist/worker.js"
     },
     "./runtime": {
       "types": "./dist/runtime/index.d.ts",
       "import": "./dist/runtime/index.js"
+    },
+    "./providers": {
+      "types": "./dist/providers/index.d.ts",
+      "import": "./dist/providers/index.js"
+    },
+    "./sandbox": {
+      "types": "./dist/sandbox/index.d.ts",
+      "import": "./dist/sandbox/index.js"
+    },
+    "./agent": {
+      "types": "./dist/agent/index.d.ts",
+      "import": "./dist/agent/index.js"
     }
   },
   "scripts": {

@@ -9,3 +9,6 @@ export type { EventFabric, EventFailure, EventHandler, RuntimeEvent } from "./ev
 export type {
   ExecutionScope, InvocationEnvelope, InvocationResult, InvokeTransport, RemoteWorker, WorkerAddress,
 } from "./transport.js";
+export * from "./config.js";
+export * from "./services.js";
+export * from "./http.js";

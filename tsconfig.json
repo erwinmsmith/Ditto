@@ -18,11 +18,21 @@
     "sourceMap": true,
     "skipLibCheck": true,
     "paths": {
-      "@ditto/core": ["./src/index.ts"],
-      "@ditto/core/*": ["./src/*/index.ts"]
+      "@ditto/core": [
+        "./src/index.ts"
+      ],
+      "@ditto/core/*": [
+        "./src/*/index.ts"
+      ],
+      "@ditto/core/node": [
+        "./src/node.ts"
+      ],
+      "@ditto/core/worker": [
+        "./src/worker.ts"
+      ]
     },
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "examples/**/*.ts", "scripts/**/*.ts"],
+  "include": ["src/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"],
   "exclude": ["dist", ".test-dist", "**/node_modules"]
 }

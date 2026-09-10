@@ -1,5 +1,7 @@
 # 2026-09-09 架构理解与差异分析
 
+> 历史记录：描述 2026-09-09 初始化阶段。当前实现以 [架构](architecture.md) 和 [本次重构说明](refactor-2026-09-10.md) 为准。
+
 本次调整将 Ditto 从按一级分类挂载的消息端点骨架，改为 Node-native Runtime 初始化。Node 是语义能力，Worker 是实现和资源边界，Graph 是逻辑执行描述，Runtime 选择实例与通信机制。固定 Contract v1.0 不变。
 
 ## 参考依据与优先级
@@ -65,6 +67,6 @@ Graph 从直接调用切换到序列化适配器时无需改定义。测试以�
 
 `npm run check` 会检查所有类型、运行测试并干净构建。`test/reference-contract.ts` 来自固定文档的全部 TypeScript 段落，测试保证基准与文档一致，类型检查比较内置 18 个 Contract 的完整输入输出结构。实验扩展节点不混入内置规范。
 
-`examples/experimental-consumer` 有独立 package.json/tsconfig，使用 `file:../..` 依赖。它校验生成的公开声明、运行跨能力 Graph、注册额外副本，并通过公开模块扩展自定义 Worker，证明消费端不必依赖源码别名。
+历史阶段的 `examples/experimental-consumer`（现已移除，目录留空待补充 npm 包示例）有独立 package.json/tsconfig，使用 `file:../..` 依赖。它校验生成的公开声明、运行跨能力 Graph、注册额外副本，并通过公开模块扩展自定义 Worker，证明消费端不必依赖源码别名。
 
 后续实验代码从 `NodeRuntime.mount/execute` 改为 `createDitto/register/invoke/run`；业务实现可以转为 defineWorker handler，也可以通过固定空类实例的 execute 做轻量适配。详细边界及使用注意事项见 [architecture.md](architecture.md)。
