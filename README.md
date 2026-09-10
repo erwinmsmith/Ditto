@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./logo.png" alt="Ditto logo" width="280" />
+  <img src="./logo_project.png" alt="Ditto logo" width="280" />
 </p>
 
 <h1 align="center">Ditto</h1>
