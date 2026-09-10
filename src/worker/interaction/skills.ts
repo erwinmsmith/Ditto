@@ -1,4 +1,4 @@
-import type { Sandbox } from "../sandbox/index.js";
+import type { Sandbox } from "../../runtime/sandbox/index.js";
 
 export interface Skill { readonly name: string; readonly instructions: string }
 /** Skills supply instructions only; they cannot grant permissions or execute scripts. */

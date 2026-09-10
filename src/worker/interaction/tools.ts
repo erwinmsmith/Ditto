@@ -1,6 +1,6 @@
-import type { JsonObject, JsonValue } from "../contracts/index.js";
+import type { JsonObject, JsonValue } from "../../contracts/index.js";
 import type { WorkerContext } from "../node.js";
-import { jsonObject, type ToolSchema } from "../providers/index.js";
+import { jsonObject, type ToolSchema } from "../reasoning/providers/index.js";
 
 export interface ToolDefinition extends ToolSchema {
   /** Required for local tools: reject invalid model-generated arguments before effects. */

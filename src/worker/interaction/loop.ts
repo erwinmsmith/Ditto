@@ -1,12 +1,13 @@
-import type { AgentInput, AgentOutput } from "./contracts.js";
-import { graph } from "../runtime/graph.js";
-import type { ModelSelection } from "../runtime/config.js";
-import type { ModelMessage, ToolCall } from "../providers/index.js";
-import type { WorkerNodes } from "../worker.js";
+import type { InteractionRunInput, InteractionRunOutput } from "./contracts.js";
+import { graph } from "../../runtime/graph.js";
+import type { ModelSelection } from "../../runtime/config.js";
+import type { ModelMessage, ToolCall } from "../reasoning/providers/index.js";
+import type { WorkerNodes } from "../define-worker.js";
 import { SkillRegistry } from "./skills.js";
 import { ToolRegistry } from "./tools.js";
+import { createGenerateNode } from "../reasoning/generate.js";
 
-export interface AgentNodeOptions {
+export interface InteractionNodeOptions {
   readonly model?: ModelSelection;
   readonly tools?: ToolRegistry;
   readonly skills?: SkillRegistry;
@@ -15,28 +16,24 @@ export interface AgentNodeOptions {
 
 // Immutable plans are shared across turns and replicas; each run owns its outputs.
 const skillPlan = graph<string>("agent-skill")
-  .node("skill", "AGENT.SKILL", [], (name) => ({ name }));
+  .node("skill", "INTERACTION.SKILL", [], (name) => ({ name }));
 const modelPlan = graph<readonly ModelMessage[]>("agent-turn")
-  .node("response", "AGENT.GENERATE", [], (messages) => ({ messages }));
+  .node("response", "REASONING.GENERATE", [], (messages) => ({ messages }));
 const toolPlan = graph<ToolCall>("agent-tool")
-  .node("result", "AGENT.TOOL", [], (call) => ({ name: call.name, arguments: call.arguments }));
+  .node("result", "INTERACTION.TOOL", [], (call) => ({ name: call.name, arguments: call.arguments }));
 
 /** Functionality lives in Nodes. Runtime only supplies providers/config/permissions. */
-export function createAgentNodes<R = undefined, C = undefined>(options: AgentNodeOptions = {}) {
+export function createInteractionNodes<R = undefined, C = undefined>(options: InteractionNodeOptions = {}) {
   const tools = options.tools ?? new ToolRegistry();
   const skills = options.skills ?? new SkillRegistry();
   return {
-    "AGENT.GENERATE": async (input, ctx) => {
-      const selection = options.model ?? ctx.services.config.model;
-      if (!selection?.provider || !selection.model) throw new Error("No model selected");
-      return ctx.services.providers.get(selection.provider).generate({
-        model: selection.model, messages: input.messages, tools: tools.list(ctx),
-        signal: AbortSignal.timeout(ctx.services.config.timeoutMs),
-      });
-    },
-    "AGENT.TOOL": async (input, ctx) => tools.call(input.name, input.arguments, ctx),
-    "AGENT.SKILL": async (input, ctx) => skills.get(input.name, ctx.services.sandbox),
-    "AGENT.RUN": async (input: AgentInput, ctx): Promise<AgentOutput> => {
+    // Explicitly compose a reasoning-owned Node into this local interaction loop.
+    "REASONING.GENERATE": createGenerateNode<R, C>({
+      ...(options.model ? { model: options.model } : {}), tools: (ctx) => tools.list(ctx),
+    }),
+    "INTERACTION.TOOL": async (input, ctx) => tools.call(input.name, input.arguments, ctx),
+    "INTERACTION.SKILL": async (input, ctx) => skills.get(input.name, ctx.services.sandbox),
+    "INTERACTION.RUN": async (input: InteractionRunInput, ctx): Promise<InteractionRunOutput> => {
       const maxTurns = options.maxTurns ?? ctx.services.config.maxTurns;
       if (!Number.isSafeInteger(maxTurns) || maxTurns < 1) throw new Error("maxTurns must be a positive integer");
       const messages: ModelMessage[] = [];

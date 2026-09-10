@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createDitto, defineNode, defineWorker } from "../src/index.js";
+import { createDitto, defineNode, defineWorker, extendWorker } from "../src/index.js";
 
 declare module "../src/contracts/node-contract-map.js" {
   interface NodeContractMap {
@@ -14,8 +14,8 @@ test("an experiment extends an existing capability and creates a custom Worker",
     defineWorker({ type: "MEMORY", nodes: {
       "MEMORY.ARCHIVE": defineNode("MEMORY.ARCHIVE", async (input) => ({ archived: input.ids.length })),
     } }),
-    defineWorker({ type: "BROWSER", nodes: {
-      "BROWSER.OPEN": async (input) => ({ title: input.url }),
+    extendWorker("BROWSER", { nodes: {
+      OPEN: async (input) => ({ title: input.url }),
     } }),
   ] });
   assert.deepEqual(await ditto.invoke("MEMORY.ARCHIVE", { ids: ["1", "2"] }), { archived: 2 });

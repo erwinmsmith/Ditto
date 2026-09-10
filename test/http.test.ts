@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { once } from "node:events";
 import test from "node:test";
-import { createDitto, defineWorker, createHttpTransport, createWorkerHttpHandler, createAgentNodes, ProviderRegistry, loadRuntimeConfig } from "../src/index.js";
+import { createDitto, defineWorker, createHttpTransport, createWorkerHttpHandler, createInteractionNodes, ProviderRegistry, loadRuntimeConfig } from "../src/index.js";
 
 test("real HTTP transports run remote workers and reject auth, malformed envelopes and oversized requests", async () => {
   let executions = 0;
@@ -42,8 +42,8 @@ test("remote Agent entry uses server-owned model configuration and runs private 
   } });
   const config = loadRuntimeConfig({ DITTO_PROVIDERS: "server_model", DITTO_PROVIDER_SERVER_MODEL_API_KEY: "private-fixture" });
   const remote = createDitto({ hostId: "agent-server", config, providers });
-  const handle = remote.register(defineWorker({ type: "assistant", expose: ["AGENT.RUN"],
-    nodes: createAgentNodes({ model: { provider: "server-model", model: "owned-by-server" } }),
+  const handle = remote.register(defineWorker({ type: "assistant", expose: ["INTERACTION.RUN"],
+    nodes: createInteractionNodes({ model: { provider: "server-model", model: "owned-by-server" } }),
   }));
   const server = createServer(createWorkerHttpHandler(remote, { token: "fixture-token" }));
   server.listen(0, "127.0.0.1"); await once(server, "listening");
@@ -53,12 +53,12 @@ test("remote Agent entry uses server-owned model configuration and runs private 
     assert.equal(JSON.stringify(envelope).includes("private-fixture"), false);
     return transport.invoke(envelope);
   } }] });
-  local.registerRemote({ address: handle.address, capabilities: ["AGENT.RUN"], transportId: transport.id });
+  local.registerRemote({ address: handle.address, capabilities: ["INTERACTION.RUN"], transportId: transport.id });
   try {
-    const result = await local.invoke("AGENT.RUN", { messages: [{ role: "user", content: "hello" }] });
+    const result = await local.invoke("INTERACTION.RUN", { messages: [{ role: "user", content: "hello" }] });
     assert.equal(result.content, "remote-agent");
     assert.equal(result.turns, 1);
-    await assert.rejects(remote.receive({ id: "private-node", target: handle.address, node: "AGENT.GENERATE",
+    await assert.rejects(remote.receive({ id: "private-node", target: handle.address, node: "REASONING.GENERATE",
       payload: { kind: "inline", value: { messages: [] } } }), /mismatched/);
   } finally {
     await local.close(); await remote.close(); server.closeAllConnections();

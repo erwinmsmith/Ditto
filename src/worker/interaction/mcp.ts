@@ -1,5 +1,5 @@
-import type { JsonObject, JsonValue } from "../contracts/index.js";
-import type { Sandbox } from "../sandbox/index.js";
+import type { JsonObject, JsonValue } from "../../contracts/index.js";
+import type { Sandbox } from "../../runtime/sandbox/index.js";
 import type { ToolRegistry } from "./tools.js";
 
 /** Wrap a connected MCP SDK client. The application owns connect/auth/close. */

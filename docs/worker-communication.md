@@ -18,13 +18,13 @@
 
 ```ts
 import { createServer } from "node:http";
-import { createDitto, defineWorker, createAgentNodes, loadRuntimeConfig, createWorkerHttpHandler } from "@ditto/core";
+import { createDitto, defineWorker, createInteractionNodes, loadRuntimeConfig, createWorkerHttpHandler } from "@ditto/core";
 
 const token = process.env.DITTO_WORKER_TOKEN;
 if (!token) throw new Error("Set DITTO_WORKER_TOKEN");
 const runtime = createDitto({ hostId: "server-a", processId: "agent-service", config: loadRuntimeConfig() });
 const worker = runtime.register(defineWorker({
-  type: "assistant", concurrency: 8, expose: ["AGENT.RUN"], nodes: createAgentNodes(),
+  type: "assistant", concurrency: 8, expose: ["INTERACTION.RUN"], nodes: createInteractionNodes(),
 }), "assistant-a");
 const server = createServer(createWorkerHttpHandler(runtime, { token }));
 server.listen(8080, "127.0.0.1");
@@ -44,10 +44,10 @@ const transport = createHttpTransport({
 const runtime = createDitto({ hostId: "client", transports: [transport] });
 runtime.registerRemote({
   address: { workerId: "assistant-a", workerType: "assistant", hostId: "server-a", processId: "agent-service" },
-  capabilities: ["AGENT.RUN"], transportId: transport.id,
+  capabilities: ["INTERACTION.RUN"], transportId: transport.id,
 });
 try {
-  console.log(await runtime.invoke("AGENT.RUN", { messages: [{ role: "user", content: "Hello" }] }));
+  console.log(await runtime.invoke("INTERACTION.RUN", { messages: [{ role: "user", content: "Hello" }] }));
 } finally { await runtime.close(); }
 ```
 

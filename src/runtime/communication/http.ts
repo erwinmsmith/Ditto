@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { RequestListener } from "node:http";
-import type { DittoRuntime } from "./runtime.js";
+import type { DittoRuntime } from "../runtime.js";
 import type { InvocationEnvelope, InvocationResult, InvokeTransport } from "./transport.js";
 
 export interface HttpTransportOptions {

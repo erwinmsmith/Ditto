@@ -1,12 +1,12 @@
 # Agent、Provider 与运行环境
 
-Agent 功能在 `src/agent/` 中实现为 Node。Runtime 提供基础服务，应用负责建立外部连接和选择部署策略。
+交互循环、工具、MCP 和 Skill 在 `src/worker/interaction/`，模型生成与适配器在 `src/worker/reasoning/`。没有独立 agent 子系统；Runtime 提供基础服务，应用负责建立外部连接和选择部署策略。
 
 ## 配置顺序与环境文件
 
 1. 应用通过 Node 的 `--env-file=.env`（可选文件用 `--env-file-if-exists`）加载环境。
 2. `loadRuntimeConfig()` 显式解析并校验环境变量，传给 `createDitto({ config })`。
-3. Worker 的 `createAgentNodes({ model })` 可覆盖 Runtime 默认模型；未指定则使用 `config.model`。
+3. Worker 的 `createInteractionNodes({ model })` 可覆盖 Runtime 默认模型；未指定则使用 `config.model`。
 4. `createDitto({ sandbox })` 若提供完整策略，会替代配置中的 sandbox 策略；未列出的权限仍拒绝。
 
 导入库、调用不带 config 的 createDitto 都不会读取 `.env` 或环境变量中的凭证。配置中包含环境标识、工作区、默认 Provider/模型、Provider 配置、请求超时、Agent 轮次和权限。`environment` 是运行环境标签，不会自动启动容器或切换安全等级。
@@ -30,7 +30,7 @@ DITTO_ALLOW_TOOLS=echo
 DITTO_ALLOW_SKILLS=concise
 ```
 
-上面的 echo/concise 仅表示白名单配置格式，应用需要自行注册对应工具与 Skill；环境变量不会自动创建能力。`examples/` 当前留空。
+上面的 echo/concise 仅表示白名单配置格式，应用需要自行注册对应工具与 Skill；环境变量不会自动创建能力。`examples/worker-graph.ts` 是无需网络的结构示例，不使用这些配置。
 
 ## 多 Provider
 
@@ -40,8 +40,8 @@ DITTO_ALLOW_SKILLS=concise
 
 ```ts
 const worker = defineWorker({
-  type: "reviewer", expose: ["AGENT.RUN"],
-  nodes: createAgentNodes({ model: { provider: "claude", model: "your-model-id" } }),
+  type: "reviewer", expose: ["INTERACTION.RUN"],
+  nodes: createInteractionNodes({ model: { provider: "claude", model: "your-model-id" } }),
 });
 ```
 
@@ -53,14 +53,14 @@ const worker = defineWorker({
 
 | Node | 输入/行为 |
 | --- | --- |
-| `AGENT.RUN` | 接收规范化 messages 和可选 Skill 名称；有界模型/工具循环 |
-| `AGENT.GENERATE` | 调用所选 Provider，并仅提供当前权限允许的工具 schema |
-| `AGENT.TOOL` | 检查权限、校验 arguments，然后执行本地或 MCP 工具 |
-| `AGENT.SKILL` | 按名称获取已注册且被允许的 Skill 指令 |
+| `INTERACTION.RUN` | 接收规范化 messages 和可选 Skill 名称；有界模型/工具循环 |
+| `REASONING.GENERATE` | 调用所选 Provider，并仅提供当前权限允许的工具 schema |
+| `INTERACTION.TOOL` | 检查权限、校验 arguments，然后执行本地或 MCP 工具 |
+| `INTERACTION.SKILL` | 按名称获取已注册且被允许的 Skill 指令 |
 
 这些契约独立扩展自 NodeContractMap，没有修改 v1.0 Message 或 REASONING.INFER。`ModelMessage` 单独表示工具调用 ID 与结果关联，避免把 Provider 协议字段塞进原 Message。
 
-`createAgentNodes({ tools, skills, model, maxTurns })` 返回可直接 spread 到 Worker.nodes 的四个 handler。推荐 expose 仅包含 AGENT.RUN。模型和工具任务通过 `ctx.run` 在同一副本上执行；可替换其中一个 handler来定制行为。若 Worker 另有资源/config 类型，使用 `createAgentNodes<Resource, Config>(...)`。
+`createInteractionNodes({ tools, skills, model, maxTurns })` 返回可直接 spread 到 Worker.nodes 的四个 handler。推荐 expose 仅包含 INTERACTION.RUN。模型和工具任务通过 `ctx.run` 在同一副本上执行；可替换其中一个 handler来定制行为。若 Worker 另有资源/config 类型，使用 `createInteractionNodes<Resource, Config>(...)`。
 
 工具请求必须属于本轮可用集合，调用 ID 不可重复。工具按顺序执行，arguments 由必需的 validate 回调校验后才产生副作用。工具异常会使 Agent 失败；MCP 返回的 isError 则保留为工具结果。最后一轮仍要求工具时直接触发上限，不执行无法再交给模型处理的副作用。
 
@@ -97,7 +97,7 @@ MCP 的网络和进程权限由建立连接的 SDK/部署沙箱约束；允许 s
 
 SkillRegistry 支持 register/list/get，以及 `load(name, path, sandbox)` 读取工作区内 SKILL.md。名称由调用方显式给定，文件完整内容作为指令保存；不隐式解析 YAML、扫描全盘、执行脚本或下载依赖。
 
-加载需要 read 与对应 skills 权限；每次读取注册内容再次检查 skills 权限。register 返回卸载函数。`AGENT.RUN` 仅加载输入中明确指定的 Skill，将其指令加入模型上下文。Skill 文本无法扩大工具/网络/执行权限，也不会自动运行引用的文件。
+加载需要 read 与对应 skills 权限；每次读取注册内容再次检查 skills 权限。register 返回卸载函数。`INTERACTION.RUN` 仅加载输入中明确指定的 Skill，将其指令加入模型上下文。Skill 文本无法扩大工具/网络/执行权限，也不会自动运行引用的文件。
 
 ## Sandbox 边界
 

@@ -40,12 +40,30 @@ flowchart LR
 | Graphs | Typed immutable DAGs; application-wide routing or execution pinned inside one Worker |
 | Communication | Direct local calls, authenticated HTTP across processes/servers, custom transport interface, separate events and artifacts |
 | Models | Named providers, runtime defaults and per-Worker model selection; OpenAI-compatible and Anthropic text/tool adapters |
-| Agent Nodes | Bounded model/tool loop, validated local tools, connected MCP client adapter, explicit Skill registration/loading |
+| Interaction Nodes | Bounded model/tool loop, validated local tools, connected MCP client adapter, explicit Skill registration/loading |
 | Configuration | Explicit environment parsing, model/key/timeout/workspace settings and default-deny permission services |
 
 Core has **no third-party runtime dependencies**. The original 18 Node contracts remain at v1.0. The package is private and is not published to npm.
 
-A Node is a typed function, optionally named with `defineNode`. Core definitions live in `node.ts` and `worker.ts`; there is no parallel `nodes/` class hierarchy. The former `@ditto/core/nodes` empty-class entry has been removed.
+A Node is the abstract representation of an operation in a Graph, optionally named with `defineNode`. Workers provide the actual handlers. Contracts and implementations live directly in their capability modules, without per-Worker `node/` directories, an Agent subsystem, or a Node class hierarchy.
+
+```text
+src/
+  contracts/                # Shared messages/references and NodeContractMap registry
+  worker/
+    define-worker.ts        # defineWorker / extendWorker
+    node.ts                 # Shared typed Node primitive
+    execution-context.ts    # Worker resources and Runtime services
+    memory/                 # Memory entities and operation contracts
+    context/                # Context entities and operation contracts
+    reasoning/              # contracts.ts, generate.ts and providers/
+    interaction/            # contracts.ts, loop.ts, tools, MCP, Skills
+  runtime/                  # Graph/scheduler, registry, capability routing, lifecycle
+    communication/          # Transport, HTTP and events
+    sandbox/                # Runtime permission service
+```
+
+Memory and Context are contract-first extension points, not bundled databases or compression engines. Applications supply their handlers and per-Worker resources. Graph is part of Runtime, not a fourth subsystem.
 
 ## Quick start
 
@@ -57,21 +75,21 @@ npm run check
 cp .env.example .env
 ```
 
-Configure a provider/model and the required permissions in `.env`; see the [Agent configuration guide](docs/agent-runtime.md). `examples/` is currently empty and reserved for future examples that build different Agents using the npm package.
+Run `node examples/worker-graph.ts` after building for a local, deterministic four-Worker example with no credentials. For real models, configure a provider/model and permissions in `.env`; see the [Interaction configuration guide](docs/interaction-runtime.md).
 
 ```ts
-import { createDitto, defineWorker, createAgentNodes, loadRuntimeConfig } from "@ditto/core";
+import { createDitto, defineWorker, createInteractionNodes, loadRuntimeConfig } from "@ditto/core";
 
 const worker = defineWorker({
-  type: "assistant",
+  type: "INTERACTION",
   concurrency: 4,
-  expose: ["AGENT.RUN"],
-  nodes: createAgentNodes(),
+  expose: ["INTERACTION.RUN"],
+  nodes: createInteractionNodes(),
 });
 const runtime = createDitto({ config: loadRuntimeConfig(), workers: [worker] });
 try {
   runtime.register(worker); // Add capacity without changing the internal Graph.
-  console.log(await runtime.invoke("AGENT.RUN", {
+  console.log(await runtime.invoke("INTERACTION.RUN", {
     messages: [{ role: "user", content: "Hello" }],
   }));
 } finally {
@@ -94,7 +112,7 @@ Start with the [documentation map](docs/README.md). Current guides are maintaine
 - [Architecture and extension boundaries](docs/architecture.md)
 - [Development and package integration](docs/getting-started.md)
 - [Local and remote Worker communication](docs/worker-communication.md)
-- [Providers, tools, MCP, Skills and Sandbox](docs/agent-runtime.md)
+- [Providers, tools, MCP, Skills and Sandbox](docs/interaction-runtime.md)
 - [Refactor decisions](docs/refactor-2026-09-10.md)
 - [Node API v1.0 contract](docs/13-node-api-contract.md)
 

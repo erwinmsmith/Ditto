@@ -1,15 +1,15 @@
 import { randomUUID } from "node:crypto";
 import type { InputOf, OutputOf } from "../contracts/index.js";
-import type { NodeType, RuntimeClient, WorkerContext } from "../node.js";
-import type { WorkerDefinition } from "../worker.js";
+import type { NodeType, RuntimeClient, WorkerContext } from "../worker/node.js";
+import type { WorkerDefinition } from "../worker/define-worker.js";
 import { PayloadCodec, type ArtifactStore } from "./artifact.js";
-import { LocalEventFabric, type EventFabric, type EventHandler, type RuntimeEvent } from "./events.js";
+import { LocalEventFabric, type EventFabric, type EventHandler, type RuntimeEvent } from "./communication/events.js";
 import { graph, runGraph, type ExecutionGraph } from "./graph.js";
 import { WorkerRouter, type WorkerEntry } from "./router.js";
 import { createRuntimeServices, type RuntimeServices, type RuntimeServiceOptions } from "./services.js";
 import type {
   ExecutionScope, InvocationEnvelope, InvocationResult, InvokeTransport, RemoteWorker, WorkerAddress,
-} from "./transport.js";
+} from "./communication/transport.js";
 
 export interface DittoOptions extends RuntimeServiceOptions {
   readonly workers?: readonly WorkerDefinition[];

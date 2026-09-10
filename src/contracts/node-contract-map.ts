@@ -1,102 +1,15 @@
 import type {
-  Action, Context, ContextItem, ContextSource, MemoryDraft, MemoryItem, MemoryReference,
-  Message, Observation, Recipient,
-} from "./index.js";
-
-export interface InferInput {
-  messages: readonly Message[];
-}
-export type InferOutput = Message;
-
-export interface DeliberateInput {
-  messages: readonly Message[];
-}
-export type DeliberateOutput = Message;
-
-export interface ReflectInput {
-  message: Message;
-  context?: readonly Message[];
-}
-export type ReflectOutput = Message;
-
-export interface SampleInput {
-  messages: readonly Message[];
-  count: number;
-}
-export type SampleOutput = readonly Message[];
-
-export interface ContextLoadInput {
-  sources: readonly ContextSource[];
-}
-export type ContextLoadOutput = Context;
-
-export interface ContextSelectInput {
-  context: Context;
-  query: Message;
-}
-export type ContextSelectOutput = Context;
-
-export interface ContextUpdateInput {
-  context: Context;
-  items: readonly ContextItem[];
-}
-export type ContextUpdateOutput = Context;
-
-export interface ContextCompressInput {
-  context: Context;
-}
-export type ContextCompressOutput = Context;
-
-export interface ContextResetInput {
-  context: Context;
-}
-export type ContextResetOutput = Context;
-
-export interface MemoryRetrieveInput {
-  query: Message;
-}
-export type MemoryRetrieveOutput = readonly MemoryItem[];
-
-export interface MemoryWriteInput {
-  memories: readonly MemoryDraft[];
-}
-export type MemoryWriteOutput = readonly MemoryItem[];
-
-export interface MemoryUpdateInput {
-  memories: readonly MemoryItem[];
-}
-export type MemoryUpdateOutput = readonly MemoryItem[];
-
-export interface MemoryConsolidateInput {
-  memories: readonly MemoryItem[];
-}
-export type MemoryConsolidateOutput = readonly MemoryItem[];
-
-export interface MemoryEvictInput {
-  memories: readonly MemoryReference[];
-}
-export type MemoryEvictOutput = readonly MemoryReference[];
-
-export interface InteractionActInput {
-  action: Action;
-}
-export type InteractionActOutput = Message;
-
-export interface InteractionObserveInput {
-  observation: Observation;
-}
-export type InteractionObserveOutput = Message;
-
-export interface InteractionCommunicateInput {
-  message: Message;
-  recipients: readonly Recipient[];
-}
-export type InteractionCommunicateOutput = Message;
-
-export interface InteractionOutputInput {
-  message: Message;
-}
-export type InteractionOutputOutput = Message;
+  InferInput, InferOutput, DeliberateInput, DeliberateOutput, ReflectInput, ReflectOutput, SampleInput, SampleOutput
+} from "../worker/reasoning/contracts.js";
+import type {
+  ContextLoadInput, ContextLoadOutput, ContextSelectInput, ContextSelectOutput, ContextUpdateInput, ContextUpdateOutput, ContextCompressInput, ContextCompressOutput, ContextResetInput, ContextResetOutput
+} from "../worker/context/contracts.js";
+import type {
+  MemoryRetrieveInput, MemoryRetrieveOutput, MemoryWriteInput, MemoryWriteOutput, MemoryUpdateInput, MemoryUpdateOutput, MemoryConsolidateInput, MemoryConsolidateOutput, MemoryEvictInput, MemoryEvictOutput
+} from "../worker/memory/contracts.js";
+import type {
+  InteractionActInput, InteractionActOutput, InteractionObserveInput, InteractionObserveOutput, InteractionCommunicateInput, InteractionCommunicateOutput, InteractionOutputInput, InteractionOutputOutput
+} from "../worker/interaction/contracts.js";
 
 export interface NodeContract<TInput, TOutput> {
   input: TInput;
@@ -140,4 +53,3 @@ export type InputOf<TNode extends L2NodeType> =
 
 export type OutputOf<TNode extends L2NodeType> =
   NodeContractMap[TNode]["output"];
-

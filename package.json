@@ -18,29 +18,41 @@
       "types": "./dist/contracts/index.d.ts",
       "import": "./dist/contracts/index.js"
     },
-    "./node": {
-      "types": "./dist/node.d.ts",
-      "import": "./dist/node.js"
-    },
     "./worker": {
-      "types": "./dist/worker.d.ts",
-      "import": "./dist/worker.js"
+      "types": "./dist/worker/index.d.ts",
+      "import": "./dist/worker/index.js"
+    },
+    "./worker/memory": {
+      "types": "./dist/worker/memory/index.d.ts",
+      "import": "./dist/worker/memory/index.js"
+    },
+    "./worker/context": {
+      "types": "./dist/worker/context/index.d.ts",
+      "import": "./dist/worker/context/index.js"
+    },
+    "./worker/reasoning": {
+      "types": "./dist/worker/reasoning/index.d.ts",
+      "import": "./dist/worker/reasoning/index.js"
+    },
+    "./worker/reasoning/providers": {
+      "types": "./dist/worker/reasoning/providers/index.d.ts",
+      "import": "./dist/worker/reasoning/providers/index.js"
+    },
+    "./worker/interaction": {
+      "types": "./dist/worker/interaction/index.d.ts",
+      "import": "./dist/worker/interaction/index.js"
     },
     "./runtime": {
       "types": "./dist/runtime/index.d.ts",
       "import": "./dist/runtime/index.js"
     },
-    "./providers": {
-      "types": "./dist/providers/index.d.ts",
-      "import": "./dist/providers/index.js"
+    "./runtime/sandbox": {
+      "types": "./dist/runtime/sandbox/index.d.ts",
+      "import": "./dist/runtime/sandbox/index.js"
     },
-    "./sandbox": {
-      "types": "./dist/sandbox/index.d.ts",
-      "import": "./dist/sandbox/index.js"
-    },
-    "./agent": {
-      "types": "./dist/agent/index.d.ts",
-      "import": "./dist/agent/index.js"
+    "./worker/node": {
+      "types": "./dist/worker/node.d.ts",
+      "import": "./dist/worker/node.js"
     }
   },
   "scripts": {

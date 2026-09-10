@@ -31,14 +31,24 @@ void validRequest;
 void invalidRequest;
 
 // This body is compiled, never executed. Negative checks protect API inference.
-import { createDitto, defineNode, defineWorker, graph, createAgentNodes } from "../src/index.js";
+import { createDitto, defineNode, defineWorker, extendWorker, graph, createInteractionNodes } from "../src/index.js";
 export function checkPublicTypes(): void {
   const runtime = createDitto();
+  extendWorker("MEMORY", { nodes: {
+    // @ts-expect-error Operation belongs to reasoning, not the memory namespace.
+    INFER: async () => ({ role: "assistant", content: "wrong namespace" }),
+  } });
+  extendWorker("MEMORY", { nodes: {
+    // @ts-expect-error Scoped operations retain their fixed output contracts.
+    RETRIEVE: async () => "not memory items",
+  } });
+  // @ts-expect-error The removed independent AGENT namespace is not a capability.
+  runtime.invoke("AGENT.RUN", { messages: [] });
   defineWorker({ type: "assistant", resources: () => ({ count: 0 }),
-    nodes: createAgentNodes<{ count: number }>(), expose: ["AGENT.RUN"],
+    nodes: createInteractionNodes<{ count: number }>(), expose: ["INTERACTION.RUN"],
   });
   // @ts-expect-error Tool arguments must be a JSON object.
-  runtime.invoke("AGENT.TOOL", { name: "echo", arguments: "bad" });
+  runtime.invoke("INTERACTION.TOOL", { name: "echo", arguments: "bad" });
   // @ts-expect-error Model providers are not automatically new semantic Nodes.
   runtime.invoke("REASONING.INFER.PROVIDER", { messages: [] });
   // @ts-expect-error SAMPLE keeps its required count.

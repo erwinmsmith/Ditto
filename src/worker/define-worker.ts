@@ -6,6 +6,29 @@ export type WorkerNodes<R = undefined, C = undefined> = {
   readonly [N in NodeType]?: NodeHandler<N, R, C> | NodeDefinition<N, R, C>;
 };
 
+/** Short operation names for a single semantic namespace, including augmentation. */
+type OperationOf<N extends string, T extends string> = N extends `${T}.${infer Op}` ? Op : never;
+export type ScopedWorkerNodes<T extends string, R = undefined, C = undefined> = {
+  readonly [Op in OperationOf<NodeType, T>]?:
+    NodeHandler<Extract<NodeType, `${T}.${Op}`>, R, C> | NodeDefinition<Extract<NodeType, `${T}.${Op}`>, R, C>;
+};
+
+export type ScopedWorkerOptions<T extends string, R = undefined, C = undefined> =
+  Omit<WorkerOptions<R, C>, "type" | "nodes"> & { readonly nodes: ScopedWorkerNodes<T, R, C> };
+
+/** Add operations in a namespace; existing Worker definitions are not mutated. */
+export function extendWorker<const T extends string, R = undefined, C = undefined>(
+  type: T, options: ScopedWorkerOptions<T, R, C>,
+): WorkerDefinition {
+  const nodes: Record<string, unknown> = {};
+  for (const [operation, handler] of Object.entries(options.nodes)) {
+    if (!operation || operation.includes(".")) throw new Error("Expected a short Node operation name");
+    nodes[`${type}.${operation}`] = handler;
+  }
+  // Requalifying keys preserves each operation's checked input/output contract.
+  return defineWorker<R, C>({ ...options, type, nodes } as WorkerOptions<R, C>);
+}
+
 export type WorkerOptions<R = undefined, C = undefined> = {
   readonly type: WorkerType;
   /** Called once per local registration, so replicas need not share resources. */

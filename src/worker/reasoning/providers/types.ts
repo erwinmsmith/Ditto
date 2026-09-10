@@ -1,4 +1,4 @@
-import type { JsonObject, JsonValue } from "../contracts/index.js";
+import type { JsonObject, JsonValue } from "../../../contracts/index.js";
 
 export interface ToolCall { readonly id: string; readonly name: string; readonly arguments: JsonObject }
 export type ModelMessage =

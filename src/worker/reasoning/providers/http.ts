@@ -1,5 +1,5 @@
-import type { ProviderConfig } from "../runtime/config.js";
-import type { Sandbox } from "../sandbox/index.js";
+import type { ProviderConfig } from "../../../runtime/config.js";
+import type { Sandbox } from "../../../runtime/sandbox/index.js";
 import { jsonObject, type ModelMessage, type ModelProvider, type ModelRequest, type ModelResponse, type ToolCall } from "./types.js";
 
 export interface HttpProviderOptions extends ProviderConfig {

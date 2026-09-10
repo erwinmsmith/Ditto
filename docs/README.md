@@ -8,8 +8,8 @@
 | [架构](architecture.md) | Worker 子结构、两种 Graph 执行范围、扩容与模块边界 | 当前设计 |
 | [开发与接入](getting-started.md) | 安装、检查、配置、包入口与自定义 Node | 当前指南 |
 | [Worker 通信](worker-communication.md) | direct / 同机跨进程 / 跨服务器、HTTP 部署、生命周期与失败语义 | 当前指南 |
-| [Agent 与运行配置](agent-runtime.md) | 多 Provider、模型与 Key、工具调用、MCP、Skill、Sandbox | 当前指南 |
-| [本次重构说明](refactor-2026-09-10.md) | 架构问题、设计判断、迁移差异、实现范围 | 本次决策记录 |
+| [Agent 与运行配置](interaction-runtime.md) | 多 Provider、模型与 Key、工具调用、MCP、Skill、Sandbox | 当前指南 |
+| [早期重构说明](refactor-2026-09-10.md) | 早期扁平结构的背景 | 历史记录；已由 Worker 归属结构替代 |
 | [Node API Contract v1.0](13-node-api-contract.md) | 原有 18 个语义 Node 的固定输入输出；历史空类不再实现 | 仍有效的契约基线 |
 | [初始化架构评审](architecture-review-2026-09-09.md) | 初始化阶段的背景和取舍 | 历史记录，架构以当前文档为准 |
 
@@ -17,12 +17,12 @@
 
 | 代码/示例 | 阅读位置 |
 | --- | --- |
-| `src/contracts/`、`src/node.ts` | 契约文档、开发与接入 |
-| `src/worker.ts`、`src/runtime/graph.ts`、`router.ts` | 架构、Worker 通信 |
-| `src/runtime/config.ts`、`services.ts`、`src/providers/`、`src/sandbox/` | Agent 与运行配置 |
-| `src/runtime/http.ts`、`transport.ts`、`events.ts`、`artifact.ts` | Worker 通信 |
-| `src/agent/` | Agent 与运行配置；`AGENT.*` 是单独的 Node 扩展，不改写 v1.0 契约 |
-| `examples/`（当前留空） | 后续通过 npm 包构建不同 Agent 的完整例子 |
+| `src/contracts/`、`src/worker/node.ts` | 契约文档、开发与接入 |
+| `src/worker/define-worker.ts`、`src/runtime/graph.ts`、`router.ts` | 架构、Worker 通信 |
+| `src/runtime/config.ts`、`services.ts`、`src/worker/reasoning/providers/`、`src/runtime/sandbox/` | Agent 与运行配置 |
+| `src/runtime/communication/`、`src/runtime/artifact.ts` | Worker 通信 |
+| `src/worker/interaction/` | Agent 与运行配置；`INTERACTION.*` 是单独的 Node 扩展，不改写 v1.0 契约 |
+| `examples/worker-graph.ts` | 四个领域 Worker 的无 Key 本地运行示例 |
 | [.env.example](../.env.example) | 环境变量完整示例 |
 
 修改公共行为时同步对应指南；修改 v1.0 输入输出时遵循契约版本规则。历史决策文档保留时间背景，不用来覆盖当前实现。

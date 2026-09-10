@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import type { SandboxPolicy } from "../sandbox/index.js";
+import type { SandboxPolicy } from "./sandbox/index.js";
 
 export interface ModelSelection { readonly provider: string; readonly model: string }
 export interface ProviderConfig {

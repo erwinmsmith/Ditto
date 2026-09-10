@@ -40,12 +40,30 @@ flowchart LR
 | Graph | 类型化不可变 DAG；支持应用全局路由和固定于当前 Worker 的内部执行 |
 | 通信 | 同进程直调、带认证的跨进程/服务器 HTTP、自定义 Transport、独立事件与 Artifact |
 | 多模型 | Provider 注册、Runtime 默认模型、Worker 模型覆盖；OpenAI 兼容和 Anthropic 文本/工具协议 |
-| Agent Node | 有界工具循环、本地工具参数校验、已连接 MCP 客户端适配、Skill 注册与显式加载 |
+| Interaction Node | 有界工具循环、本地工具参数校验、已连接 MCP 客户端适配、Skill 注册与显式加载 |
 | 运行配置 | 显式环境变量解析、模型/Key/超时/工作区设置、默认拒绝的权限服务 |
 
 Core **没有第三方运行时依赖**，原有 18 个 Node 契约保持 v1.0。项目目前为 private package，尚未发布至 npm。
 
-Node 就是带类型的处理函数，可选用 `defineNode` 命名。核心定义集中在 `node.ts`、`worker.ts`，不再并存 `node/`、`nodes/` 或空类继承体系；旧 `@ditto/core/nodes` 入口已删除。
+Node 是 Graph 中对执行操作的抽象表示，可选用 `defineNode` 命名；实际 handler 由 Worker 提供。契约和实现直接归对应能力模块，不为各 Worker 建立 `node/` 目录，也没有独立 Agent 子系统或 Node 类继承层级。
+
+```text
+src/
+  contracts/                # 通用 Message / Reference 和 NodeContractMap 汇总注册
+  worker/
+    define-worker.ts        # defineWorker / extendWorker
+    node.ts                 # 共享的类型化 Node 原语
+    execution-context.ts    # Worker 资源与 Runtime 执行服务
+    memory/                 # 记忆实体与操作契约
+    context/                # 上下文实体与操作契约
+    reasoning/              # contracts.ts、generate.ts、providers/
+    interaction/            # contracts.ts、loop.ts、工具、MCP、Skill
+  runtime/                  # Graph/调度、注册、能力路由、生命周期
+    communication/          # Transport、HTTP、事件
+    sandbox/                # 运行时权限服务
+```
+
+Memory、Context 当前提供契约与扩展入口，不默认附带数据库或压缩算法；应用提供 handler 和 Worker 资源。Graph 属于 Runtime，不另立顶层子系统。
 
 ## 快速开始
 
@@ -57,21 +75,21 @@ npm run check
 cp .env.example .env
 ```
 
-在 `.env` 配置 Provider/模型与所需权限，详见 [Agent 配置](docs/agent-runtime.md)。`examples/` 当前留空，后续用于展示通过 npm 包构建不同 Agent 的完整例子。
+构建后运行 `node examples/worker-graph.ts`，无需 Key 即可执行四个 Worker 的确定性本地示例。接入真实模型时，在 `.env` 配置 Provider/模型和权限，详见 [Interaction 配置](docs/interaction-runtime.md)。
 
 ```ts
-import { createDitto, defineWorker, createAgentNodes, loadRuntimeConfig } from "@ditto/core";
+import { createDitto, defineWorker, createInteractionNodes, loadRuntimeConfig } from "@ditto/core";
 
 const worker = defineWorker({
-  type: "assistant",
+  type: "INTERACTION",
   concurrency: 4,
-  expose: ["AGENT.RUN"],
-  nodes: createAgentNodes(),
+  expose: ["INTERACTION.RUN"],
+  nodes: createInteractionNodes(),
 });
 const runtime = createDitto({ config: loadRuntimeConfig(), workers: [worker] });
 try {
   runtime.register(worker); // 增加容量，不需要改变内部 Graph。
-  console.log(await runtime.invoke("AGENT.RUN", {
+  console.log(await runtime.invoke("INTERACTION.RUN", {
     messages: [{ role: "user", content: "你好" }],
   }));
 } finally {
@@ -94,7 +112,7 @@ try {
 - [整体架构与扩展边界](docs/architecture.md)
 - [开发与包接入](docs/getting-started.md)
 - [本地与跨服务器 Worker 通信](docs/worker-communication.md)
-- [Provider、工具、MCP、Skill 与 Sandbox](docs/agent-runtime.md)
+- [Provider、工具、MCP、Skill 与 Sandbox](docs/interaction-runtime.md)
 - [本次重构说明](docs/refactor-2026-09-10.md)
 - [Node API v1.0 契约](docs/13-node-api-contract.md)
 

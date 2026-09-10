@@ -1,5 +1,5 @@
-import { ProviderRegistry, createHttpProvider } from "../providers/index.js";
-import { Sandbox, type SandboxExecutor, type SandboxPolicy } from "../sandbox/index.js";
+import { ProviderRegistry, createHttpProvider } from "../worker/reasoning/providers/index.js";
+import { Sandbox, type SandboxExecutor, type SandboxPolicy } from "./sandbox/index.js";
 import { loadRuntimeConfig, type RuntimeConfig } from "./config.js";
 
 export interface RuntimeServiceOptions {

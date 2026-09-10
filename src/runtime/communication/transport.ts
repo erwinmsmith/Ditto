@@ -1,5 +1,5 @@
-import type { NodeType, WorkerType } from "../node.js";
-import type { Payload } from "./artifact.js";
+import type { NodeType, WorkerType } from "../../worker/node.js";
+import type { Payload } from "../artifact.js";
 
 export interface WorkerAddress {
   readonly workerId: string;

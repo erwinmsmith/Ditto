@@ -14,11 +14,22 @@ npm run check
 
 ## 配置与后续示例
 
-复制 `.env.example` 为 `.env`，按 [Agent 与运行配置](agent-runtime.md) 设置 Provider、模型、Key 和权限。库本身不会隐式加载环境文件；由应用启动代码显式加载并调用 `loadRuntimeConfig()`。
+复制 `.env.example` 为 `.env`，按 [Agent 与运行配置](interaction-runtime.md) 设置 Provider、模型、Key 和权限。库本身不会隐式加载环境文件；由应用启动代码显式加载并调用 `loadRuntimeConfig()`。
 
-`examples/` 当前仅保留空目录占位。后续用于展示通过发布后的 npm 包构建不同 Agent 的完整例子，现在不提供可运行的示例工程。下面是 API 使用片段，包目前尚未发布。
+运行 `npm run build && node examples/worker-graph.ts` 可验证 Memory → Context → Reasoning → Interaction 的本地链路。示例使用确定性 handler，不访问模型或数据库；包仍未发布，通过仓库内 npm 自引用验证包入口。
 
-公开入口：`@ditto/core` 及 `contracts`、`node`、`worker`、`runtime`、`providers`、`sandbox`、`agent` 子入口。`node` 和 `worker` 直接指向单文件模块，不提供 `nodes` 空类兼容入口。
+公开入口：`@ditto/core`、`contracts`、`worker`、`worker/node`、`worker/memory`、`worker/context`、`worker/reasoning`、`worker/reasoning/providers`、`worker/interaction`、`runtime`、`runtime/sandbox`。不保留顶层 `node` / `agent` / `providers` / `sandbox` 旧入口；根入口仍提供通用导出。
+
+内置或已声明扩展的命名空间可用短操作名初始化：
+
+```ts
+import { extendWorker } from "@ditto/core/worker";
+const memory = extendWorker("MEMORY", {
+  nodes: { RETRIEVE: async (_input) => [] },
+});
+```
+
+此处空结果仅演示契约；实际检索逻辑与数据库连接由 Memory Worker 的资源和 handler 提供。`extendWorker` 创建新定义，不自动补齐其余操作，也不修改已部署 Worker。
 
 ## 自定义 Worker 和 Node
 

@@ -1,6 +1,6 @@
-import type { NodeType } from "../node.js";
-import type { WorkerExecutor } from "../worker.js";
-import type { WorkerAddress } from "./transport.js";
+import type { NodeType } from "../worker/node.js";
+import type { WorkerExecutor } from "../worker/define-worker.js";
+import type { WorkerAddress } from "./communication/transport.js";
 
 export interface WorkerEntry {
   readonly address: WorkerAddress;
