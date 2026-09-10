@@ -75,7 +75,7 @@ npm run check
 cp .env.example .env
 ```
 
-`examples/` 当前留空，后续用于通过 npm 包构建不同 Agent 的完整例子。接入真实模型时，在 `.env` 配置 Provider/模型和权限，详见 [Interaction 配置](docs/interaction-runtime.md)。
+`examples/` 当前留空，后续用于通过 npm 包构建不同 Agent 的完整例子。接入真实模型时，在 `.env` 配置 Provider/模型和权限，详见 [Interaction 配置](docs/interaction-runtime.zh-CN.md)。
 
 ```ts
 import { createDitto, defineWorker, createInteractionNodes, loadRuntimeConfig } from "@ditto/core";
@@ -107,12 +107,12 @@ try {
 
 ## 文档
 
-从 [文档地图](docs/README.md) 开始：
+从 [文档地图](docs/README.zh-CN.md) 开始，所有指南均提供中英文版本：
 
-- [整体架构与扩展边界](docs/architecture.md)
-- [开发与包接入](docs/getting-started.md)
-- [本地与跨服务器 Worker 通信](docs/worker-communication.md)
-- [Provider、工具、MCP、Skill 与 Sandbox](docs/interaction-runtime.md)
-- [Node API v1.0 契约](docs/13-node-api-contract.md)
+- [整体架构与扩展边界](docs/architecture.zh-CN.md)
+- [开发与包接入](docs/getting-started.zh-CN.md)
+- [本地与跨服务器 Worker 通信](docs/worker-communication.zh-CN.md)
+- [Provider、工具、MCP、Skill 与 Sandbox](docs/interaction-runtime.zh-CN.md)
+- [Node API v1.0 契约](docs/13-node-api-contract.zh-CN.md)
 
 通过 [GitHub Issues](https://github.com/erwinmsmith/Ditto/issues) 提交具体使用场景、缺陷与架构讨论。

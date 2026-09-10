@@ -107,7 +107,7 @@ Scaling is manual registration/deployment; automatic provisioning and durable wo
 
 ## Documentation
 
-Start with the [documentation map](docs/README.md). Current guides are maintained in Chinese:
+Start with the [documentation map](docs/README.md). All guides are available in English and Simplified Chinese:
 
 - [Architecture and extension boundaries](docs/architecture.md)
 - [Development and package integration](docs/getting-started.md)

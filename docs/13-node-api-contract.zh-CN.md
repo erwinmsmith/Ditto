@@ -1,36 +1,36 @@
-# Ditto Node API Specification
+# Ditto 节点 API 规范
 
-**English** · [简体中文](13-node-api-contract.zh-CN.md)
+[English](13-node-api-contract.md) · **简体中文**
 
-> Current applicability: this document is the original reviewed baseline. The names and inputs/outputs of the 18 semantic Nodes remain valid. Sections 9–10 describe historical empty classes, first-level aggregate types, and inheritance rules that have been removed from the implementation. Nodes now use function handlers / defineNode; see the [current architecture](architecture.md).
+> 当前适用范围：本文件是原始评审基线，18 个语义 Node 的名称和输入输出仍有效。第 9–10 节的空类、一级聚合类型与继承规则仅作为历史设计保留，当前实现已删除；Node 使用函数 handler / defineNode，详见 [当前架构](architecture.zh-CN.md)。
 
-> Version: `1.0`<br>
-> Language: TypeScript<br>
-> Status: reviewed fixed interface baseline<br>
-> Scope: Node types, inputs, outputs, and empty classes
+> 版本：`1.0`<br>
+> 语言：TypeScript<br>
+> 状态：固定接口评审版<br>
+> 范围：节点类型、输入、输出与空类
 
-## 1. Interface Boundaries
+## 1. 接口边界
 
-This specification fixes:
+本规范固定以下内容：
 
-- The names of 4 first-level Nodes and 18 second-level Nodes.
-- All shared base types.
-- The unique input and output corresponding to each second-level Node.
-- Empty abstract classes for second-level Nodes.
-- Aggregate inputs, outputs, and empty abstract classes for first-level Nodes.
+- 4 个一级节点及 18 个二级节点的名称；
+- 所有公共基础类型；
+- 每个二级节点唯一对应的输入与输出；
+- 二级节点空抽象类；
+- 一级节点的聚合输入、输出与空抽象类。
 
-This specification does not define:
+本规范不定义以下内容：
 
-- Business rules.
-- Internal Node algorithms.
-- Node orchestration or invocation order.
-- Models, tools, storage, communication, or deployment mechanisms.
-- Errors, retries, timeouts, state machines, or resource scheduling.
-- Hypha or other framework adapters.
+- 业务规则；
+- 节点内部算法；
+- 节点编排与调用顺序；
+- 模型、工具、存储、通信和部署机制；
+- 错误、重试、超时、状态机和资源调度；
+- Hypha 或其他框架适配。
 
-Implementations must not change the Node names, field names, or input/output mappings specified here.
+实现机制不得改变本文规定的节点名、字段名和输入输出对应关系。
 
-## 2. Node Structure
+## 2. 节点体系
 
 ```text
 REASONING
@@ -60,13 +60,13 @@ INTERACTION
 └─ OUTPUT
 ```
 
-Boundary definitions:
+边界说明：
 
-- First-level Nodes are classification and aggregation boundaries, not implementation choices.
-- Second-level Nodes are the smallest API units, each with its own input, output, and empty class.
-- Node types use fully qualified names to distinguish operations such as `CONTEXT.UPDATE` and `MEMORY.UPDATE`.
+- 一级节点是分类和聚合边界，不表示具体实现方式。
+- 二级节点是最小 API 单元，每个二级节点拥有独立输入、输出和空类。
+- 节点类型使用全限定名称，避免 `CONTEXT.UPDATE` 与 `MEMORY.UPDATE` 混淆。
 
-## 3. Shared Base Types
+## 3. 公共基础类型
 
 ### 3.1 JSON
 
@@ -112,7 +112,7 @@ export interface Message {
 }
 ```
 
-`Message` represents a generic message. It does not contain business state, reasoning mechanisms, or transport mechanisms.
+`Message` 只表示通用消息，不包含业务状态、推理机制或传输机制。
 
 ### 3.3 Context
 
@@ -129,7 +129,7 @@ export interface Context {
 export type ContextSource = Message | Reference;
 ```
 
-`Context` represents the current context collection without prescribing its source, selection method, or lifecycle.
+`Context` 表示当前上下文集合，不规定其来源、选择方法或生命周期。
 
 ### 3.4 Memory
 
@@ -148,7 +148,7 @@ export interface MemoryReference {
 }
 ```
 
-`MemoryDraft` is used for new inputs, `MemoryItem` represents identified memory, and `MemoryReference` only references memory.
+`MemoryDraft` 用于新增输入；`MemoryItem` 表示带标识的记忆；`MemoryReference` 只引用记忆。
 
 ### 3.5 Interaction
 
@@ -169,9 +169,9 @@ export interface Recipient {
 }
 ```
 
-## 4. REASONING Inputs and Outputs
+## 4. REASONING 输入输出
 
-REASONING Nodes accept and return generic message structures, without business-specific result types.
+REASONING 节点只接收和返回通用消息结构，不包含业务结果类型。
 
 ### 4.1 INFER
 
@@ -215,9 +215,9 @@ export interface SampleInput {
 export type SampleOutput = readonly Message[];
 ```
 
-## 5. CONTEXT Inputs and Outputs
+## 5. CONTEXT 输入输出
 
-CONTEXT Nodes return `Context` without prescribing how context is loaded, selected, updated, compressed, or reset.
+CONTEXT 节点统一返回 `Context`，不规定上下文如何加载、选择、更新、压缩或重置。
 
 ### 5.1 LOAD
 
@@ -271,9 +271,9 @@ export interface ContextResetInput {
 export type ContextResetOutput = Context;
 ```
 
-## 6. MEMORY Inputs and Outputs
+## 6. MEMORY 输入输出
 
-MEMORY Nodes operate only on generic memory structures, without prescribing persistence, retrieval, or eviction mechanisms.
+MEMORY 节点只处理通用记忆结构，不规定持久化、检索或淘汰机制。
 
 ### 6.1 RETRIEVE
 
@@ -325,9 +325,9 @@ export interface MemoryEvictInput {
 export type MemoryEvictOutput = readonly MemoryReference[];
 ```
 
-## 7. INTERACTION Inputs and Outputs
+## 7. INTERACTION 输入输出
 
-INTERACTION Nodes return `Message` without prescribing action execution, observation conversion, messaging, or final-output mechanisms.
+INTERACTION 节点统一返回 `Message`，不规定动作执行、观察转换、消息传递或最终输出机制。
 
 ### 7.1 ACT
 
@@ -370,9 +370,9 @@ export interface InteractionOutputInput {
 export type InteractionOutputOutput = Message;
 ```
 
-## 8. Node Contract Map
+## 8. 节点契约映射
 
-`NodeContractMap` is the single mapping between Node names and their inputs/outputs.
+`NodeContractMap` 是节点名与输入输出的唯一映射表。
 
 ```ts
 export interface NodeContract<TInput, TOutput> {
@@ -416,11 +416,11 @@ export type OutputOf<TNode extends L2NodeType> =
   NodeContractMap[TNode]["output"];
 ```
 
-This mapping establishes a one-to-one relationship between Node names, inputs, and outputs in the TypeScript type system.
+该映射保证节点名、输入和输出在 TypeScript 类型层一一对应。
 
-## 9. Second-Level Empty Classes
+## 9. 二级节点空类
 
-### 9.1 Base Class
+### 9.1 基类
 
 ```ts
 export abstract class BaseNode<TNode extends L2NodeType> {
@@ -502,9 +502,9 @@ export abstract class InteractionOutputNode
   extends BaseNode<"INTERACTION.OUTPUT"> {}
 ```
 
-Empty classes bind only Node names and inputs/outputs; they contain no implementation.
+空类只绑定节点名与输入输出，不包含实现。
 
-## 10. First-Level Aggregate Types and Empty Classes
+## 10. 一级节点聚合类型与空类
 
 ```ts
 export type L1NodeType =
@@ -564,12 +564,12 @@ export abstract class InteractionNode
   extends BaseL1Node<InteractionNodeType> {}
 ```
 
-First-level empty classes aggregate the types of their second-level Nodes without prescribing scheduling, routing, or deployment implementations.
+一级节点空类只聚合所属二级节点的类型，不规定调度、路由或部署实现。
 
-## 11. Input/Output Reference
+## 11. 输入输出总表
 
-| First-level Node | Second-level Node | Input | Output |
-| --- | --- | --- | --- |
+| 一级节点 | 二级节点 | 输入 | 输出 |
+|---|---|---|---|
 | REASONING | INFER | `InferInput` | `Message` |
 | REASONING | DELIBERATE | `DeliberateInput` | `Message` |
 | REASONING | REFLECT | `ReflectInput` | `Message` |
@@ -589,23 +589,23 @@ First-level empty classes aggregate the types of their second-level Nodes withou
 | INTERACTION | COMMUNICATE | `InteractionCommunicateInput` | `Message` |
 | INTERACTION | OUTPUT | `InteractionOutputInput` | `Message` |
 
-## 12. Fixed Rules
+## 12. 固定规则
 
-1. Node names must use the fully qualified names in `NodeContractMap`.
-2. Each Node's input and output must be inferred through `InputOf<TNode>` and `OutputOf<TNode>`.
-3. Implementations must extend the corresponding empty class or provide a fully equivalent public type.
-4. `options`, `metadata`, or arbitrary extension objects must not bypass fixed fields.
-5. Base types must not contain business-specific fields.
-6. This interface layer must not define implementation mechanisms or workflow policies.
-7. Adding a second-level Node requires updating `NodeContractMap`, its empty class, and the reference table together.
+1. 节点名必须使用 `NodeContractMap` 中的全限定名称。
+2. 每个节点的输入和输出只能由 `InputOf<TNode>` 与 `OutputOf<TNode>` 推导。
+3. 实现类必须继承对应空类，或提供完全等价的公开类型。
+4. 不得通过 `options`、`metadata` 或任意扩展对象绕过固定字段。
+5. 不得在基础类型中加入特定业务字段。
+6. 不得在本接口层定义实现机制或流程政策。
+7. 新增二级节点必须同时更新 `NodeContractMap`、空类和总表。
 
-## 13. Versioning Rules
+## 13. 版本规则
 
-- `1.x` may add optional fields or new Nodes.
-- Removing fields, changing field types or requiredness, or changing Node input/output mappings requires a major version increment.
-- Implementation changes that preserve inputs and outputs do not change the API version.
-- This document defines interfaces. Mechanism designs belong in separate documents and must not rewrite the fixed interfaces.
+- `1.x` 可以新增可选字段或新节点。
+- 删除字段、修改字段类型、修改必填性或改变节点输入输出对应关系，必须升级主版本。
+- 实现机制变化但输入输出不变时，不修改 API 版本。
+- 本文是接口定义；机制设计应另建文档，不得直接改写已固定接口。
 
-## 14. Scope Summary
+## 14. 结论
 
-This specification answers three questions: what a Node is called, what it receives, and what it returns. `NodeContractMap` fixes the type boundaries of the 18 second-level Nodes and 4 first-level Nodes. Concrete mechanisms are outside its scope.
+本规范只回答三个问题：节点叫什么、接收什么、返回什么。18 个二级节点和 4 个一级节点的类型边界已统一由 `NodeContractMap` 固定，具体机制留待后续讨论。
