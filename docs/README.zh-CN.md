@@ -13,7 +13,8 @@
 | 开发与接入 | [Read](getting-started.md) | [阅读](getting-started.zh-CN.md) | 安装、检查、包入口以及自定义 Worker 和 Node |
 | Worker 通信 | [Read](worker-communication.md) | [阅读](worker-communication.zh-CN.md) | 本地与远程调用、HTTP 部署、生命周期、事件与 Artifact |
 | 交互与运行配置 | [Read](interaction-runtime.md) | [阅读](interaction-runtime.zh-CN.md) | Provider、模型、凭证、工具、MCP、Skill 和 Sandbox 权限 |
-| Node API Contract v1.0 | [Read](13-node-api-contract.md) | [阅读](13-node-api-contract.zh-CN.md) | 原有 18 个 Node 输入输出契约；历史空类定义不属于当前 API |
+| Node API Contract v1.0 与 dev 扩展 | [Read](13-node-api-contract.md) | [阅读](13-node-api-contract.zh-CN.md) | 18 个固定契约、4 个已有扩展、22 个节点职责及 RAG 归类 |
+| 节点体系覆盖 | [Read](node-coverage.md) | [阅读](node-coverage.zh-CN.md) | 六个已有案例与当前节点映射、命名更正及验证证据边界 |
 
 [环境变量模板](../.env.example) 使用双语注释。
 
