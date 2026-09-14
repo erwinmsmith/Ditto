@@ -2,7 +2,9 @@
 
 **English** · [简体中文](interaction-runtime.zh-CN.md)
 
-The interaction loop, tools, MCP, and Skills live in `src/worker/interaction/`; model generation and adapters live in `src/worker/reasoning/`. There is no independent agent subsystem. The Runtime provides shared services, while applications establish external connections and choose deployment policies.
+The interaction loop, tools, MCP, and Skills currently live in `src/worker/interaction/`; current model generation and adapters live in `src/worker/reasoning/`. The target Provider location is `src/worker/infer/providers/`. There is no independent agent subsystem. The Runtime provides shared services, while applications establish external connections and choose deployment policies.
+
+> This guide describes runnable pre-migration code. Under the [target Contract](13-node-api-contract.md), model calls are implemented by `INFER.REASONING.*` without a separate GENERATE Node; Tool and MCP become `INTERACTION.ACT.TOOL` and `INTERACTION.ACT.MCP`; Skill splits into `MEMORY.SKILL` and `CONTEXT.SKILL`; and `INTERACTION.RUN` becomes application Graph / Runtime orchestration. The examples must not be renamed before those Contracts are implemented.
 
 ## Configuration Precedence and Environment Files
 
@@ -36,7 +38,7 @@ The echo/concise names above illustrate allowlist syntax. Applications must regi
 
 ## Multiple Providers
 
-`ModelProvider.generate(ModelRequest)` returns normalized text and toolCalls. `ProviderRegistry` registers implementations by name. By default, HTTP providers are assembled from config. If an application explicitly injects a `providers` registry, it owns the complete registration set; providers from config are not added automatically.
+Current `ModelProvider.generate(ModelRequest)` returns normalized text and toolCalls. The target Contract renames this boundary to `ModelProvider.invoke(ProviderRequest): Promise<ModelOutput>` so it is not confused with a GENERATE Node. `ProviderRegistry` registers implementations by name. By default, HTTP providers are assembled from config. If an application explicitly injects a `providers` registry, it owns the complete registration set; providers from config are not added automatically.
 
 Built-in adapters support text and function-tool requests/results for OpenAI-compatible Chat Completions and Anthropic Messages. They translate OpenAI's tool_calls/tool_call_id and Anthropic's tool_use/tool_result internally. Model names come from configuration. The library does not hardcode a model catalog, switch Providers automatically, retry requests, or make billable calls to discover capabilities.
 

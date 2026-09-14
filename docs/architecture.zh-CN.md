@@ -2,7 +2,7 @@
 
 [English](architecture.md) · **简体中文**
 
-Ditto 保持一个 TypeScript package，Core 没有第三方运行时依赖。Worker 是部署、资源和扩容单位，Node 是 Worker 内部的能力单元，Graph 描述 Node 之间的依赖与数据转换；Runtime 提供执行、路由、通信及运行服务。
+Ditto 保持一个 TypeScript package，Core 没有第三方运行时依赖。Worker 是部署、资源和扩容单位，Node 是 Worker 内部的能力单元，Graph 描述 Node 之间的依赖与数据转换；Runtime 提供执行、路由、通信及运行服务。目标分类与接口以[节点体系与 API Contract](13-node-api-contract.zh-CN.md)为准；本文涉及 `REASONING.*`、`INTERACTION.RUN/TOOL/SKILL` 和 `CONTEXT.RESET` 的代码路径是当前 dev 的迁移前实现说明。
 
 ## 结构与职责
 
@@ -30,7 +30,7 @@ flowchart TB
 | `worker/define-worker.ts` | `defineWorker` / `extendWorker`、公开能力与副本资源 |
 | `worker/memory/` | `contracts.ts`：Memory 实体与 RETRIEVE / WRITE / UPDATE / CONSOLIDATE / EVICT 契约 |
 | `worker/context/` | `contracts.ts`：Context 实体与 LOAD / SELECT / UPDATE / COMPRESS / RESET 契约 |
-| `worker/reasoning/` | `contracts.ts`：推理契约；`generate.ts`：模型生成；`providers/`：模型适配器 |
+| `worker/infer/`（目标） | `reasoning/`：最终推理 Contract/handler；`providers/`：统一供应商适配器。迁移完成前，当前实现仍在 `worker/reasoning/`。 |
 | `worker/interaction/` | `contracts.ts`：交互契约；`loop.ts`：交互循环及 handler 组合；tools / MCP / Skills |
 | `runtime/` | Graph 构建与执行、实例注册与路由、invoke / emit、HTTP、Artifact、配置与服务装配 |
 | `runtime/communication/` | InvokeTransport、HTTP、异步事件；调用与事件语义分离 |
@@ -93,9 +93,19 @@ Graph 中没有 Provider Key、物理地址或副本数量；`bind` 是 TypeScri
 
 Handler 必须 await 自己启动的工作。关闭 Runtime 时未开始的 Graph 下游或新的跨 Worker 请求可能被拒绝，因此应用应先停止接收请求、等待顶层任务，再关闭 Runtime。调用自身 handle.close 并等待会等待自己，不应在本 Worker handler 内这样做。EventFabric、外部 Provider/MCP 客户端与 HTTP Server 的生命周期由应用所有者管理。
 
-## 契约与扩展
+## 契约与目标节点体系
 
-既有 `NodeContractMap` 的 18 个输入输出契约及 Message/Reference 保持 v1.0。`INTERACTION.RUN/TOOL/SKILL` 在 interaction 声明扩展，`REASONING.GENERATE` 在 reasoning 声明扩展，不再使用 AGENT 命名空间。自定义能力通过相同声明合并机制扩展，无需修改 Router/Scheduler 枚举。`defineWorker<R, C>` 使用全名键（如 MEMORY.RETRIEVE），`extendWorker("MEMORY", { nodes: { RETRIEVE: ... } })` 使用短操作名；后者返回新定义，不修改已注册实例，也不隐式继承未提供的 handler。
+当前 `NodeContractMap` 仍包含 18 个 v1.0 输入输出契约及 `INTERACTION.RUN/TOOL/SKILL`、`REASONING.GENERATE` 四个 dev 扩展。这些名称是待迁移的实现基线，不是最终目录。目标体系要求：
+
+- 将模型生成和显式推理统一迁入 `INFER.*`；
+- 新增 `CONTEXT.RAG.*` 与 `MEMORY.RAG.*`，同时保持当前任务知识与长期 Memory Corpus 的生命周期隔离；
+- 将 Skill 拆成 `MEMORY.SKILL` 与 `CONTEXT.SKILL`；
+- 将工具和 MCP 分别置于 `INTERACTION.ACT.TOOL` 与 `INTERACTION.ACT.MCP`；
+- 从 Core Node 中移除 `CONTEXT.RESET` 和 `INTERACTION.RUN`，由 Runtime 生命周期与应用 Graph 承担。
+
+自定义能力仍通过声明合并扩展，无需把 Node 枚举硬编码进 Router/Scheduler。最终 Contract 必须先固定新增/改名节点的 TypeScript 输入输出，再变更 handler 和 Graph；本轮文档不推测字段。
+
+Provider 适配归目标目录 `worker/infer/providers/`，不进入 Node 名称或 Graph 业务输入。Core 只依赖 `ModelProvider.invoke(ProviderRequest)`；OpenAI-compatible、Anthropic 及后续供应商 adapter 将消息、工具调用、完成状态和 usage 规范化为统一 `ModelOutput`。凭证、base URL、模型选择、超时和供应商 SDK 仍属于 Runtime 配置或可选依赖。
 
 资源继续使用 `resources: () => ({ ... })`，保证每次注册创建自己的资源。相较草案中的资源对象写法，这里明确保留工厂语义，避免副本意外共享可变状态。Graph 继续用 `.node(id, type, dependencies, bind)` 明确输入映射，避免把检索结果未经转换传给要求 messages 的推理 Node。
 

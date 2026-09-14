@@ -13,6 +13,8 @@
   <strong>English</strong> · <a href="./README.zh-CN.md">简体中文</a>
 </p>
 
+> The project-owner-approved target classification and API definitions are documented in the [Node Taxonomy and API Contract](docs/13-node-api-contract.md). Runnable examples below still use current pre-migration `dev` Contracts until the TypeScript migration is implemented.
+
 ## Define the Graph First
 
 Ditto is a lightweight TypeScript runtime for building Agents around a **Graph**. Declare the **Nodes**, their connections, and how upstream outputs form downstream inputs. Their owning **Workers** then supply implementations and execution resources.

@@ -2,6 +2,8 @@
 
 **English** · [简体中文](worker-communication.zh-CN.md)
 
+> Runtime `invoke` / `emit` semantics are unchanged by the [target Contract](13-node-api-contract.md) and never become `INTERACTION.COMMUNICATE`. Examples using `INTERACTION.RUN` document the runnable pre-migration entry; the target design exposes an application Graph or Worker entry rather than retaining RUN as a Node.
+
 ## Location and Invocation
 
 | Location | Current implementation | Data and execution |

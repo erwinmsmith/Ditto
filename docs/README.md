@@ -13,8 +13,8 @@ Start with the architecture and development guides, then follow the references f
 | Development and Integration | [Read](getting-started.md) | [阅读](getting-started.zh-CN.md) | Installation, checks, package entry points, and custom Workers and Nodes |
 | Worker Communication | [Read](worker-communication.md) | [阅读](worker-communication.zh-CN.md) | Local and remote calls, HTTP deployment, lifecycle, events, and artifacts |
 | Interaction and Runtime Configuration | [Read](interaction-runtime.md) | [阅读](interaction-runtime.zh-CN.md) | Providers, models, credentials, tools, MCP, Skills, and Sandbox permissions |
-| Node API Contract v1.0 and dev extensions | [Read](13-node-api-contract.md) | [阅读](13-node-api-contract.zh-CN.md) | 18 fixed contracts, 4 existing extensions, all 22 Node responsibilities, and RAG classification |
-| Node Coverage | [Read](node-coverage.md) | [阅读](node-coverage.zh-CN.md) | Six existing cases mapped to declared Node Types, corrected labels, and evidence boundaries |
+| Node Taxonomy and API Contract | [Read](13-node-api-contract.md) | [阅读](13-node-api-contract.zh-CN.md) | Final capability tree, common public types, 26 executable leaf Contracts, RAG/Skill lifecycles, and migration map |
+| Node Coverage | [Read](node-coverage.md) | [阅读](node-coverage.zh-CN.md) | Six existing cases remapped to the final taxonomy with evidence boundaries |
 
 The [environment variable template](../.env.example) uses bilingual comments.
 
@@ -27,7 +27,7 @@ The [environment variable template](../.env.example) uses bilingual comments.
 | `src/worker/define-worker.ts`, `src/runtime/graph.ts`, `src/runtime/router.ts` | [Architecture](architecture.md): composition, execution, and routing |
 | `src/runtime/communication/`, `src/runtime/artifact.ts` | [Worker Communication](worker-communication.md) |
 | `src/runtime/config.ts`, `src/runtime/services.ts`, `src/runtime/sandbox/` | [Interaction and Runtime Configuration](interaction-runtime.md): configuration and permissions |
-| `src/worker/reasoning/providers/` | [Interaction and Runtime Configuration](interaction-runtime.md): model providers |
+| `src/worker/infer/providers/` (target; current: `reasoning/providers/`) | [Interaction and Runtime Configuration](interaction-runtime.md): vendor-neutral model Provider adapters |
 | `src/worker/interaction/` | [Interaction and Runtime Configuration](interaction-runtime.md): tools, MCP, Skills, and the interaction loop |
 
 ## Language Convention

@@ -2,6 +2,8 @@
 
 [English](worker-communication.md) · **简体中文**
 
+> Runtime 的 `invoke` / `emit` 语义不因[目标 Contract](13-node-api-contract.zh-CN.md)改变，也绝不归入 `INTERACTION.COMMUNICATE`。本文使用 `INTERACTION.RUN` 的示例记录当前可运行入口；目标设计由应用 Graph 或 Worker 入口对外暴露，不再保留 RUN Node。
+
 ## 位置与调用
 
 | 位置 | 当前实现 | 数据与执行 |

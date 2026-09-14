@@ -13,6 +13,8 @@
   <a href="./README.md">English</a> · <strong>简体中文</strong>
 </p>
 
+> 负责人确认的目标分类和 API 定义见[节点体系与 API Contract](docs/13-node-api-contract.zh-CN.md)。下方可运行示例仍使用当前 dev 的迁移前 Contract，待 TypeScript 迁移完成后再统一改名。
+
 ## 先定义 Graph
 
 Ditto 是围绕 **Graph** 构建 Agent 的轻量 TypeScript Runtime。先声明有哪些 **Node**、它们如何连接，以及下游输入如何由上游输出生成，再由所属 **Worker** 提供实现与执行资源。

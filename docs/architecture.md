@@ -2,7 +2,7 @@
 
 **English** · [简体中文](architecture.zh-CN.md)
 
-Ditto is a single TypeScript package with no third-party runtime dependencies. Workers are the units of deployment, resources, and scaling. Nodes are capabilities inside a Worker, and Graphs describe their dependencies and data transformations. The Runtime provides execution, routing, communication, and shared services.
+Ditto is a single TypeScript package with no third-party runtime dependencies. Workers are the units of deployment, resources, and scaling. Nodes are capabilities inside a Worker, and Graphs describe their dependencies and data transformations. The Runtime provides execution, routing, communication, and shared services. The [Node Taxonomy and API Contract](13-node-api-contract.md) governs target classification and interfaces. Code paths named `REASONING.*`, `INTERACTION.RUN/TOOL/SKILL`, or `CONTEXT.RESET` in this guide describe the current pre-migration dev implementation.
 
 ## Structure and Responsibilities
 
@@ -30,7 +30,7 @@ flowchart TB
 | `worker/define-worker.ts` | `defineWorker` / `extendWorker`, public capabilities, and replica resources |
 | `worker/memory/` | `contracts.ts`: Memory entities and RETRIEVE / WRITE / UPDATE / CONSOLIDATE / EVICT contracts |
 | `worker/context/` | `contracts.ts`: Context entities and LOAD / SELECT / UPDATE / COMPRESS / RESET contracts |
-| `worker/reasoning/` | `contracts.ts`: reasoning contracts; `generate.ts`: model generation; `providers/`: model adapters |
+| `worker/infer/` (target) | `reasoning/`: final reasoning Contracts/handlers; `providers/`: unified vendor adapters. Current code remains under `worker/reasoning/` until migration. |
 | `worker/interaction/` | `contracts.ts`: interaction contracts; `loop.ts`: interaction loop and handler composition; tools / MCP / Skills |
 | `runtime/` | Graph construction and execution, registration and routing, invoke / emit, HTTP, artifacts, configuration, and service assembly |
 | `runtime/communication/` | InvokeTransport, HTTP, and asynchronous events; calls and events have separate semantics |
@@ -93,9 +93,19 @@ Routing filters public capabilities, availability, and local concurrency capacit
 
 Handlers must await work they start. Closing a Runtime may reject Graph descendants that have not started or new cross-Worker requests, so applications should stop accepting requests and await top-level work before closing it. A handler must not await its own handle.close: that would wait for the handler itself. Applications own EventFabric, external Provider/MCP clients, and HTTP Server lifecycles.
 
-## Contracts and Extensions
+## Contracts and the Target Node Taxonomy
 
-The original 18 NodeContractMap input/output contracts and Message/Reference types remain at v1.0. Interaction declares `INTERACTION.RUN/TOOL/SKILL`; reasoning declares `REASONING.GENERATE`. The AGENT namespace is no longer used. Custom capabilities use the same declaration-merging mechanism, without changing Router/Scheduler enums. `defineWorker<R, C>` uses qualified keys such as MEMORY.RETRIEVE; `extendWorker("MEMORY", { nodes: { RETRIEVE: ... } })` uses short operation names. The latter returns a new definition, does not modify registered instances, and does not inherit omitted handlers.
+The current `NodeContractMap` still contains the 18 v1.0 input/output contracts plus the four dev extensions `INTERACTION.RUN/TOOL/SKILL` and `REASONING.GENERATE`. Those names are a migration baseline, not the final catalog. The target taxonomy requires:
+
+- moving model generation and explicit reasoning under `INFER.*`;
+- adding `CONTEXT.RAG.*` and `MEMORY.RAG.*` while separating current-task knowledge from the durable Memory Corpus;
+- splitting Skill into `MEMORY.SKILL` and `CONTEXT.SKILL`;
+- placing tools and MCP under `INTERACTION.ACT.TOOL` and `INTERACTION.ACT.MCP` respectively;
+- removing `CONTEXT.RESET` and `INTERACTION.RUN` from Core Nodes in favor of Runtime lifecycle and application Graph orchestration.
+
+Custom capabilities still use declaration merging without hard-coding a Node enum into the Router or Scheduler. Exact TypeScript inputs and outputs for new and renamed Nodes must be frozen before handlers and Graphs change; this documentation pass does not speculate about fields.
+
+Provider adaptation belongs under target `worker/infer/providers/`, not in Node names or Graph input. Core depends only on `ModelProvider.invoke(ProviderRequest)`. OpenAI-compatible, Anthropic, and future vendor adapters normalize messages, tool calls, completion state, and usage into the common `ModelOutput`; credentials, base URLs, model selection, timeouts, and vendor SDKs remain runtime configuration or optional dependencies.
 
 Use `resources: () => ({ ... })` so each registration creates its own resources. Factory semantics prevent accidentally sharing mutable state through a resource object. Graphs continue to use `.node(id, type, dependencies, bind)` for explicit input mapping, rather than passing raw retrieval results into a reasoning Node that expects messages.
 

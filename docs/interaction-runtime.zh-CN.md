@@ -2,7 +2,9 @@
 
 [English](interaction-runtime.md) · **简体中文**
 
-交互循环、工具、MCP 和 Skill 在 `src/worker/interaction/`，模型生成与适配器在 `src/worker/reasoning/`。没有独立 agent 子系统；Runtime 提供基础服务，应用负责建立外部连接和选择部署策略。
+交互循环、工具、MCP 和 Skill 当前位于 `src/worker/interaction/`，当前模型生成与适配器位于 `src/worker/reasoning/`；Provider 目标目录是 `src/worker/infer/providers/`。没有独立 agent 子系统；Runtime 提供基础服务，应用负责建立外部连接和选择部署策略。
+
+> 本指南描述可运行的迁移前代码。按[目标 Contract](13-node-api-contract.zh-CN.md)，模型调用由 `INFER.REASONING.*` 的具体实现承担，不另设 GENERATE Node；Tool/MCP 分别迁至 `INTERACTION.ACT.TOOL` 与 `INTERACTION.ACT.MCP`；Skill 拆为 `MEMORY.SKILL` 与 `CONTEXT.SKILL`；`INTERACTION.RUN` 回归应用 Graph / Runtime 编排。对应 Contract 实现前，不应只改示例名称造成不可运行。
 
 ## 配置顺序与环境文件
 
@@ -36,7 +38,7 @@ DITTO_ALLOW_SKILLS=concise
 
 ## 多 Provider
 
-`ModelProvider.generate(ModelRequest)` 返回规范化文本和 toolCalls。`ProviderRegistry` 通过名称注册实现；默认根据 config 自动装配 HTTP Provider。显式注入 `providers` 注册表时，应用负责完整注册，不自动追加配置中的 Provider。
+当前 `ModelProvider.generate(ModelRequest)` 返回规范化文本和 toolCalls。目标 Contract 将边界改为 `ModelProvider.invoke(ProviderRequest): Promise<ModelOutput>`，避免与 GENERATE Node 混淆。`ProviderRegistry` 通过名称注册实现；默认根据 config 自动装配 HTTP Provider。显式注入 `providers` 注册表时，应用负责完整注册，不自动追加配置中的 Provider。
 
 内置支持 OpenAI 兼容 Chat Completions 和 Anthropic Messages 的文本、函数工具请求/结果。OpenAI 的 tool_calls/tool_call_id 与 Anthropic 的 tool_use/tool_result 在适配器内转换。模型名由配置提供；不固定易过时的模型目录，不自动切换 Provider、重试或调用计费 API 探测能力。
 
