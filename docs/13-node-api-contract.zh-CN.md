@@ -77,7 +77,7 @@ MCP 连接、认证和 session 生命周期属于应用/Runtime。Worker 间 `in
 
 ## 3. 公共基础类型
 
-```ts
+```typescript
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue =
   | JsonPrimitive
@@ -247,7 +247,7 @@ Core 不默认依赖供应商 SDK。通用 HTTP adapter 可以保留；需要流
 
 ## 4. INFER API
 
-```ts
+```typescript
 export interface TrajectoryInput {
   input: ModelInput;
   strategy: string;
@@ -280,7 +280,7 @@ export type SampleOutput = readonly ModelOutput[];
 
 ## 5. CONTEXT API
 
-```ts
+```typescript
 export interface ContextLoadInput { sources: readonly ContextSource[]; }
 export type ContextLoadOutput = Context;
 export interface ContextSelectInput { context: Context; query: Message; limit?: number; }
@@ -321,7 +321,7 @@ export type ContextSkillOutput = Context;
 
 ## 6. MEMORY API
 
-```ts
+```typescript
 export interface MemoryRetrieveInput { selector: MemorySelector; limit?: number; }
 export type MemoryRetrieveOutput = readonly MemoryItem[];
 export interface MemoryWriteInput { memories: readonly MemoryDraft[]; }
@@ -369,7 +369,7 @@ export type MemorySkillOutput = Skill;
 
 ## 7. INTERACTION API
 
-```ts
+```typescript
 export interface InteractionToolInput { call: ToolCall; }
 export type InteractionToolOutput = ExternalResult;
 
@@ -396,7 +396,7 @@ export type InteractionOutputOutput = OutputReceipt;
 
 ## 8. 完整 NodeContractMap
 
-```ts
+```typescript
 declare module "@ditto/core" {
   interface NodeContractMap {
     "INFER.REASONING.TRAJECTORY": NodeContract<TrajectoryInput, TrajectoryOutput>;
@@ -433,7 +433,7 @@ declare module "@ditto/core" {
 
 这里预定义四类可复用 Graph 组合，其中 RAG 按 corpus 语义拆成两个变体，共五条具体入口。它们**不是新的 Node Type**；每条组合都将已有源 Node 通过同一个强类型入口连接到 `CONTEXT.UPDATE`。
 
-```ts
+```typescript
 export interface ContextIngressAdapter<
   Source extends ContextIngressSource,
   Output,
@@ -497,3 +497,245 @@ Graph 可以在公共更新入口前插入策略、鉴权、`INTERACTION.OBSERVE
 | `src/worker/reasoning/providers/` | 迁至 `src/worker/infer/providers/`，统一实现 `ModelProvider.invoke` |
 
 源码迁移完成时必须满足：`NodeContractMap` 恰好声明上述 26 个叶子；CACHE 在三级设计前不可路由；Linux Commands 只作为注册工具；旧节点名在编译期被拒绝；Context RAG 与 Memory RAG 的 corpus、权限和生命周期可由 trace 区分；OpenAI-compatible、Anthropic 和一个自定义假 Provider 通过同一 Contract 测试；中英文文档、源码导出、测试和实验仓库示例一致。
+
+## 11. 当前 dev 兼容性快照
+
+上文最终节点体系与 API 是规范定义。由于源码迁移尚未开始，当前 CI 仍会将文档中的“已实现 Contract 快照”与 `test/reference-contract.ts` 比较。下方代码块只镜像旧版实现，不得用于定义新的 Graph；开始源码迁移时，应与该一致性测试一并删除。
+
+```ts
+export type JsonPrimitive = string | number | boolean | null;
+
+export type JsonValue =
+  | JsonPrimitive
+  | readonly JsonValue[]
+  | { readonly [key: string]: JsonValue };
+
+export type JsonObject = Readonly<Record<string, JsonValue>>;
+
+export type MessageRole =
+  | "system"
+  | "user"
+  | "assistant"
+  | "tool";
+
+export interface Reference {
+  uri: string;
+  mediaType?: string;
+}
+
+export type MessagePart =
+  | { type: "text"; text: string }
+  | { type: "json"; data: JsonValue }
+  | { type: "reference"; reference: Reference };
+
+export type MessageContent =
+  | string
+  | JsonValue
+  | readonly MessagePart[];
+
+export interface Message {
+  role: MessageRole;
+  content: MessageContent;
+  name?: string;
+}
+
+export interface ContextItem {
+  id: string;
+  content: MessageContent;
+}
+
+export interface Context {
+  items: readonly ContextItem[];
+}
+
+export type ContextSource = Message | Reference;
+
+export interface MemoryDraft {
+  message: Message;
+}
+
+export interface MemoryItem {
+  id: string;
+  message: Message;
+}
+
+export interface MemoryReference {
+  id: string;
+}
+
+export interface Action {
+  name: string;
+  arguments: JsonObject;
+}
+
+export interface Observation {
+  source: string;
+  message: Message;
+}
+
+export interface Recipient {
+  id: string;
+  channel?: string;
+}
+
+export interface InferInput {
+  messages: readonly Message[];
+}
+
+export type InferOutput = Message;
+
+export interface DeliberateInput {
+  messages: readonly Message[];
+}
+
+export type DeliberateOutput = Message;
+
+export interface ReflectInput {
+  message: Message;
+  context?: readonly Message[];
+}
+
+export type ReflectOutput = Message;
+
+export interface SampleInput {
+  messages: readonly Message[];
+  count: number;
+}
+
+export type SampleOutput = readonly Message[];
+
+export interface ContextLoadInput {
+  sources: readonly ContextSource[];
+}
+
+export type ContextLoadOutput = Context;
+
+export interface ContextSelectInput {
+  context: Context;
+  query: Message;
+}
+
+export type ContextSelectOutput = Context;
+
+export interface ContextUpdateInput {
+  context: Context;
+  items: readonly ContextItem[];
+}
+
+export type ContextUpdateOutput = Context;
+
+export interface ContextCompressInput {
+  context: Context;
+}
+
+export type ContextCompressOutput = Context;
+
+export interface ContextResetInput {
+  context: Context;
+}
+
+export type ContextResetOutput = Context;
+
+export interface MemoryRetrieveInput {
+  query: Message;
+}
+
+export type MemoryRetrieveOutput = readonly MemoryItem[];
+
+export interface MemoryWriteInput {
+  memories: readonly MemoryDraft[];
+}
+
+export type MemoryWriteOutput = readonly MemoryItem[];
+
+export interface MemoryUpdateInput {
+  memories: readonly MemoryItem[];
+}
+
+export type MemoryUpdateOutput = readonly MemoryItem[];
+
+export interface MemoryConsolidateInput {
+  memories: readonly MemoryItem[];
+}
+
+export type MemoryConsolidateOutput = readonly MemoryItem[];
+
+export interface MemoryEvictInput {
+  memories: readonly MemoryReference[];
+}
+
+export type MemoryEvictOutput = readonly MemoryReference[];
+
+export interface InteractionActInput {
+  action: Action;
+}
+
+export type InteractionActOutput = Message;
+
+export interface InteractionObserveInput {
+  observation: Observation;
+}
+
+export type InteractionObserveOutput = Message;
+
+export interface InteractionCommunicateInput {
+  message: Message;
+  recipients: readonly Recipient[];
+}
+
+export type InteractionCommunicateOutput = Message;
+
+export interface InteractionOutputInput {
+  message: Message;
+}
+
+export type InteractionOutputOutput = Message;
+
+export interface NodeContract<TInput, TOutput> {
+  input: TInput;
+  output: TOutput;
+}
+
+export interface NodeContractMap {
+  "REASONING.INFER": NodeContract<InferInput, InferOutput>;
+  "REASONING.DELIBERATE": NodeContract<DeliberateInput, DeliberateOutput>;
+  "REASONING.REFLECT": NodeContract<ReflectInput, ReflectOutput>;
+  "REASONING.SAMPLE": NodeContract<SampleInput, SampleOutput>;
+
+  "CONTEXT.LOAD": NodeContract<ContextLoadInput, ContextLoadOutput>;
+  "CONTEXT.SELECT": NodeContract<ContextSelectInput, ContextSelectOutput>;
+  "CONTEXT.UPDATE": NodeContract<ContextUpdateInput, ContextUpdateOutput>;
+  "CONTEXT.COMPRESS": NodeContract<ContextCompressInput, ContextCompressOutput>;
+  "CONTEXT.RESET": NodeContract<ContextResetInput, ContextResetOutput>;
+
+  "MEMORY.RETRIEVE": NodeContract<MemoryRetrieveInput, MemoryRetrieveOutput>;
+  "MEMORY.WRITE": NodeContract<MemoryWriteInput, MemoryWriteOutput>;
+  "MEMORY.UPDATE": NodeContract<MemoryUpdateInput, MemoryUpdateOutput>;
+  "MEMORY.CONSOLIDATE": NodeContract<MemoryConsolidateInput, MemoryConsolidateOutput>;
+  "MEMORY.EVICT": NodeContract<MemoryEvictInput, MemoryEvictOutput>;
+
+  "INTERACTION.ACT": NodeContract<InteractionActInput, InteractionActOutput>;
+  "INTERACTION.OBSERVE": NodeContract<InteractionObserveInput, InteractionObserveOutput>;
+  "INTERACTION.COMMUNICATE": NodeContract<
+    InteractionCommunicateInput,
+    InteractionCommunicateOutput
+  >;
+  "INTERACTION.OUTPUT": NodeContract<InteractionOutputInput, InteractionOutputOutput>;
+}
+
+export type L2NodeType = keyof NodeContractMap;
+
+export type InputOf<TNode extends L2NodeType> =
+  NodeContractMap[TNode]["input"];
+
+export type OutputOf<TNode extends L2NodeType> =
+  NodeContractMap[TNode]["output"];
+```
+
+下方历史 BaseNode 声明仅作为现有 CI 的提取边界保留；Core 不要求应用继承它。
+
+```ts
+export abstract class BaseNode<TNode extends L2NodeType> {
+  abstract readonly type: TNode;
+}
+```

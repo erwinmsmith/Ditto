@@ -77,7 +77,7 @@ MCP connection, authentication, and session lifecycle remain application/Runtime
 
 ## 3. Common public types
 
-```ts
+```typescript
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue =
   | JsonPrimitive
@@ -246,7 +246,7 @@ Core has no mandatory vendor SDK dependency. A generic HTTP adapter may remain. 
 
 ## 4. INFER API
 
-```ts
+```typescript
 export interface TrajectoryInput {
   input: ModelInput;
   strategy: string;
@@ -276,7 +276,7 @@ export type SampleOutput = readonly ModelOutput[];
 
 ## 5. CONTEXT API
 
-```ts
+```typescript
 export interface ContextLoadInput { sources: readonly ContextSource[]; }
 export type ContextLoadOutput = Context;
 export interface ContextSelectInput { context: Context; query: Message; limit?: number; }
@@ -317,7 +317,7 @@ export type ContextSkillOutput = Context;
 
 ## 6. MEMORY API
 
-```ts
+```typescript
 export interface MemoryRetrieveInput { selector: MemorySelector; limit?: number; }
 export type MemoryRetrieveOutput = readonly MemoryItem[];
 export interface MemoryWriteInput { memories: readonly MemoryDraft[]; }
@@ -365,7 +365,7 @@ export type MemorySkillOutput = Skill;
 
 ## 7. INTERACTION API
 
-```ts
+```typescript
 export interface InteractionToolInput { call: ToolCall; }
 export type InteractionToolOutput = ExternalResult;
 export type InteractionMcpInput =
@@ -390,7 +390,7 @@ export type InteractionOutputOutput = OutputReceipt;
 
 ## 8. Complete NodeContractMap
 
-```ts
+```typescript
 declare module "@ditto/core" {
   interface NodeContractMap {
     "INFER.REASONING.TRAJECTORY": NodeContract<TrajectoryInput, TrajectoryOutput>;
@@ -427,7 +427,7 @@ declare module "@ditto/core" {
 
 These are four reusable Graph presets, with RAG split by corpus semantics into two variants. They are **not new Node Types**: each preset connects an existing source Node to `CONTEXT.UPDATE` through the same typed ingress boundary.
 
-```ts
+```typescript
 export interface ContextIngressAdapter<
   Source extends ContextIngressSource,
   Output,
@@ -491,3 +491,245 @@ Graph authors may insert policy, authorization, `INTERACTION.OBSERVE`, or `CONTE
 | `src/worker/reasoning/providers/` | Move to `src/worker/infer/providers/` and implement the unified `ModelProvider.invoke` interface |
 
 Source migration is complete only when `NodeContractMap` declares exactly these 26 leaves; CACHE is unroutable until its third-level design exists; Linux Commands remain registered tools only; old names fail at compile time; traces distinguish Context RAG and Memory RAG corpora, permissions, and lifecycles; OpenAI-compatible, Anthropic, and one custom fake Provider pass the same contract suite; and bilingual docs, exports, tests, and experimental-repository examples agree.
+
+## 11. Current dev compatibility snapshot
+
+The final taxonomy and API above are normative. Source migration has not yet happened, so the current CI still compares the documentation's implemented-contract snapshot with `test/reference-contract.ts`. The block below mirrors that legacy implementation only; it must not be used to define new Graphs and will be removed together with the parity test when source migration begins.
+
+```ts
+export type JsonPrimitive = string | number | boolean | null;
+
+export type JsonValue =
+  | JsonPrimitive
+  | readonly JsonValue[]
+  | { readonly [key: string]: JsonValue };
+
+export type JsonObject = Readonly<Record<string, JsonValue>>;
+
+export type MessageRole =
+  | "system"
+  | "user"
+  | "assistant"
+  | "tool";
+
+export interface Reference {
+  uri: string;
+  mediaType?: string;
+}
+
+export type MessagePart =
+  | { type: "text"; text: string }
+  | { type: "json"; data: JsonValue }
+  | { type: "reference"; reference: Reference };
+
+export type MessageContent =
+  | string
+  | JsonValue
+  | readonly MessagePart[];
+
+export interface Message {
+  role: MessageRole;
+  content: MessageContent;
+  name?: string;
+}
+
+export interface ContextItem {
+  id: string;
+  content: MessageContent;
+}
+
+export interface Context {
+  items: readonly ContextItem[];
+}
+
+export type ContextSource = Message | Reference;
+
+export interface MemoryDraft {
+  message: Message;
+}
+
+export interface MemoryItem {
+  id: string;
+  message: Message;
+}
+
+export interface MemoryReference {
+  id: string;
+}
+
+export interface Action {
+  name: string;
+  arguments: JsonObject;
+}
+
+export interface Observation {
+  source: string;
+  message: Message;
+}
+
+export interface Recipient {
+  id: string;
+  channel?: string;
+}
+
+export interface InferInput {
+  messages: readonly Message[];
+}
+
+export type InferOutput = Message;
+
+export interface DeliberateInput {
+  messages: readonly Message[];
+}
+
+export type DeliberateOutput = Message;
+
+export interface ReflectInput {
+  message: Message;
+  context?: readonly Message[];
+}
+
+export type ReflectOutput = Message;
+
+export interface SampleInput {
+  messages: readonly Message[];
+  count: number;
+}
+
+export type SampleOutput = readonly Message[];
+
+export interface ContextLoadInput {
+  sources: readonly ContextSource[];
+}
+
+export type ContextLoadOutput = Context;
+
+export interface ContextSelectInput {
+  context: Context;
+  query: Message;
+}
+
+export type ContextSelectOutput = Context;
+
+export interface ContextUpdateInput {
+  context: Context;
+  items: readonly ContextItem[];
+}
+
+export type ContextUpdateOutput = Context;
+
+export interface ContextCompressInput {
+  context: Context;
+}
+
+export type ContextCompressOutput = Context;
+
+export interface ContextResetInput {
+  context: Context;
+}
+
+export type ContextResetOutput = Context;
+
+export interface MemoryRetrieveInput {
+  query: Message;
+}
+
+export type MemoryRetrieveOutput = readonly MemoryItem[];
+
+export interface MemoryWriteInput {
+  memories: readonly MemoryDraft[];
+}
+
+export type MemoryWriteOutput = readonly MemoryItem[];
+
+export interface MemoryUpdateInput {
+  memories: readonly MemoryItem[];
+}
+
+export type MemoryUpdateOutput = readonly MemoryItem[];
+
+export interface MemoryConsolidateInput {
+  memories: readonly MemoryItem[];
+}
+
+export type MemoryConsolidateOutput = readonly MemoryItem[];
+
+export interface MemoryEvictInput {
+  memories: readonly MemoryReference[];
+}
+
+export type MemoryEvictOutput = readonly MemoryReference[];
+
+export interface InteractionActInput {
+  action: Action;
+}
+
+export type InteractionActOutput = Message;
+
+export interface InteractionObserveInput {
+  observation: Observation;
+}
+
+export type InteractionObserveOutput = Message;
+
+export interface InteractionCommunicateInput {
+  message: Message;
+  recipients: readonly Recipient[];
+}
+
+export type InteractionCommunicateOutput = Message;
+
+export interface InteractionOutputInput {
+  message: Message;
+}
+
+export type InteractionOutputOutput = Message;
+
+export interface NodeContract<TInput, TOutput> {
+  input: TInput;
+  output: TOutput;
+}
+
+export interface NodeContractMap {
+  "REASONING.INFER": NodeContract<InferInput, InferOutput>;
+  "REASONING.DELIBERATE": NodeContract<DeliberateInput, DeliberateOutput>;
+  "REASONING.REFLECT": NodeContract<ReflectInput, ReflectOutput>;
+  "REASONING.SAMPLE": NodeContract<SampleInput, SampleOutput>;
+
+  "CONTEXT.LOAD": NodeContract<ContextLoadInput, ContextLoadOutput>;
+  "CONTEXT.SELECT": NodeContract<ContextSelectInput, ContextSelectOutput>;
+  "CONTEXT.UPDATE": NodeContract<ContextUpdateInput, ContextUpdateOutput>;
+  "CONTEXT.COMPRESS": NodeContract<ContextCompressInput, ContextCompressOutput>;
+  "CONTEXT.RESET": NodeContract<ContextResetInput, ContextResetOutput>;
+
+  "MEMORY.RETRIEVE": NodeContract<MemoryRetrieveInput, MemoryRetrieveOutput>;
+  "MEMORY.WRITE": NodeContract<MemoryWriteInput, MemoryWriteOutput>;
+  "MEMORY.UPDATE": NodeContract<MemoryUpdateInput, MemoryUpdateOutput>;
+  "MEMORY.CONSOLIDATE": NodeContract<MemoryConsolidateInput, MemoryConsolidateOutput>;
+  "MEMORY.EVICT": NodeContract<MemoryEvictInput, MemoryEvictOutput>;
+
+  "INTERACTION.ACT": NodeContract<InteractionActInput, InteractionActOutput>;
+  "INTERACTION.OBSERVE": NodeContract<InteractionObserveInput, InteractionObserveOutput>;
+  "INTERACTION.COMMUNICATE": NodeContract<
+    InteractionCommunicateInput,
+    InteractionCommunicateOutput
+  >;
+  "INTERACTION.OUTPUT": NodeContract<InteractionOutputInput, InteractionOutputOutput>;
+}
+
+export type L2NodeType = keyof NodeContractMap;
+
+export type InputOf<TNode extends L2NodeType> =
+  NodeContractMap[TNode]["input"];
+
+export type OutputOf<TNode extends L2NodeType> =
+  NodeContractMap[TNode]["output"];
+```
+
+The historical base-class declaration below is retained solely as the existing CI extraction boundary; Core does not require applications to inherit from it.
+
+```ts
+export abstract class BaseNode<TNode extends L2NodeType> {
+  abstract readonly type: TNode;
+}
+```
