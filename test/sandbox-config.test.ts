@@ -32,10 +32,15 @@ test("workspace permissions reject traversal, outside symlinks and dangling syml
     const sandbox = new Sandbox(workspace, { read: true, write: true, skills: ["test"] });
     await sandbox.writeText("ok", "hello"); assert.equal(await sandbox.readText("ok"), "hello");
     await assert.rejects(sandbox.readText("../secret"), /Permission denied/);
-    await symlink(join(root, "secret"), join(workspace, "escape"));
-    await assert.rejects(sandbox.writeText("escape", "no"), /Permission denied/);
-    await symlink(join(root, "new-file"), join(workspace, "dangling"));
-    await assert.rejects(sandbox.writeText("dangling", "no"), /Permission denied/);
+    try {
+      await symlink(join(root, "secret"), join(workspace, "escape"));
+      await assert.rejects(sandbox.writeText("escape", "no"), /Permission denied/);
+      await symlink(join(root, "new-file"), join(workspace, "dangling"));
+      await assert.rejects(sandbox.writeText("dangling", "no"), /Permission denied/);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EPERM") throw error;
+      // Windows without Developer Mode cannot create symlinks; CI covers these assertions.
+    }
     const skills = new SkillRegistry(); await skills.load("test", "SKILL.md", sandbox);
     assert.equal(skills.get("test", sandbox).instructions, "# Test skill");
     assert.throws(() => skills.get("test", denied), /Permission denied/);

@@ -1,6 +1,7 @@
 import type {
-  NodeDefinition, NodeHandler, NodeType, WorkerContext, WorkerType,
+  NodeDefinition, NodeHandler, WorkerContext, WorkerType,
 } from "./node.js";
+import type { NodeType } from "../contracts/index.js";
 import { defineNode } from "./node.js";
 
 export type WorkerNodes<R = undefined, C = undefined> = {
@@ -23,7 +24,9 @@ export function extendWorker<const T extends string, R = undefined, C = undefine
 ): WorkerDefinition {
   const nodes: Record<string, unknown> = {};
   for (const [operation, handler] of Object.entries(options.nodes)) {
-    if (!operation || operation.includes(".")) throw new Error("Expected a short Node operation name");
+    if (!operation || operation.startsWith(".") || operation.endsWith(".") || operation.includes("..")) {
+      throw new Error("Expected a relative Node operation path");
+    }
     nodes[`${type}.${operation}`] = handler;
   }
   // Requalifying keys preserves each operation's checked input/output contract.

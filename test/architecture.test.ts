@@ -1,0 +1,30 @@
+import assert from "node:assert/strict";
+import { access, readFile } from "node:fs/promises";
+import { join } from "node:path";
+import test from "node:test";
+import { INFER_CACHE_NAMESPACE } from "../src/index.js";
+
+const root = process.cwd();
+const leaves = [
+  "infer/reasoning/trajectory", "infer/reasoning/reflect", "infer/reasoning/deliberate", "infer/reasoning/sample",
+  "context/load", "context/select", "context/update", "context/compress", "context/rag/embed", "context/rag/retrieve", "context/rag/rank", "context/skill",
+  "memory/retrieve", "memory/write", "memory/update", "memory/consolidate", "memory/evict", "memory/rag/embed", "memory/rag/retrieve", "memory/rag/rank", "memory/skill",
+  "interaction/act/tool", "interaction/act/mcp", "interaction/observe", "interaction/communicate", "interaction/output",
+] as const;
+
+test("every agreed leaf Node has a TypeScript scaffold", async () => {
+  await Promise.all(leaves.map((leaf) => access(join(root, "src", "worker", `${leaf}.ts`))));
+  assert.equal(leaves.length, 26);
+  assert.equal(INFER_CACHE_NAMESPACE, "INFER.CACHE");
+  await access(join(root, "src", "worker", "infer", "cache", "index.ts"));
+});
+
+test("the bilingual contract documents describe the final taxonomy", async () => {
+  for (const name of ["13-node-api-contract.md", "13-node-api-contract.zh-CN.md"]) {
+    const document = await readFile(join(root, "docs", name), "utf8");
+    for (const node of ["INFER.REASONING.TRAJECTORY", "CONTEXT.RAG.RANK", "MEMORY.SKILL", "INTERACTION.ACT.MCP"]) {
+      assert.match(document, new RegExp(node.replaceAll(".", "\\.")));
+    }
+    assert.doesNotMatch(document, /CONTEXT\.RAG\.PACK/);
+  }
+});

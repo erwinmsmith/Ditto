@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { ExecutionScope } from "./communication/transport.js";
-import type { InputOf, OutputOf } from "../contracts/index.js";
-import type { NodeType } from "../worker/node.js";
+import type { InputOf, NodeType, OutputOf } from "../contracts/index.js";
 
 export interface GraphTask {
   readonly id: string;

@@ -1,4 +1,4 @@
-import type { NodeType } from "../worker/node.js";
+import type { NodeType } from "../contracts/index.js";
 import type { WorkerExecutor } from "../worker/define-worker.js";
 import type { WorkerAddress } from "./communication/transport.js";
 

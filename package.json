@@ -30,13 +30,13 @@
       "types": "./dist/worker/context/index.d.ts",
       "import": "./dist/worker/context/index.js"
     },
-    "./worker/reasoning": {
-      "types": "./dist/worker/reasoning/index.d.ts",
-      "import": "./dist/worker/reasoning/index.js"
+    "./worker/infer": {
+      "types": "./dist/worker/infer/index.d.ts",
+      "import": "./dist/worker/infer/index.js"
     },
-    "./worker/reasoning/providers": {
-      "types": "./dist/worker/reasoning/providers/index.d.ts",
-      "import": "./dist/worker/reasoning/providers/index.js"
+    "./worker/infer/providers": {
+      "types": "./dist/worker/infer/providers/index.d.ts",
+      "import": "./dist/worker/infer/providers/index.js"
     },
     "./worker/interaction": {
       "types": "./dist/worker/interaction/index.d.ts",
@@ -53,6 +53,10 @@
     "./worker/node": {
       "types": "./dist/worker/node.d.ts",
       "import": "./dist/worker/node.js"
+    },
+    "./presets": {
+      "types": "./dist/presets/index.d.ts",
+      "import": "./dist/presets/index.js"
     }
   },
   "scripts": {
@@ -60,7 +64,7 @@
     "build:test": "node scripts/clean.ts .test-dist && tsc -p tsconfig.test.json",
     "prepare": "npm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run build:test && node --test .test-dist/test/*.test.js",
+    "test": "npm run build:test && node --test --test-isolation=none .test-dist/test/*.test.js",
     "check": "npm run typecheck && npm test && npm run build"
   },
   "engines": {
