@@ -2,15 +2,15 @@
 
 [English](interaction-runtime.md) · **简体中文**
 
-交互循环、工具、MCP 和 Skill 当前位于 `src/worker/interaction/`，当前模型生成与适配器位于 `src/worker/reasoning/`；Provider 目标目录是 `src/worker/infer/providers/`。没有独立 agent 子系统；Runtime 提供基础服务，应用负责建立外部连接和选择部署策略。
+Graph 执行和有界重复执行分别位于 `src/runtime/graph.ts` 与 `src/runtime/loop.ts`。工具、MCP 和 Skill 位于 `src/worker/interaction/`，当前模型生成与适配器位于 `src/worker/reasoning/`；Provider 目标目录是 `src/worker/infer/providers/`。Agent 由应用状态 + Graph + Loop 组成；应用负责建立外部连接和选择部署策略。
 
-> 本指南描述可运行的迁移前代码。按[目标 Contract](13-node-api-contract.zh-CN.md)，模型调用由 `INFER.REASONING.*` 的具体实现承担，不另设 GENERATE Node；Tool/MCP 分别迁至 `INTERACTION.ACT.TOOL` 与 `INTERACTION.ACT.MCP`；Skill 拆为 `MEMORY.SKILL` 与 `CONTEXT.SKILL`；`INTERACTION.RUN` 回归应用 Graph / Runtime 编排。对应 Contract 实现前，不应只改示例名称造成不可运行。
+> `INTERACTION.RUN` 已移除，改用 `runtime.loop()`。其他名称仍使用当前可运行契约：按[目标 Contract](13-node-api-contract.zh-CN.md)，模型调用迁至 `INFER.REASONING.*`，工具/MCP 迁至 `INTERACTION.ACT.TOOL` / `INTERACTION.ACT.MCP`，Skill 拆为 `MEMORY.SKILL` / `CONTEXT.SKILL`。这些剩余迁移尚未实现。
 
 ## 配置顺序与环境文件
 
 1. 应用通过 Node 的 `--env-file=.env`（可选文件用 `--env-file-if-exists`）加载环境。
 2. `loadRuntimeConfig()` 显式解析并校验环境变量，传给 `createDitto({ config })`。
-3. Worker 的 `createInteractionNodes({ model })` 可覆盖 Runtime 默认模型；未指定则使用 `config.model`。
+3. Worker 的 `createGenerateNode({ model })` 可覆盖 Runtime 默认模型；未指定则使用 `config.model`。
 4. `createDitto({ sandbox })` 若提供完整策略，会替代配置中的 sandbox 策略；未列出的权限仍拒绝。
 
 导入库、调用不带 config 的 createDitto 都不会读取 `.env` 或环境变量中的凭证。配置中包含环境标识、工作区、默认 Provider/模型、Provider 配置、请求超时、Agent 轮次和权限。`environment` 是运行环境标签，不会自动启动容器或切换安全等级。
@@ -43,9 +43,11 @@ DITTO_ALLOW_SKILLS=concise
 内置支持 OpenAI 兼容 Chat Completions 和 Anthropic Messages 的文本、函数工具请求/结果。OpenAI 的 tool_calls/tool_call_id 与 Anthropic 的 tool_use/tool_result 在适配器内转换。模型名由配置提供；不固定易过时的模型目录，不自动切换 Provider、重试或调用计费 API 探测能力。
 
 ```ts
+import { defineWorker, createGenerateNode } from "@ditto/core";
+
 const worker = defineWorker({
-  type: "reviewer", expose: ["INTERACTION.RUN"],
-  nodes: createInteractionNodes({ model: { provider: "claude", model: "your-model-id" } }),
+  type: "reviewer", expose: ["REASONING.GENERATE"],
+  nodes: { "REASONING.GENERATE": createGenerateNode({ model: { provider: "claude", model: "your-model-id" } }) },
 });
 ```
 
@@ -53,22 +55,26 @@ const worker = defineWorker({
 
 协议参考：[OpenAI Chat API](https://developers.openai.com/api/reference/cli/resources/chat)、[Anthropic 工具调用](https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls)。
 
-## Agent Node 与工具循环
+## Graph、Loop 与叶子 Node
 
 | Node | 输入/行为 |
 | --- | --- |
-| `INTERACTION.RUN` | 接收规范化 messages 和可选 Skill 名称；有界模型/工具循环 |
 | `REASONING.GENERATE` | 调用所选 Provider，并仅提供当前权限允许的工具 schema |
 | `INTERACTION.TOOL` | 检查权限、校验 arguments，然后执行本地或 MCP 工具 |
+| `INTERACTION.TOOL_BATCH` | 接收 `{ calls }`，检查 ID 非空且唯一、名称可用，按顺序执行并返回 `{ id, result }[]`；空批次返回 `[]` |
 | `INTERACTION.SKILL` | 按名称获取已注册且被允许的 Skill 指令 |
 
 这些契约独立扩展自 NodeContractMap，没有修改 v1.0 Message 或 REASONING.INFER。`ModelMessage` 单独表示工具调用 ID 与结果关联，避免把 Provider 协议字段塞进原 Message。
 
-`createInteractionNodes({ tools, skills, model, maxTurns })` 返回可直接 spread 到 Worker.nodes 的四个 handler。推荐 expose 仅包含 INTERACTION.RUN。模型和工具任务通过 `ctx.run` 在同一副本上执行；可替换其中一个 handler来定制行为。若 Worker 另有资源/config 类型，使用 `createInteractionNodes<Resource, Config>(...)`。
+`createInteractionNodes({ tools, skills })` 返回三个交互 handler。模型生成通过 `createGenerateNode({ model, tools: (ctx) => tools.list(ctx) })` 单独组合；两个工厂都保留 Worker 自定义资源/config 的类型。公开应用 Graph 使用的能力；`ctx.run` 仍支持副本内部的私有组合。
 
-工具请求必须属于本轮可用集合，调用 ID 不可重复。工具按顺序执行，arguments 由必需的 validate 回调校验后才产生副作用。工具异常会使 Agent 失败；MCP 返回的 isError 则保留为工具结果。最后一轮仍要求工具时直接触发上限，不执行无法再交给模型处理的副作用。
+用 DAG 定义一轮，再通过 `loop({ graph, bind, update, done, maxIterations })` 和 `runtime.loop(definition, initialState)` 执行。`graph` 接受固定 DAG 或 `(state) => graph`，支持每个 step 使用不同 DAG。每轮选图、映射输入、等待执行、调用 `update`，再将新状态与输出交给 `done`。所有回调均为同步函数；Loop 返回最终状态，默认最多 32 轮，耗尽上限时抛出异常。异常直接传出，不自动重试。定义可复用，但状态由应用负责，应返回新值而非修改共享对象。参见 [README 完整组合](../README.zh-CN.md#多轮执行)。
 
-此循环不保证事务、长期记忆、上下文裁剪或无限自主运行。maxTurns 限制模型轮数，timeoutMs 限制内置 Provider 单次请求；并非整个 Agent/工具/MCP 会话的硬截止时间。工具作者需为自身 I/O 设置截止时间。
+工具批次在任何副作用前检查 ID 和当前可用名称；每个工具执行前，由其必需的 validate 回调检查参数。失败会停止后续调用，不回滚先前副作用。MCP 的 isError 保留为结果。模型可见的工具目录与执行权限应保持一致，跨服务器也如此；各执行端检查自身策略。批量执行不包含模型循环或对话状态。
+
+通用 Loop 不知道哪些 Node 会产生副作用。README 中应用的 Graph 在最后一轮调用批量工具 Node 前拒绝工具请求。`config.maxTurns` / `DITTO_MAX_TURNS` 是应用配置，需显式传为 `maxIterations`，不会覆盖通用默认值。`timeoutMs` 限制内置 Provider 的单次请求，不是整个 Loop/工具/MCP 会话的截止时间；工具需自行设置 I/O 超时。先等待顶层 Loop 完成，再关闭 Runtime；Loop 不提供检查点、回滚或取消。
+
+从旧工厂迁移时：从 `expose` 和调用处移除 `INTERACTION.RUN`，将 `model` 移至 `createGenerateNode`，将 `maxTurns` 移至 Loop 定义，把消息与 Skill 指令放入应用状态。`InteractionRunInput` 与 `InteractionRunOutput` 不再导出。
 
 ## 工具与 MCP
 
@@ -101,7 +107,7 @@ MCP 的网络和进程权限由建立连接的 SDK/部署沙箱约束；允许 s
 
 SkillRegistry 支持 register/list/get，以及 `load(name, path, sandbox)` 读取工作区内 SKILL.md。名称由调用方显式给定，文件完整内容作为指令保存；不隐式解析 YAML、扫描全盘、执行脚本或下载依赖。
 
-加载需要 read 与对应 skills 权限；每次读取注册内容再次检查 skills 权限。register 返回卸载函数。`INTERACTION.RUN` 仅加载输入中明确指定的 Skill，将其指令加入模型上下文。Skill 文本无法扩大工具/网络/执行权限，也不会自动运行引用的文件。
+加载需要 read 与对应 skills 权限；每次读取注册内容再次检查 skills 权限。register 返回卸载函数。应用显式调用 `INTERACTION.SKILL`，将返回指令放入 Loop 初始消息或 Graph 输入映射。Skill 文本无法扩大工具/网络/执行权限，也不会自动运行引用的文件。
 
 ## Sandbox 边界
 

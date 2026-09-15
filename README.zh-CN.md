@@ -78,7 +78,7 @@ flowchart LR
 
 连接图和矩阵描述同一份依赖关系；具体的数据转换由代码中的 `bind` 函数定义。一个 Node 类型可在图中出现多次，每次使用不同逻辑 ID。当前 Graph 是有向无环图（DAG），也支持独立分支并发及多路依赖汇合。
 
-**Node 定义能力，Graph 定义连接，Worker 承载执行。** 调整 Agent 结构时修改 Node 与连接；增加执行容量时注册更多 Worker 副本，Graph 定义无需改变。
+**Node 定义能力，Graph 定义一轮，Loop 推进多轮状态，Worker 执行 Node。** Agent 由状态 + Graph + Loop 组成；增加执行容量时注册更多 Worker 副本，Graph 定义无需改变。
 
 ## 当前能力
 
@@ -86,9 +86,10 @@ flowchart LR
 | --- | --- |
 | Worker 组合 | 混合 Node 命名空间、公开入口声明、副本独立资源、并发上限与资源释放 |
 | Graph | 类型化不可变 DAG；支持应用全局路由和固定于当前 Worker 的内部执行 |
+| Loop | `runtime.loop()` 重复执行 Graph，显式定义状态更新、停止条件和轮次上限 |
 | 通信 | 同进程直调、带认证的跨进程/服务器 HTTP、自定义 Transport、独立事件与 Artifact |
 | 多模型 | Provider 注册、Runtime 默认模型、Worker 模型覆盖；OpenAI 兼容和 Anthropic 文本/工具协议 |
-| Interaction Node | 有界工具循环、本地工具参数校验、已连接 MCP 客户端适配、Skill 注册与显式加载 |
+| Interaction Node | 单个／批量工具调用及参数校验、已连接 MCP 客户端适配、Skill 注册与显式加载 |
 | 运行配置 | 显式环境变量解析、模型/Key/超时/工作区设置、默认拒绝的权限服务 |
 
 Core **没有第三方运行时依赖**，原有 18 个 Node 契约保持 v1.0。项目目前为 private package，尚未发布至 npm。
@@ -105,8 +106,11 @@ src/
     memory/                 # 记忆实体与操作契约
     context/                # 上下文实体与操作契约
     reasoning/              # contracts.ts、generate.ts、providers/
-    interaction/            # contracts.ts、loop.ts、工具、MCP、Skill
+    interaction/            # contracts.ts、工具、MCP、Skill；index.ts 组合叶子 handler
   runtime/                  # Graph/调度、注册、能力路由、生命周期
+    graph.ts                # 一轮有限 DAG：定义与执行
+    loop.ts                 # 状态更新与 Graph 的有界重复执行
+    runtime.ts              # invoke / run / loop、注册与生命周期
     communication/          # Transport、HTTP、事件
     sandbox/                # 运行时权限服务
 ```
@@ -143,9 +147,103 @@ async function runAgent(workers: readonly WorkerDefinition[], query: Message) {
 
 `workers` 中的定义由应用实现并传入；创建 Runtime 时会注册这些 Worker。Memory / Context 的数据策略与 Reasoning 的模型实现按需接入，使用模型适配器时需配置 Provider/模型。npm 包目前尚未发布。
 
+## 多轮执行
+
+`runtime.run(graph, input)` 执行一次 DAG。`runtime.loop(definition, initialState)` 执行连续多轮：`graph` 提供固定 DAG 或按状态选图，`bind(state)` 提供输入，`update(state, output)` 生成新状态，`done(nextState, output)` 决定是否返回。回调均为同步函数。`maxIterations` 默认为 32，必须是正安全整数；达到上限且 `done` 未满足时抛出异常。Node 或回调异常直接传出，不自动重试。
+
+下面是基于当前模型和工具能力的完整组合。在 `.env` 中配置 Provider/模型；应用向 `tools` 注册工具，并通过 `DITTO_ALLOW_TOOLS` 授权。工具注册表为空时可进行纯文本对话。
+
+```ts
+import {
+  createDitto, defineWorker, graph, loop, loadRuntimeConfig,
+  createGenerateNode, createInteractionNodes, ToolRegistry, type ModelMessage,
+} from "@ditto/core";
+
+interface AgentState { messages: readonly ModelMessage[]; turns: number }
+const tools = new ToolRegistry();
+const runtime = createDitto({ config: loadRuntimeConfig(), workers: [
+  defineWorker({ type: "REASONING", nodes: {
+    "REASONING.GENERATE": createGenerateNode({ tools: (ctx) => tools.list(ctx) }),
+  } }),
+  defineWorker({ type: "INTERACTION", nodes: createInteractionNodes({ tools }) }),
+] });
+const maxIterations = runtime.services.config.maxTurns;
+const step = graph<AgentState>("agent-step")
+  .node("response", "REASONING.GENERATE", [], (state) => ({ messages: state.messages }))
+  .node("tools", "INTERACTION.TOOL_BATCH", ["response"], (state, { response }) => {
+    if (response.toolCalls.length && state.turns + 1 >= maxIterations) {
+      throw new Error("Agent turn limit reached");
+    }
+    return { calls: response.toolCalls };
+  });
+const agentLoop = loop({
+  graph: step, maxIterations,
+  bind: (state: AgentState) => state,
+  update: (state, { response, tools }): AgentState => ({
+    turns: state.turns + 1,
+    messages: [
+      ...state.messages,
+      { role: "assistant", content: response.content, toolCalls: response.toolCalls },
+      ...tools.map(({ id, result }) => ({
+        role: "tool" as const, toolCallId: id, content: JSON.stringify(result),
+      })),
+    ],
+  }),
+  done: (_state, { response }) => response.toolCalls.length === 0,
+});
+try {
+  const result = await runtime.loop(agentLoop, {
+    messages: [{ role: "user", content: "Hello" }], turns: 0,
+  });
+  console.log(result.messages.at(-1)?.content);
+} finally { await runtime.close(); }
+```
+
+每轮 Graph 为 `REASONING.GENERATE → INTERACTION.TOOL_BATCH`。空批次不执行工具；有请求时按顺序执行，将结果加入下一轮消息。应用的 Graph 在最后一轮执行工具前检查上限；通用 Loop 只限制完整 Graph 的执行次数，不内置 Agent 策略。这里显式使用 `DITTO_MAX_TURNS`，它不会改变通用 Loop 的默认值 32。
+
+`INTERACTION.RUN` 已移除。`createInteractionNodes({ tools, skills })` 提供工具和 Skill handler；模型选择改由 `createGenerateNode({ model, tools })` 负责。通过 `runtime.invoke("INTERACTION.SKILL", { name })` 显式加载 Skill，再将指令放入初始状态。详见[配置指南](docs/interaction-runtime.zh-CN.md)。
+
+### 不同 Step 使用不同 DAG
+
+将多个候选 Graph 放入集合，传入 `graph: (state) => graphs[state.step]`，每个 step 选择其中一个执行。候选图可以重复选中，例如 `draft → revise → draft`。下面的纯文本流程先选单 Node 图生成草稿，再选双 Node 图评审并修订。传入仍在运行的 Runtime，并注册不带工具的 `REASONING.GENERATE`。
+
+```ts
+import { graph, loop, type DittoRuntime, type ModelMessage } from "@ditto/core";
+
+interface ReviewState { messages: readonly ModelMessage[]; step: "draft" | "revise"; turns: number }
+const draft = graph<ReviewState>("draft")
+  .node("response", "REASONING.GENERATE", [], (state) => ({ messages: state.messages }));
+const revise = graph<ReviewState>("revise")
+  .node("critique", "REASONING.GENERATE", [], (state) => ({
+    messages: [...state.messages, { role: "user", content: "Review the previous answer." }],
+  }))
+  .node("response", "REASONING.GENERATE", ["critique"], (state, { critique }) => ({
+    messages: [...state.messages, { role: "user", content: `Revise using this feedback: ${critique.content}` }],
+  }));
+const graphs = { draft, revise };
+
+async function runReview(runtime: DittoRuntime, messages: readonly ModelMessage[]) {
+  return runtime.loop(loop({
+    graph: (state: ReviewState) => graphs[state.step],
+    bind: (state: ReviewState) => state,
+    update: (state, { response }): ReviewState => ({
+      step: "revise",
+      turns: state.turns + 1,
+      messages: [...state.messages, { role: "assistant", content: response.content }],
+    }),
+    done: (state) => state.turns === 2,
+    maxIterations: 2,
+  }), { messages, step: "draft", turns: 0 });
+}
+```
+
+各轮选中的 Graph 可以有不同 Node、连线与并行分支。这里两个 Graph 都向 Loop 暴露 `response`；结果类型不同时，在 `LoopDefinition<S, I, O>` 中声明联合类型，并在 `update` / `done` 中缩窄。选择函数也可以根据状态构造新 Graph，每轮只调用一次；选图异常会在输入映射或 Node 执行前终止 Loop。
+
 ## 执行边界
 
 `runtime.run(graph, input)` 在 Worker 之间路由公开 Node；`ctx.run(graph, input)` 将整个 Graph 固定在当前 Worker 副本，可使用未公开 Node；`ctx.invoke(node, input)` 明确路由另一项公开能力。
+
+`runtime.loop()` 每轮调用 `runtime.run()`，各轮可能选中不同副本。对话状态保存在 Loop 状态或显式共享的存储中。先等待顶层运行完成，再关闭 Runtime。Loop 不向 Graph 引入环，也不提供检查点、取消或自动重试。
 
 当前通过注册和部署扩容，没有自动开机器或持久化工作流恢复。HTTP 超时不会取消远端副作用，也不会自动重试。Sandbox 提供合作式权限检查；不可信代码需要应用提供 OS/容器隔离。MCP 连接和外部客户端生命周期由应用管理。
 

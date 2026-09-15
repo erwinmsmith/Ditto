@@ -31,7 +31,7 @@ void validRequest;
 void invalidRequest;
 
 // This body is compiled, never executed. Negative checks protect API inference.
-import { createDitto, defineNode, defineWorker, extendWorker, graph, createInteractionNodes } from "../src/index.js";
+import { createDitto, defineNode, defineWorker, extendWorker, graph, loop, createInteractionNodes } from "../src/index.js";
 export function checkPublicTypes(): void {
   const runtime = createDitto();
   // @ts-expect-error The owning Worker type is required; the old two-argument form is removed.
@@ -47,8 +47,10 @@ export function checkPublicTypes(): void {
   // @ts-expect-error The removed independent AGENT namespace is not a capability.
   runtime.invoke("AGENT.RUN", { messages: [] });
   defineWorker({ type: "assistant", resources: () => ({ count: 0 }),
-    nodes: createInteractionNodes<{ count: number }>(), expose: ["INTERACTION.RUN"],
+    nodes: createInteractionNodes<{ count: number }>(), expose: ["INTERACTION.TOOL"],
   });
+  // @ts-expect-error Repetition is a Runtime operation, not a Node capability.
+  runtime.invoke("INTERACTION.RUN", { messages: [] });
   // @ts-expect-error Tool arguments must be a JSON object.
   runtime.invoke("INTERACTION.TOOL", { name: "echo", arguments: "bad" });
   // @ts-expect-error Model providers are not automatically new semantic Nodes.
@@ -72,6 +74,17 @@ export function checkPublicTypes(): void {
   const agent = graph<string>().node("infer", "REASONING.INFER", [], () => ({ messages: [] }));
   // @ts-expect-error Runtime cannot widen the Graph input type to fit a caller.
   runtime.run(agent, 1);
+  const repetition = loop({ graph: agent, bind: (state: string) => state,
+    update: (_state, output) => String(output.infer.content), done: () => true,
+  });
+  const result: Promise<string> = runtime.loop(repetition, "hello");
+  void result;
+  // @ts-expect-error Runtime cannot widen the Loop state type to fit a caller.
+  runtime.loop(repetition, 1);
+  loop({ graph: agent, bind: (state: string) => state,
+    // @ts-expect-error Loop output retains the Graph's inferred Node results.
+    update: (_state, output) => output.missing, done: () => true,
+  });
   // @ts-expect-error Declared resources must have an instance factory.
   defineWorker<{ model: string }>({ type: "REASONING", nodes: {
     "REASONING.INFER": async () => ({ role: "assistant", content: "ok" }),

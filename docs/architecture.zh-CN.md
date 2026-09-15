@@ -2,13 +2,14 @@
 
 [English](architecture.md) · **简体中文**
 
-Ditto 保持一个 TypeScript package，Core 没有第三方运行时依赖。Worker 是部署、资源和扩容单位，Node 是 Worker 内部的能力单元，Graph 描述 Node 之间的依赖与数据转换；Runtime 提供执行、路由、通信及运行服务。目标分类与接口以[节点体系与 API Contract](13-node-api-contract.zh-CN.md)为准；本文涉及 `REASONING.*`、`INTERACTION.RUN/TOOL/SKILL` 和 `CONTEXT.RESET` 的代码路径是当前 dev 的迁移前实现说明。
+Ditto 保持一个 TypeScript package，Core 没有第三方运行时依赖。Worker 拥有能力与资源；Graph 定义一轮有限 DAG；Loop 推进应用状态并选择下一轮 Graph。Runtime 提供执行、路由、通信及运行服务。目标分类与接口以[节点体系与 API Contract](13-node-api-contract.zh-CN.md)为准；`INTERACTION.RUN` 已移除，`REASONING.*`、`INTERACTION.TOOL/SKILL`、`CONTEXT.RESET` 等仍使用当前迁移前契约。
 
 ## 结构与职责
 
 ```mermaid
 flowchart TB
-  App[应用配置 / 入口 Graph] --> Runtime[Runtime：配置、调度、路由、通信]
+  App[应用状态 / Graph 定义] --> Loop[Loop：选图、更新状态、停止]
+  Loop --> Runtime[Runtime：配置、调度、路由、通信]
   Runtime --> A
   Runtime --> Transport[HTTP / 自定义 IPC 或 RPC]
   Transport --> B[另一 Runtime 的 Worker]
@@ -31,14 +32,16 @@ flowchart TB
 | `worker/memory/` | `contracts.ts`：Memory 实体与 RETRIEVE / WRITE / UPDATE / CONSOLIDATE / EVICT 契约 |
 | `worker/context/` | `contracts.ts`：Context 实体与 LOAD / SELECT / UPDATE / COMPRESS / RESET 契约 |
 | `worker/infer/`（目标） | `reasoning/`：最终推理 Contract/handler；`providers/`：统一供应商适配器。迁移完成前，当前实现仍在 `worker/reasoning/`。 |
-| `worker/interaction/` | `contracts.ts`：交互契约；`loop.ts`：交互循环及 handler 组合；tools / MCP / Skills |
-| `runtime/` | Graph 构建与执行、实例注册与路由、invoke / emit、HTTP、Artifact、配置与服务装配 |
+| `worker/interaction/` | 交互契约、工具 / MCP / Skill；`index.ts` 组合叶子 handler |
+| `runtime/graph.ts` | 不可变有限 DAG 定义、依赖校验与执行 |
+| `runtime/loop.ts` | Graph 选择、状态推进、停止条件与有界重复执行 |
+| `runtime/runtime.ts` | `invoke` / `run` / `loop`、Worker 注册、路由与生命周期 |
 | `runtime/communication/` | InvokeTransport、HTTP、异步事件；调用与事件语义分离 |
 | `runtime/sandbox/` | 权限检查、工作区文件操作、隔离执行器接口 |
 
-Node 是对执行操作的抽象表示，不是每个 Worker 都需要建立的物理模块层。记忆检索直接属于 memory，模型生成直接属于 reasoning，交互循环直接属于 interaction；不再设置 `worker/<capability>/node/`，也没有独立 agent/ 目录。共享的类型化 Node 定义留在 `worker/node.ts`，18 个原有语义契约直接收在各能力模块的 `contracts.ts`；各 Worker 在自己的 `contracts.ts` 中扩展 `NodeContractMap`，中央只保留通用接口。`createInteractionNodes` 返回的是 handler 映射，并不创建独立 Node 子系统。Graph 构建与调度同在 `runtime/graph.ts`，实例注册与生命周期同在 `runtime/runtime.ts`，不为目录对称增加空管理器。
+Node 表示执行操作。记忆检索属于 memory，模型生成属于 reasoning，工具属于 interaction。共享类型化 Node 定义留在 `worker/node.ts`，操作契约归各能力模块的 `contracts.ts`。`createInteractionNodes` 直接返回叶子 handler。Graph 构建与调度同在 `runtime/graph.ts`，重复执行在 `runtime/loop.ts`，注册与生命周期在 `runtime/runtime.ts`。不设各 Worker 的 node 目录、独立 Agent 子系统、runner 或 control 层级。
 
-Memory 与 Context 这次初始化到契约层，具体存储、检索、选择、压缩策略由应用实现；不会用假实现冒充完整后端。Reasoning 已有可替换模型适配器和生成 Node；Interaction 保留可运行的工具循环。模型生成实现属于 reasoning，`createInteractionNodes` 显式组合它，避免重复实现。
+Memory 与 Context 当前提供契约，具体数据策略由应用实现。Reasoning 提供可替换模型适配器和生成 Node。Interaction 提供单个／批量工具调用与 Skill 读取。应用将这些能力组成 Graph 和 Loop；Worker 不再拥有内置 Agent 循环。
 
 ## contracts 放什么
 
@@ -56,7 +59,7 @@ Node 是 Worker 内的操作。例如真实记忆检索实现应放 `worker/memo
 
 内置能力按 `MEMORY`、`CONTEXT`、`REASONING`、`INTERACTION` 组织，推荐同名 Worker 作为部署边界。这些名称不是一级 Node。自定义 Worker.type 仍可为任意字符串；保留显式组合不同领域 Node 的能力，例如 Interaction Worker 组合 reasoning 的 GENERATE，不将目录归属误当作运行位置限制。
 
-`defineWorker({ nodes, expose })` 中，`nodes` 是内部实现集合；`expose` 是参与 Runtime 路由、允许远端调用的入口集合。省略 `expose` 时，为兼容旧代码公开所有已实现 Node。推荐 Agent Worker 只公开 `INTERACTION.RUN`，内部的模型、工具、Skill Node 通过内部 Graph 使用。
+`defineWorker({ nodes, expose })` 中，`nodes` 是内部实现集合；`expose` 是参与 Runtime 路由、允许远端调用的入口集合。省略 `expose` 时公开全部实现。公开应用 Graph 调用的能力；内部 Graph 仍可使用私有 Node。重复执行通过 `runtime.loop()` 发起，不再使用 RUN Node。
 
 `defineNode(workerType, nodeType, handler)` 显式记录所属 Worker 类型。Worker 组装时拒绝归属不同或 Node 键不匹配的定义；内联 handler 自动绑定当前 Worker，结构化定义经过校验并复制为不可变定义。归属约束针对 Worker 类型：同类型副本可以共用定义，资源各自独立。只有所属 Worker 注册后，定义才能通过 Runtime 执行；这不阻止应用在 Runtime 之外直接调用 JavaScript 函数。
 
@@ -76,7 +79,13 @@ Node 是 Worker 内的操作。例如真实记忆检索实现应放 `worker/memo
 
 Graph 是不可变 DAG。`node(id, nodeType, dependencies, bind)` 定义任务、依赖和输入映射；相同语义 Node 可以多次出现，只需不同逻辑 ID。依赖只能引用此前声明的任务；独立分支并发，失败任务的下游不运行，调度器等待已启动分支收尾再返回。执行不会回滚已完成的外部副作用。
 
-Graph 中没有 Provider Key、物理地址或副本数量；`bind` 是 TypeScript 函数，Graph 本身不可直接 JSON 序列化。传输的是公开 Node 调用，远端 Worker 执行已部署的内部 Graph。有限 Agent 循环由 `INTERACTION.RUN` 实现，每轮使用内部 Graph；没有将有环工作流或持久化调度引入 DAG 核心。
+Graph 中没有 Provider Key、物理地址或副本数量；`bind` 是 TypeScript 函数，Graph 本身不可直接 JSON 序列化。传输的是公开 Node 调用，远端 Worker 执行已部署的 handler 与内部 Graph。
+
+## Loop 执行
+
+`loop({ graph, bind, update, done, maxIterations })` 定义重复执行。`graph` 可以是固定 DAG 或 `(state) => graph`：每轮根据最新状态选图，映射输入，等待 `runtime.run`，更新状态，再用新状态与输出检查 `done`。不同轮可使用不同 Node、依赖和分支结构。选中的 Graph 共用 Loop 声明的输入／输出边界；结果结构不同时可显式声明联合类型。Graph 自身始终无环。
+
+`runtime.loop(definition, initialState)` 返回最终状态。回调均为同步函数，默认最多执行 32 轮，上限必须为正整数。失败或耗尽上限时直接拒绝，不重试。每次选中的 Graph 获得新的 run ID，并使用普通能力路由，所以任务和轮次之间可能切换副本。状态在调用方应用中，Loop 不固定 Worker，也不持久化对话。只有应用显式将 `config.maxTurns` 传为 `maxIterations` 时才使用该配置。
 
 ## 扩容与生命周期
 
@@ -95,13 +104,13 @@ Handler 必须 await 自己启动的工作。关闭 Runtime 时未开始的 Grap
 
 ## 契约与目标节点体系
 
-当前 `NodeContractMap` 仍包含 18 个 v1.0 输入输出契约及 `INTERACTION.RUN/TOOL/SKILL`、`REASONING.GENERATE` 四个 dev 扩展。这些名称是待迁移的实现基线，不是最终目录。目标体系要求：
+当前 `NodeContractMap` 包含 18 个 v1.0 契约及 `INTERACTION.TOOL/TOOL_BATCH/SKILL`、`REASONING.GENERATE`；`INTERACTION.RUN` 已移除。剩余名称是待迁移的实现基线，不是最终目录。目标体系要求：
 
 - 将模型生成和显式推理统一迁入 `INFER.*`；
 - 新增 `CONTEXT.RAG.*` 与 `MEMORY.RAG.*`，同时保持当前任务知识与长期 Memory Corpus 的生命周期隔离；
 - 将 Skill 拆成 `MEMORY.SKILL` 与 `CONTEXT.SKILL`；
 - 将工具和 MCP 分别置于 `INTERACTION.ACT.TOOL` 与 `INTERACTION.ACT.MCP`；
-- 从 Core Node 中移除 `CONTEXT.RESET` 和 `INTERACTION.RUN`，由 Runtime 生命周期与应用 Graph 承担。
+- 移除 `CONTEXT.RESET`，由 Runtime 生命周期承担；RUN 编排已归 Graph + Loop。
 
 自定义能力仍通过声明合并扩展，无需把 Node 枚举硬编码进 Router/Scheduler。最终 Contract 必须先固定新增/改名节点的 TypeScript 输入输出，再变更 handler 和 Graph；本轮文档不推测字段。
 
@@ -109,12 +118,12 @@ Provider 适配归目标目录 `worker/infer/providers/`，不进入 Node 名称
 
 资源继续使用 `resources: () => ({ ... })`，保证每次注册创建自己的资源。相较草案中的资源对象写法，这里明确保留工厂语义，避免副本意外共享可变状态。Graph 继续用 `.node(id, type, dependencies, bind)` 明确输入映射，避免把检索结果未经转换传给要求 messages 的推理 Node。
 
-运行设置和业务输入分离：`ctx.services.config` 提供环境、默认模型和超时，`ctx.services.providers` 选择适配器，`ctx.services.sandbox` 检查能力。Runtime 不运行 Agent 循环，不扫描 Skill，不建立 MCP 连接；这些行为由 Agent Node 和应用启动代码控制。
+运行设置和业务输入分离：`ctx.services.config` 提供环境、默认模型和超时，`ctx.services.providers` 选择适配器，`ctx.services.sandbox` 检查能力。Runtime 执行通用 Graph 和 Loop；应用定义 Agent 状态、显式加载 Skill 并建立 MCP 连接。
 
 通信细节见 [Worker 通信](worker-communication.zh-CN.md)，Agent 配置与安全边界见 [Agent 与运行配置](interaction-runtime.zh-CN.md)。
 
 ## 执行路径的轻量约束
 
-同进程调用沿 Runtime → Worker handler 执行，不经过基类或适配层；只有跨进程调用才编码 payload。Worker 中的 handler 在定义时建立查找表，Graph 是不可变计划，运行只创建自己的结果与依赖等待。Agent 的三个内部计划预先构建并跨轮次/副本复用，避免每个工具调用都重新构图。
+同进程调用沿 Runtime → Worker handler 执行，不经过基类或适配层；只有跨进程调用才编码 payload。Worker 的 handler 在定义时建立查找表。Graph 是不可变可复用计划，每次运行拥有自己的结果与依赖等待。Loop 可选择预先构建的 Graph，也可按状态构建新图。执行链为 `runtime.loop → runLoop → runtime.run → runGraph → invoke → Worker`。
 
 Router 用一次遍历筛选能力、容量与位置，保留同级轮询；没有维护第二套复杂索引或调度服务。需要扩展时增加具体 Node 或适配器，不以每个概念拆一套 class/factory/registry。性能变化未作吞吐基准承诺，当前验证保持调用、并发与路由语义一致。

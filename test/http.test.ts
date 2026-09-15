@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { once } from "node:events";
 import test from "node:test";
-import { createDitto, defineWorker, createHttpTransport, createWorkerHttpHandler, createInteractionNodes, ProviderRegistry, loadRuntimeConfig } from "../src/index.js";
+import { createDitto, defineWorker, createHttpTransport, createWorkerHttpHandler, createGenerateNode, createInteractionNodes, ProviderRegistry, loadRuntimeConfig, graph, loop, type ModelMessage } from "../src/index.js";
 
 test("real HTTP transports run remote workers and reject auth, malformed envelopes and oversized requests", async () => {
   let executions = 0;
@@ -34,7 +34,7 @@ test("real HTTP transports run remote workers and reject auth, malformed envelop
 });
 
 
-test("remote Agent entry uses server-owned model configuration and runs private Nodes", async () => {
+test("Runtime Loop executes a remote Graph with server-owned model configuration", async () => {
   const providers = new ProviderRegistry();
   providers.register("server-model", { async generate(request) {
     assert.equal(request.model, "owned-by-server");
@@ -42,8 +42,10 @@ test("remote Agent entry uses server-owned model configuration and runs private 
   } });
   const config = loadRuntimeConfig({ DITTO_PROVIDERS: "server_model", DITTO_PROVIDER_SERVER_MODEL_API_KEY: "private-fixture" });
   const remote = createDitto({ hostId: "agent-server", config, providers });
-  const handle = remote.register(defineWorker({ type: "assistant", expose: ["INTERACTION.RUN"],
-    nodes: createInteractionNodes({ model: { provider: "server-model", model: "owned-by-server" } }),
+  const handle = remote.register(defineWorker({ type: "assistant", expose: ["REASONING.GENERATE"],
+    nodes: { ...createInteractionNodes(),
+      "REASONING.GENERATE": createGenerateNode({ model: { provider: "server-model", model: "owned-by-server" } }),
+    },
   }));
   const server = createServer(createWorkerHttpHandler(remote, { token: "fixture-token" }));
   server.listen(0, "127.0.0.1"); await once(server, "listening");
@@ -53,13 +55,18 @@ test("remote Agent entry uses server-owned model configuration and runs private 
     assert.equal(JSON.stringify(envelope).includes("private-fixture"), false);
     return transport.invoke(envelope);
   } }] });
-  local.registerRemote({ address: handle.address, capabilities: ["INTERACTION.RUN"], transportId: transport.id });
+  local.registerRemote({ address: handle.address, capabilities: ["REASONING.GENERATE"], transportId: transport.id });
   try {
-    const result = await local.invoke("INTERACTION.RUN", { messages: [{ role: "user", content: "hello" }] });
-    assert.equal(result.content, "remote-agent");
-    assert.equal(result.turns, 1);
-    await assert.rejects(remote.receive({ id: "private-node", target: handle.address, node: "REASONING.GENERATE",
-      payload: { kind: "inline", value: { messages: [] } } }), /mismatched/);
+    const step = graph<number>("remote-step").node("response", "REASONING.GENERATE", [], (turn) => ({
+      messages: [{ role: "user", content: String(turn) }] satisfies ModelMessage[],
+    }));
+    const result = await local.loop(loop({ graph: step, bind: (state: number) => state,
+      update: (state, { response }) => { assert.equal(response.content, "remote-agent"); return state + 1; },
+      done: (state) => state === 2,
+    }), 0);
+    assert.equal(result, 2);
+    await assert.rejects(remote.receive({ id: "private-node", target: handle.address, node: "INTERACTION.SKILL",
+      payload: { kind: "inline", value: { name: "private" } } }), /mismatched/);
   } finally {
     await local.close(); await remote.close(); server.closeAllConnections();
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));

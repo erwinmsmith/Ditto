@@ -1,6 +1,8 @@
 export { createDitto, DittoRuntime } from "./runtime.js";
 export type { DittoOptions, WorkerHandle } from "./runtime.js";
 export { graph, ExecutionGraph } from "./graph.js";
+export { loop } from "./loop.js";
+export type { LoopDefinition } from "./loop.js";
 export { NoWorkerAvailableError } from "./router.js";
 export { InMemoryArtifactStore, PayloadCodec } from "./artifact.js";
 export type { ArtifactStore, Payload } from "./artifact.js";

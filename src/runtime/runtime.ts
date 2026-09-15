@@ -5,6 +5,7 @@ import type { WorkerDefinition } from "../worker/define-worker.js";
 import { PayloadCodec, type ArtifactStore } from "./artifact.js";
 import { LocalEventFabric, type EventFabric, type EventHandler, type RuntimeEvent } from "./communication/events.js";
 import { graph, runGraph, type ExecutionGraph } from "./graph.js";
+import { runLoop, type LoopDefinition } from "./loop.js";
 import { WorkerRouter, type WorkerEntry } from "./router.js";
 import { createRuntimeServices, type RuntimeServices, type RuntimeServiceOptions } from "./services.js";
 import type {
@@ -116,6 +117,11 @@ export class DittoRuntime implements RuntimeClient {
   run<I, O extends object>(plan: ExecutionGraph<I, O>, input: NoInfer<I>): Promise<O> {
     if (this.#closed) return Promise.reject(new Error("Runtime is closed"));
     return runGraph(plan, input, (node, value, scope) => this.#invoke(node, value, undefined, scope));
+  }
+
+  loop<S, I, O extends object>(definition: LoopDefinition<S, I, O>, initialState: NoInfer<S>): Promise<S> {
+    if (this.#closed) return Promise.reject(new Error("Runtime is closed"));
+    return runLoop(definition, initialState, (plan, input) => this.run(plan, input));
   }
 
   /** Adapter-facing receiver. This is not an unauthenticated network server. */

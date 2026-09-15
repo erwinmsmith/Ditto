@@ -1,6 +1,7 @@
 import type { JsonObject, JsonValue } from "../../contracts/index.js";
 import type { WorkerContext } from "../node.js";
-import { jsonObject, type ToolSchema } from "../reasoning/providers/index.js";
+import { jsonObject, type ToolCall, type ToolSchema } from "../reasoning/providers/index.js";
+import type { InteractionToolBatchOutput } from "./contracts.js";
 
 export interface ToolDefinition extends ToolSchema {
   /** Required for local tools: reject invalid model-generated arguments before effects. */
@@ -28,5 +29,18 @@ export class ToolRegistry {
     jsonObject(arguments_);
     tool.validate(arguments_);
     return tool.execute(arguments_, context);
+  }
+
+  async callBatch(calls: readonly ToolCall[], context: WorkerContext<unknown, unknown>): Promise<InteractionToolBatchOutput> {
+    const ids = new Set<string>();
+    const available = new Set(this.list(context).map((tool) => tool.name));
+    for (const call of calls) {
+      if (!call.id || ids.has(call.id) || !available.has(call.name)) throw new Error("Invalid or unavailable model tool call");
+      ids.add(call.id);
+    }
+    const results: { id: string; result: JsonValue }[] = [];
+    // Preserve effect order; an empty batch is a no-op when the model has finished.
+    for (const call of calls) results.push({ id: call.id, result: await this.call(call.name, call.arguments, context) });
+    return results;
   }
 }

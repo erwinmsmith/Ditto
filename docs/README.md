@@ -9,7 +9,7 @@ Start with the architecture and development guides, then follow the references f
 | Document | English | 简体中文 | Contents |
 | --- | --- | --- | --- |
 | Project overview | [Read](../README.md) | [阅读](../README.zh-CN.md) | Project goals, capabilities, and setup |
-| Architecture | [Read](architecture.md) | [阅读](architecture.zh-CN.md) | Worker ownership, internal Nodes, Graph execution, scaling, and module boundaries |
+| Architecture | [Read](architecture.md) | [阅读](architecture.zh-CN.md) | Worker ownership, internal Nodes, Graph/Loop execution, scaling, and module boundaries |
 | Development and Integration | [Read](getting-started.md) | [阅读](getting-started.zh-CN.md) | Installation, checks, package entry points, and custom Workers and Nodes |
 | Worker Communication | [Read](worker-communication.md) | [阅读](worker-communication.zh-CN.md) | Local and remote calls, HTTP deployment, lifecycle, events, and artifacts |
 | Interaction and Runtime Configuration | [Read](interaction-runtime.md) | [阅读](interaction-runtime.zh-CN.md) | Providers, models, credentials, tools, MCP, Skills, and Sandbox permissions |
@@ -25,10 +25,11 @@ The [environment variable template](../.env.example) uses bilingual comments.
 | `src/contracts/` | [Architecture](architecture.md): shared data types and the Node contract interface |
 | `src/worker/*/contracts.ts`, `src/worker/node.ts` | [Development and Integration](getting-started.md): Worker-owned contracts and typed handlers |
 | `src/worker/define-worker.ts`, `src/runtime/graph.ts`, `src/runtime/router.ts` | [Architecture](architecture.md): composition, execution, and routing |
+| `src/runtime/loop.ts` | [Architecture](architecture.md#loop-execution): state, per-round Graph selection, and bounded execution |
 | `src/runtime/communication/`, `src/runtime/artifact.ts` | [Worker Communication](worker-communication.md) |
 | `src/runtime/config.ts`, `src/runtime/services.ts`, `src/runtime/sandbox/` | [Interaction and Runtime Configuration](interaction-runtime.md): configuration and permissions |
 | `src/worker/infer/providers/` (target; current: `reasoning/providers/`) | [Interaction and Runtime Configuration](interaction-runtime.md): vendor-neutral model Provider adapters |
-| `src/worker/interaction/` | [Interaction and Runtime Configuration](interaction-runtime.md): tools, MCP, Skills, and the interaction loop |
+| `src/worker/interaction/` | [Interaction and Runtime Configuration](interaction-runtime.md): leaf tool/MCP/Skill capabilities and application Graph + Loop composition |
 
 ## Language Convention
 

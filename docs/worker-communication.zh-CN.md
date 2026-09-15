@@ -2,7 +2,7 @@
 
 [English](worker-communication.md) · **简体中文**
 
-> Runtime 的 `invoke` / `emit` 语义不因[目标 Contract](13-node-api-contract.zh-CN.md)改变，也绝不归入 `INTERACTION.COMMUNICATE`。本文使用 `INTERACTION.RUN` 的示例记录当前可运行入口；目标设计由应用 Graph 或 Worker 入口对外暴露，不再保留 RUN Node。
+> Runtime 的 `invoke` / `emit` 语义不因[目标 Contract](13-node-api-contract.zh-CN.md)改变，也不归入 `INTERACTION.COMMUNICATE`。`INTERACTION.RUN` 已移除；应用 Graph 与 Loop 调用公开的叶子能力，Loop 和状态留在调用端。
 
 ## 位置与调用
 
@@ -22,13 +22,14 @@
 
 ```ts
 import { createServer } from "node:http";
-import { createDitto, defineWorker, createInteractionNodes, loadRuntimeConfig, createWorkerHttpHandler } from "@ditto/core";
+import { createDitto, defineWorker, createGenerateNode, loadRuntimeConfig, createWorkerHttpHandler } from "@ditto/core";
 
 const token = process.env.DITTO_WORKER_TOKEN;
 if (!token) throw new Error("Set DITTO_WORKER_TOKEN");
 const runtime = createDitto({ hostId: "server-a", processId: "agent-service", config: loadRuntimeConfig() });
 const worker = runtime.register(defineWorker({
-  type: "assistant", concurrency: 8, expose: ["INTERACTION.RUN"], nodes: createInteractionNodes(),
+  type: "assistant", concurrency: 8, expose: ["REASONING.GENERATE"],
+  nodes: { "REASONING.GENERATE": createGenerateNode() },
 }), "assistant-a");
 const server = createServer(createWorkerHttpHandler(runtime, { token }));
 server.listen(8080, "127.0.0.1");
@@ -48,14 +49,16 @@ const transport = createHttpTransport({
 const runtime = createDitto({ hostId: "client", transports: [transport] });
 runtime.registerRemote({
   address: { workerId: "assistant-a", workerType: "assistant", hostId: "server-a", processId: "agent-service" },
-  capabilities: ["INTERACTION.RUN"], transportId: transport.id,
+  capabilities: ["REASONING.GENERATE"], transportId: transport.id,
 });
 try {
-  console.log(await runtime.invoke("INTERACTION.RUN", { messages: [{ role: "user", content: "Hello" }] }));
+  console.log(await runtime.invoke("REASONING.GENERATE", { messages: [{ role: "user", content: "Hello" }] }));
 } finally { await runtime.close(); }
 ```
 
 跨服务器将地址换为受控 HTTPS 入口，在服务前配置 TLS 或使用 Node HTTPS Server；明文 loopback 示例用于本机开发。为多个服务器分别安装 transport，再注册各自地址。相同 capability 会自然参与路由，无需改变 Graph。
+
+相同注册方式适用于 `runtime.run()` 与 `runtime.loop()`。Loop 可每轮选择不同 DAG，只有该 DAG 的 Node 调用经过 HTTP。部署并公开所有可能选中 Graph 所需的能力。生成使用服务端模型配置；需要工具的应用还需部署 Interaction 能力，并让模型可见工具 schema 与执行权限保持一致。远端注册不会上传 Graph 函数或 Loop 状态机。
 
 ## 协议与责任
 

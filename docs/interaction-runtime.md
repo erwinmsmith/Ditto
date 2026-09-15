@@ -2,15 +2,15 @@
 
 **English** · [简体中文](interaction-runtime.zh-CN.md)
 
-The interaction loop, tools, MCP, and Skills currently live in `src/worker/interaction/`; current model generation and adapters live in `src/worker/reasoning/`. The target Provider location is `src/worker/infer/providers/`. There is no independent agent subsystem. The Runtime provides shared services, while applications establish external connections and choose deployment policies.
+Graph execution and bounded repetition live in `src/runtime/graph.ts` and `src/runtime/loop.ts`. Tools, MCP, and Skills live in `src/worker/interaction/`; current model generation and adapters live in `src/worker/reasoning/`. The target Provider location is `src/worker/infer/providers/`. An Agent is application state + Graph + Loop. Applications establish external connections and choose deployment policies.
 
-> This guide describes runnable pre-migration code. Under the [target Contract](13-node-api-contract.md), model calls are implemented by `INFER.REASONING.*` without a separate GENERATE Node; Tool and MCP become `INTERACTION.ACT.TOOL` and `INTERACTION.ACT.MCP`; Skill splits into `MEMORY.SKILL` and `CONTEXT.SKILL`; and `INTERACTION.RUN` becomes application Graph / Runtime orchestration. The examples must not be renamed before those Contracts are implemented.
+> `INTERACTION.RUN` has been removed in favor of `runtime.loop()`. Other names still use current runnable Contracts: under the [target Contract](13-node-api-contract.md), model calls move to `INFER.REASONING.*`, tools/MCP to `INTERACTION.ACT.TOOL` / `INTERACTION.ACT.MCP`, and Skills to `MEMORY.SKILL` / `CONTEXT.SKILL`. Those remaining migrations are not yet implemented.
 
 ## Configuration Precedence and Environment Files
 
 1. Applications load environment variables using Node's `--env-file=.env`, or `--env-file-if-exists` for an optional file.
 2. `loadRuntimeConfig()` explicitly parses and validates the environment, then supplies `createDitto({ config })`.
-3. A Worker's `createInteractionNodes({ model })` overrides the Runtime's default model. When omitted, it uses `config.model`.
+3. A Worker's `createGenerateNode({ model })` overrides the Runtime's default model. When omitted, it uses `config.model`.
 4. A complete policy passed to `createDitto({ sandbox })` replaces the sandbox policy in the configuration. Unlisted permissions remain denied.
 
 Importing the library or calling createDitto without config does not read `.env` or credentials from environment variables. Configuration includes the environment label, workspace, default Provider/model, Provider settings, request timeout, Agent turn limit, and permissions. `environment` is a label; it does not start a container or switch security levels automatically.
@@ -43,9 +43,11 @@ Current `ModelProvider.generate(ModelRequest)` returns normalized text and toolC
 Built-in adapters support text and function-tool requests/results for OpenAI-compatible Chat Completions and Anthropic Messages. They translate OpenAI's tool_calls/tool_call_id and Anthropic's tool_use/tool_result internally. Model names come from configuration. The library does not hardcode a model catalog, switch Providers automatically, retry requests, or make billable calls to discover capabilities.
 
 ```ts
+import { defineWorker, createGenerateNode } from "@ditto/core";
+
 const worker = defineWorker({
-  type: "reviewer", expose: ["INTERACTION.RUN"],
-  nodes: createInteractionNodes({ model: { provider: "claude", model: "your-model-id" } }),
+  type: "reviewer", expose: ["REASONING.GENERATE"],
+  nodes: { "REASONING.GENERATE": createGenerateNode({ model: { provider: "claude", model: "your-model-id" } }) },
 });
 ```
 
@@ -53,22 +55,26 @@ Custom SDKs, other vendors, streaming, or multimodal models can implement and re
 
 Protocol references: [OpenAI Chat API](https://developers.openai.com/api/reference/cli/resources/chat), [Anthropic tool calls](https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls).
 
-## Agent Nodes and the Tool Loop
+## Graph, Loop, and Leaf Nodes
 
 | Node | Input and behavior |
 | --- | --- |
-| `INTERACTION.RUN` | Accepts normalized messages and optional Skill names; runs a bounded model/tool loop |
 | `REASONING.GENERATE` | Calls the selected Provider with only the tool schemas allowed by current permissions |
 | `INTERACTION.TOOL` | Checks permissions, validates arguments, and executes a local or MCP tool |
+| `INTERACTION.TOOL_BATCH` | Accepts `{ calls }`, checks unique/nonempty IDs and available names, executes sequentially, and returns `{ id, result }[]`; an empty batch returns `[]` |
 | `INTERACTION.SKILL` | Retrieves registered and permitted Skill instructions by name |
 
 These contracts extend NodeContractMap without changing v1.0 Message or REASONING.INFER. `ModelMessage` separately represents tool call IDs and result correlation, keeping Provider protocol fields out of the original Message type.
 
-`createInteractionNodes({ tools, skills, model, maxTurns })` returns four handlers that can be spread directly into Worker.nodes. Expose only INTERACTION.RUN unless other entry points are needed. Model and tool tasks use `ctx.run` on the same replica; individual handlers can be replaced to customize behavior. If a Worker has its own resource/config types, use `createInteractionNodes<Resource, Config>(...)`.
+`createInteractionNodes({ tools, skills })` returns three interaction handlers. Compose model generation separately with `createGenerateNode({ model, tools: (ctx) => tools.list(ctx) })`. Both factories preserve custom Worker resource/config types. Expose the capabilities used by the application Graph; `ctx.run` still supports private composition inside a replica.
 
-Tool requests must belong to the current turn's available set and have distinct call IDs. Tools execute sequentially, with the required validate callback checking arguments before effects occur. A tool exception fails the Agent; MCP's isError is preserved as a tool result. If the final model turn still requests tools, the loop stops at the limit without performing effects whose results cannot be consumed by another model turn.
+Define one round with a DAG, then use `loop({ graph, bind, update, done, maxIterations })` and `runtime.loop(definition, initialState)`. `graph` accepts a fixed DAG or `(state) => graph`, allowing a different DAG on every step. Each round selects its Graph, binds input, awaits execution, calls `update`, then calls `done` with the updated state and output. All callbacks are synchronous; the Loop returns final state, defaults to 32 iterations, and throws when the limit is exhausted. Errors propagate without retries. Definitions can be reused, but applications own state and should return new values rather than mutate shared objects. See the [complete README compositions](../README.md#run-multiple-rounds).
 
-The loop does not guarantee transactions, long-term memory, context trimming, or unlimited autonomous execution. maxTurns limits model turns, and timeoutMs limits each built-in Provider request; neither is a hard deadline for the entire Agent/tool/MCP session. Tool authors must set deadlines for their own I/O.
+Tool batches check IDs and currently available names before any tool effects; each tool's required validate callback checks its arguments before that tool executes. A failure stops subsequent calls without rolling back earlier effects. MCP's isError is preserved as a result. Keep the generation tool catalog and execution permissions aligned, including across hosts; each execution host enforces its own policy. Batch execution has no model loop or conversation state.
+
+The generic Loop does not know which Nodes perform effects. The README's application Graph rejects tool requests on the final model turn before calling the batch Node. `config.maxTurns` / `DITTO_MAX_TURNS` is an application setting passed explicitly as `maxIterations`; it does not override the generic Loop default. `timeoutMs` limits each built-in Provider request, not the entire Loop/tool/MCP session. Tools need their own I/O deadlines. Await top-level Loops before closing the Runtime; the Loop provides no checkpointing, rollback, or cancellation.
+
+Migration from the old factory: remove `INTERACTION.RUN` from `expose` and invocation sites, move `model` to `createGenerateNode`, move `maxTurns` to the Loop definition, and place messages/Skill instructions in application state. `InteractionRunInput` and `InteractionRunOutput` are no longer exported.
 
 ## Tools and MCP
 
@@ -101,7 +107,7 @@ MCP network and process permissions are enforced by the connecting SDK and deplo
 
 SkillRegistry supports register/list/get and `load(name, path, sandbox)` to read a workspace SKILL.md. Callers provide the name explicitly, and the entire file is stored as instructions. It does not implicitly parse YAML, scan the filesystem, execute scripts, or download dependencies.
 
-Loading requires read permission and the corresponding skills permission. Accessing registered content checks skills permission again. register returns an unregister function. `INTERACTION.RUN` loads only Skills explicitly named in its input and adds their instructions to the model context. Skill text cannot expand tool/network/execution permissions and does not automatically run referenced files.
+Loading requires read permission and the corresponding skills permission. Accessing registered content checks skills permission again. register returns an unregister function. Applications invoke `INTERACTION.SKILL` explicitly and put the returned instructions into initial Loop messages or a Graph binding. Skill text cannot expand tool/network/execution permissions and does not automatically run referenced files.
 
 ## Sandbox Boundaries
 

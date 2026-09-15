@@ -1,5 +1,5 @@
 import type { JsonObject, JsonValue, Message } from "../../contracts/common.js";
-import type { ModelMessage } from "../reasoning/providers/index.js";
+import type { ToolCall } from "../reasoning/providers/index.js";
 import type { Skill } from "./skills.js";
 
 export interface Action {
@@ -17,8 +17,8 @@ export interface Recipient {
   channel?: string;
 }
 
-export interface InteractionRunInput { readonly messages: readonly ModelMessage[]; readonly skills?: readonly string[] }
-export interface InteractionRunOutput { readonly content: string; readonly messages: readonly ModelMessage[]; readonly turns: number }
+export interface InteractionToolBatchInput { readonly calls: readonly ToolCall[] }
+export type InteractionToolBatchOutput = readonly { readonly id: string; readonly result: JsonValue }[];
 
 declare module "../../contracts/node-contract-map.js" {
   interface NodeContractMap {
@@ -26,8 +26,8 @@ declare module "../../contracts/node-contract-map.js" {
     "INTERACTION.OBSERVE": NodeContract<InteractionObserveInput, InteractionObserveOutput>;
     "INTERACTION.COMMUNICATE": NodeContract<InteractionCommunicateInput, InteractionCommunicateOutput>;
     "INTERACTION.OUTPUT": NodeContract<InteractionOutputInput, InteractionOutputOutput>;
-    "INTERACTION.RUN": NodeContract<InteractionRunInput, InteractionRunOutput>;
     "INTERACTION.TOOL": NodeContract<{ readonly name: string; readonly arguments: JsonObject }, JsonValue>;
+    "INTERACTION.TOOL_BATCH": NodeContract<InteractionToolBatchInput, InteractionToolBatchOutput>;
     "INTERACTION.SKILL": NodeContract<{ readonly name: string }, Skill>;
   }
 }

@@ -78,7 +78,7 @@ The same structure can be expressed as an adjacency matrix. In the order `retrie
 
 The diagram and matrix describe the same dependencies; the `bind` functions in code define the actual data transformations. A Node type may appear multiple times with distinct logical IDs. Graphs are currently directed acyclic graphs (DAGs), with support for concurrent independent branches and joins across multiple dependencies.
 
-**Nodes define capabilities, Graphs define connections, and Workers execute them.** Change Nodes and connections to reshape an Agent. Register more Worker replicas to add capacity without changing the Graph definition.
+**Nodes define capabilities, Graphs define one round, Loops advance state across rounds, and Workers execute Nodes.** An Agent is state + Graph + Loop. Register more Worker replicas to add capacity without changing the Graph definition.
 
 ## What is implemented
 
@@ -86,9 +86,10 @@ The diagram and matrix describe the same dependencies; the `bind` functions in c
 | --- | --- |
 | Worker composition | Mixed Node namespaces, explicit public entries, per-replica resources, concurrency limits and cleanup |
 | Graphs | Typed immutable DAGs; application-wide routing or execution pinned inside one Worker |
+| Loops | `runtime.loop()` repeats a Graph with explicit state updates, stopping conditions, and an iteration limit |
 | Communication | Direct local calls, authenticated HTTP across processes/servers, custom transport interface, separate events and artifacts |
 | Models | Named providers, runtime defaults and per-Worker model selection; OpenAI-compatible and Anthropic text/tool adapters |
-| Interaction Nodes | Bounded model/tool loop, validated local tools, connected MCP client adapter, explicit Skill registration/loading |
+| Interaction Nodes | Validated single/batch tool calls, connected MCP client adapter, explicit Skill registration/loading |
 | Configuration | Explicit environment parsing, model/key/timeout/workspace settings and default-deny permission services |
 
 Core has **no third-party runtime dependencies**. The original 18 Node contracts remain at v1.0. The package is private and is not published to npm.
@@ -105,8 +106,11 @@ src/
     memory/                 # Memory entities and operation contracts
     context/                # Context entities and operation contracts
     reasoning/              # contracts.ts, generate.ts and providers/
-    interaction/            # contracts.ts, loop.ts, tools, MCP, Skills
+    interaction/            # contracts.ts, tools, MCP, Skills; leaf handler composition in index.ts
   runtime/                  # Graph/scheduler, registry, capability routing, lifecycle
+    graph.ts                # One finite DAG: definition and execution
+    loop.ts                 # State transitions and bounded repetition of a Graph
+    runtime.ts              # invoke / run / loop, registration and lifecycle
     communication/          # Transport, HTTP and events
     sandbox/                # Runtime permission service
 ```
@@ -143,9 +147,103 @@ async function runAgent(workers: readonly WorkerDefinition[], query: Message) {
 
 The application implements and supplies `workers`; creating the Runtime registers those definitions. Provide the Memory/Context data strategies and Reasoning implementation your application needs, and configure a provider/model when using model adapters. The npm package has not been published yet.
 
+## Run Multiple Rounds
+
+`runtime.run(graph, input)` executes one DAG. `runtime.loop(definition, initialState)` executes successive rounds: `graph` supplies a fixed DAG or selects one from state, `bind(state)` supplies input, `update(state, output)` creates the next state, and `done(nextState, output)` decides whether to return it. The callbacks are synchronous. `maxIterations` defaults to 32 and must be a positive safe integer; reaching it without `done` throws. Node or callback errors propagate immediately without retries.
+
+This complete composition uses the current model and tool capabilities. Configure the Provider/model in `.env`. The application registers tools in `tools` and allows them through `DITTO_ALLOW_TOOLS`; an empty registry supports a text-only conversation.
+
+```ts
+import {
+  createDitto, defineWorker, graph, loop, loadRuntimeConfig,
+  createGenerateNode, createInteractionNodes, ToolRegistry, type ModelMessage,
+} from "@ditto/core";
+
+interface AgentState { messages: readonly ModelMessage[]; turns: number }
+const tools = new ToolRegistry();
+const runtime = createDitto({ config: loadRuntimeConfig(), workers: [
+  defineWorker({ type: "REASONING", nodes: {
+    "REASONING.GENERATE": createGenerateNode({ tools: (ctx) => tools.list(ctx) }),
+  } }),
+  defineWorker({ type: "INTERACTION", nodes: createInteractionNodes({ tools }) }),
+] });
+const maxIterations = runtime.services.config.maxTurns;
+const step = graph<AgentState>("agent-step")
+  .node("response", "REASONING.GENERATE", [], (state) => ({ messages: state.messages }))
+  .node("tools", "INTERACTION.TOOL_BATCH", ["response"], (state, { response }) => {
+    if (response.toolCalls.length && state.turns + 1 >= maxIterations) {
+      throw new Error("Agent turn limit reached");
+    }
+    return { calls: response.toolCalls };
+  });
+const agentLoop = loop({
+  graph: step, maxIterations,
+  bind: (state: AgentState) => state,
+  update: (state, { response, tools }): AgentState => ({
+    turns: state.turns + 1,
+    messages: [
+      ...state.messages,
+      { role: "assistant", content: response.content, toolCalls: response.toolCalls },
+      ...tools.map(({ id, result }) => ({
+        role: "tool" as const, toolCallId: id, content: JSON.stringify(result),
+      })),
+    ],
+  }),
+  done: (_state, { response }) => response.toolCalls.length === 0,
+});
+try {
+  const result = await runtime.loop(agentLoop, {
+    messages: [{ role: "user", content: "Hello" }], turns: 0,
+  });
+  console.log(result.messages.at(-1)?.content);
+} finally { await runtime.close(); }
+```
+
+Within each round the Graph is `REASONING.GENERATE → INTERACTION.TOOL_BATCH`. An empty batch does nothing; otherwise tools execute in order and their results enter the next round's messages. The application's Graph checks the final model turn before tool effects. The generic Loop only limits complete Graph executions and does not impose Agent-specific policies. `DITTO_MAX_TURNS` is used explicitly here; it does not change the generic default of 32.
+
+`INTERACTION.RUN` has been removed. `createInteractionNodes({ tools, skills })` supplies tool and Skill handlers; model selection now belongs to `createGenerateNode({ model, tools })`. Load Skills explicitly with `runtime.invoke("INTERACTION.SKILL", { name })` and add their instructions to the initial state. See the [configuration guide](docs/interaction-runtime.md).
+
+### Different DAGs for Different Steps
+
+Keep multiple candidate Graphs in a collection and pass `graph: (state) => graphs[state.step]` to choose one per step. Candidates can be selected repeatedly, for example `draft → revise → draft`. The following text-only workflow drafts a response with one Node, then selects a two-Node review/revision DAG. Supply a live Runtime with `REASONING.GENERATE` registered without tools.
+
+```ts
+import { graph, loop, type DittoRuntime, type ModelMessage } from "@ditto/core";
+
+interface ReviewState { messages: readonly ModelMessage[]; step: "draft" | "revise"; turns: number }
+const draft = graph<ReviewState>("draft")
+  .node("response", "REASONING.GENERATE", [], (state) => ({ messages: state.messages }));
+const revise = graph<ReviewState>("revise")
+  .node("critique", "REASONING.GENERATE", [], (state) => ({
+    messages: [...state.messages, { role: "user", content: "Review the previous answer." }],
+  }))
+  .node("response", "REASONING.GENERATE", ["critique"], (state, { critique }) => ({
+    messages: [...state.messages, { role: "user", content: `Revise using this feedback: ${critique.content}` }],
+  }));
+const graphs = { draft, revise };
+
+async function runReview(runtime: DittoRuntime, messages: readonly ModelMessage[]) {
+  return runtime.loop(loop({
+    graph: (state: ReviewState) => graphs[state.step],
+    bind: (state: ReviewState) => state,
+    update: (state, { response }): ReviewState => ({
+      step: "revise",
+      turns: state.turns + 1,
+      messages: [...state.messages, { role: "assistant", content: response.content }],
+    }),
+    done: (state) => state.turns === 2,
+    maxIterations: 2,
+  }), { messages, step: "draft", turns: 0 });
+}
+```
+
+Each selected Graph can have different Nodes, edges, and parallel branches. Here both expose `response` to the Loop; if results differ, declare a union in `LoopDefinition<S, I, O>` and narrow it in `update` / `done`. The selector can also construct a new Graph from state. It runs once per iteration, and its errors stop the Loop before binding input or executing Nodes.
+
 ## Execution boundaries
 
 `runtime.run(graph, input)` routes public Node capabilities across Workers. `ctx.run(graph, input)` runs the entire graph inside the current Worker replica, including private Nodes. `ctx.invoke(node, input)` explicitly routes another public capability.
+
+`runtime.loop()` uses `runtime.run()` for each round, so replicas may change between rounds. Keep conversation state in the Loop state or explicitly shared storage. Finish top-level runs before closing the Runtime. Loop does not introduce cycles into Graphs, checkpointing, cancellation, or automatic retries.
 
 Scaling is manual registration/deployment; automatic provisioning and durable workflow recovery are not implemented. HTTP timeouts do not cancel remote effects, and calls are not automatically retried. Sandbox provides cooperative permission checks; untrusted code requires an application-supplied OS/container isolation boundary. MCP connections and external client lifecycles are owned by the application.
 

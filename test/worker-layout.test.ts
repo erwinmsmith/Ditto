@@ -13,7 +13,7 @@ test("capability modules own their Node contracts and implementation entry point
   assert.equal(context.sources.length, 1);
   assert.equal(typeof createGenerateNode(), "function");
   assert.deepEqual(Object.keys(createInteractionNodes()).sort(), [
-    "INTERACTION.RUN", "INTERACTION.SKILL", "INTERACTION.TOOL", "REASONING.GENERATE",
+    "INTERACTION.SKILL", "INTERACTION.TOOL", "INTERACTION.TOOL_BATCH",
   ]);
   for (const path of ["src/agent", "src/node.ts", "src/worker.ts", "src/providers", "src/sandbox"]) {
     assert.equal(existsSync(new URL(`../../${path}`, import.meta.url)), false, path);
