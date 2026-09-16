@@ -1,6 +1,14 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { ExecutionScope } from "./communication/transport.js";
 import type { InputOf, NodeType, OutputOf } from "../contracts/index.js";
+import type {
+  Context, ContextIngress, JsonObject, JsonValue, KnowledgeItem,
+  MessageContent, Reference, ToolCall,
+} from "../contracts/common.js";
+import type { RuntimeClient } from "../worker/execution-context.js";
+import type { ContextRagRankOutput } from "../worker/context/contracts.js";
+import type { InteractionMcpInput, InteractionMcpOutput, InteractionToolOutput } from "../worker/interaction/contracts.js";
+import type { MemoryRagRankOutput, MemorySkillOutput } from "../worker/memory/contracts.js";
 
 export interface GraphTask {
   readonly id: string;
@@ -77,4 +85,199 @@ export async function runGraph<I, O extends object>(
   const failure = settled.find((result) => result.status === "rejected");
   if (failure?.status === "rejected") throw failure.reason;
   return Object.freeze(outputs) as O;
+}
+
+export interface RuntimeFlowResult<Output> {
+  readonly output: Output;
+  readonly context: Context;
+}
+
+export interface ContextRagFlowInput {
+  readonly scope: "context";
+  readonly context: Context;
+  readonly query: MessageContent;
+  readonly corpus: Reference | readonly KnowledgeItem[];
+  readonly limit?: number;
+  readonly strategy?: string;
+}
+
+export interface MemoryRagFlowInput {
+  readonly scope: "memory";
+  readonly context: Context;
+  readonly query: MessageContent;
+  readonly corpus?: Reference;
+  readonly limit?: number;
+  readonly strategy?: string;
+}
+
+export type RagFlowInput = ContextRagFlowInput | MemoryRagFlowInput;
+
+export interface SkillFlowInput {
+  readonly context: Context;
+  readonly name: string;
+  readonly version?: string;
+}
+
+export interface McpFlowInput {
+  readonly context: Context;
+  readonly request: InteractionMcpInput;
+}
+
+export interface ToolCallFlowInput {
+  readonly context: Context;
+  readonly call: ToolCall;
+}
+
+function stableIngressId(prefix: string, value: unknown): string {
+  return `${prefix}:${createHash("sha256").update(JSON.stringify(value)).digest("hex")}`;
+}
+
+async function updateContext(
+  runtime: RuntimeClient,
+  context: Context,
+  ingress: readonly ContextIngress[],
+): Promise<Context> {
+  return runtime.invoke("CONTEXT.UPDATE", { context, ingress });
+}
+
+function contextRagIngress(candidates: ContextRagRankOutput): readonly ContextIngress[] {
+  return candidates.map(({ item, score }) => ({
+    id: stableIngressId("context-rag", item.id),
+    sourceNode: "CONTEXT.RAG.RANK",
+    content: item.content,
+    ...(item.source ? { reference: item.source } : {}),
+    metadata: { ...(item.metadata ?? {}), itemId: item.id, ...(score === undefined ? {} : { score }) },
+  }));
+}
+
+function memoryRagIngress(candidates: MemoryRagRankOutput): readonly ContextIngress[] {
+  return candidates.map(({ memory, score }) => ({
+    id: stableIngressId("memory-rag", memory.id),
+    sourceNode: "MEMORY.RAG.RANK",
+    content: memory.message.content,
+    metadata: {
+      ...(memory.metadata ?? {}),
+      memoryId: memory.id,
+      ...(memory.key === undefined ? {} : { memoryKey: memory.key }),
+      ...(score === undefined ? {} : { score }),
+    },
+  }));
+}
+
+function skillIngress(skill: MemorySkillOutput): readonly ContextIngress[] {
+  return [{
+    id: stableIngressId("skill", [skill.name, skill.version ?? null]),
+    sourceNode: "MEMORY.SKILL",
+    content: skill.instructions,
+    metadata: {
+      ...(skill.metadata ?? {}),
+      name: skill.name,
+      ...(skill.version === undefined ? {} : { version: skill.version }),
+    },
+  }];
+}
+
+function toolCallIngress(result: InteractionToolOutput): readonly ContextIngress[] {
+  return [{
+    id: stableIngressId("tool", result),
+    sourceNode: "INTERACTION.ACT.TOOL",
+    content: result.content,
+    ...(result.reference ? { reference: result.reference } : {}),
+    metadata: { ...(result.metadata ?? {}), source: result.source },
+  }];
+}
+
+function mcpIngress(output: InteractionMcpOutput): readonly ContextIngress[] {
+  if (output.operation === "invoke") {
+    return [{
+      id: stableIngressId("mcp", output.result),
+      sourceNode: "INTERACTION.ACT.MCP",
+      content: output.result.content,
+      ...(output.result.reference ? { reference: output.result.reference } : {}),
+      metadata: { ...(output.result.metadata ?? {}), source: output.result.source },
+    }];
+  }
+  const capabilities: JsonValue = output.capabilities.map((capability) => ({
+    server: capability.server,
+    name: capability.name,
+    ...(capability.description === undefined ? {} : { description: capability.description }),
+    ...(capability.inputSchema === undefined ? {} : { inputSchema: capability.inputSchema }),
+  }));
+  const metadata: JsonObject = { operation: "discover" };
+  return [{
+    id: stableIngressId("mcp-discover", capabilities),
+    sourceNode: "INTERACTION.ACT.MCP",
+    content: capabilities,
+    metadata,
+  }];
+}
+
+/** Standard query-time RAG flow. EMBED remains an index-preparation operation. */
+export function runRagFlow(
+  runtime: RuntimeClient,
+  input: ContextRagFlowInput,
+): Promise<RuntimeFlowResult<ContextRagRankOutput>>;
+export function runRagFlow(
+  runtime: RuntimeClient,
+  input: MemoryRagFlowInput,
+): Promise<RuntimeFlowResult<MemoryRagRankOutput>>;
+export async function runRagFlow(
+  runtime: RuntimeClient,
+  input: RagFlowInput,
+): Promise<RuntimeFlowResult<ContextRagRankOutput | MemoryRagRankOutput>> {
+  const options = {
+    ...(input.limit === undefined ? {} : { limit: input.limit }),
+    ...(input.strategy === undefined ? {} : { strategy: input.strategy }),
+  };
+  if (input.scope === "context") {
+    const candidates = await runtime.invoke("CONTEXT.RAG.RETRIEVE", {
+      query: input.query,
+      corpus: input.corpus,
+      ...options,
+    });
+    const output = await runtime.invoke("CONTEXT.RAG.RANK", {
+      query: input.query,
+      candidates,
+      ...options,
+    });
+    return { output, context: await updateContext(runtime, input.context, contextRagIngress(output)) };
+  }
+  const candidates = await runtime.invoke("MEMORY.RAG.RETRIEVE", {
+    query: input.query,
+    ...(input.corpus === undefined ? {} : { corpus: input.corpus }),
+    ...options,
+  });
+  const output = await runtime.invoke("MEMORY.RAG.RANK", {
+    query: input.query,
+    candidates,
+    ...options,
+  });
+  return { output, context: await updateContext(runtime, input.context, memoryRagIngress(output)) };
+}
+
+export async function runSkillFlow(
+  runtime: RuntimeClient,
+  input: SkillFlowInput,
+): Promise<RuntimeFlowResult<MemorySkillOutput>> {
+  const output = await runtime.invoke("MEMORY.SKILL", {
+    name: input.name,
+    ...(input.version === undefined ? {} : { version: input.version }),
+  });
+  return { output, context: await updateContext(runtime, input.context, skillIngress(output)) };
+}
+
+export async function runMcpFlow(
+  runtime: RuntimeClient,
+  input: McpFlowInput,
+): Promise<RuntimeFlowResult<InteractionMcpOutput>> {
+  const output = await runtime.invoke("INTERACTION.ACT.MCP", input.request);
+  return { output, context: await updateContext(runtime, input.context, mcpIngress(output)) };
+}
+
+export async function runToolCallFlow(
+  runtime: RuntimeClient,
+  input: ToolCallFlowInput,
+): Promise<RuntimeFlowResult<InteractionToolOutput>> {
+  const output = await runtime.invoke("INTERACTION.ACT.TOOL", { call: input.call });
+  return { output, context: await updateContext(runtime, input.context, toolCallIngress(output)) };
 }

@@ -13,26 +13,26 @@
 | CONTEXT.PROMPT | Graph bind 或应用输入装配 | 已有上下文装入或修改时才使用 CONTEXT.LOAD/UPDATE；只有取用已注册 Skill 才使用 CONTEXT.SKILL。 |
 | CONTEXT.SCHEDULE | 应用编排与已有上下文、记忆节点 | 持久化调用 MEMORY.WRITE/UPDATE；当前条目选择或压缩使用 CONTEXT.SELECT/COMPRESS。没有同名节点。 |
 | INTERACTION.MCP | INTERACTION.ACT.MCP | MCP 发现或调用是独立语义 Node；客户端连接、认证和 session 生命周期仍由应用/Runtime 管理。 |
-| 接收问题标为 INTERACTION.COMMUNICATE | 按是否发生外部 Actor 通信判断 | 对话式接收/回复可以归 COMMUNICATE；静态任务参数进入系统仍是应用入口，不为凑表格强行记为 Node。 |
+| 接收任务或问题 | 应用/Runtime 输入边界 | 任务参数在 Graph 执行前进入系统，不是 Node；实际外部消息系统可通过 ACT.TOOL 或 ACT.MCP 调用。 |
 | 选择检索路线标为 CONTEXT.SELECT | INFER.REASONING.DELIBERATE | 比较候选方案属于决策；SELECT 只对已有 Context 条目按 query 筛选。 |
 | 任意历史文件或业务数据库标为 MEMORY.RETRIEVE | 按寻址方式和生命周期区分 | 已知 id/key/filter 的长期条目用 MEMORY.RETRIEVE；长期语义召回用 MEMORY.RAG.RETRIEVE；临时文件和实时业务状态用 ACT.TOOL/MCP。 |
 | ACT 与 TOOL 表示同一层级 | `ACT` 是命名空间 | 直接注册工具使用 `INTERACTION.ACT.TOOL`，MCP 能力使用 `INTERACTION.ACT.MCP`；ACT 本身不作为可执行叶子。 |
-| 评估、审批、重试、成本统计 | 测试侧或应用策略 | 不新增节点。真正执行验证工具可归 TOOL/ACT；推理、提示词和 COMMUNICATE 不代替实际授权检查。 |
+| 评估、审批、重试、成本统计 | 测试侧或应用策略 | 不新增节点。真正执行验证工具可归 TOOL/ACT；推理和提示词不代替实际授权检查。 |
 
-案例不得为了覆盖 26 个目标 Node Type 而插入原测试没有的行为。原 `INTERACTION.RUN` 是应用 Graph / Runtime 编排，不作为 Node；一次复合循环也不能替代对内部真实叶子 Node 的 trace 证据。
+案例不得为了覆盖 25 个目标 Node Type 而插入原测试没有的行为。原 `INTERACTION.RUN` 是应用 Graph / Runtime 编排，不作为 Node；一次复合循环也不能替代对内部真实叶子 Node 的 trace 证据。
 
 ## RAG 的最终节点映射
 
 | 操作 | 现有节点 | 边界 |
 | --- | --- | --- |
 | 获取网页、文件或第三方资料 | `INTERACTION.ACT.TOOL` / `INTERACTION.ACT.MCP` | 外部能力调用；取得的数据可成为当前任务 corpus。 |
-| 检索当前任务知识 | `CONTEXT.RAG.EMBED/RETRIEVE/RANK/PACK` | 面向当前文档、repo、网页、知识库或临时 corpus，结果进入 working context。 |
+| 检索当前任务知识 | `CONTEXT.RAG.EMBED/RETRIEVE/RANK` | 面向当前文档、repo、网页、知识库或临时 corpus，结果进入 working context。 |
 | 直接读取长期条目 | `MEMORY.RETRIEVE` | 按 id、key、filter 等结构化寻址。 |
-| 语义检索长期记忆 | `MEMORY.RAG.EMBED/RETRIEVE/RANK/PACK` | 面向跨 invocation/session 的 Memory Corpus。 |
+| 语义检索长期记忆 | `MEMORY.RAG.EMBED/RETRIEVE/RANK` | 面向跨 invocation/session 的 Memory Corpus。 |
 | 长期状态生命周期 | `MEMORY.WRITE/UPDATE/CONSOLIDATE/EVICT` | 新建、修改、整理和淘汰持久语义状态。 |
 | 基于证据推理并交付答案 | `INFER.REASONING.*`；`INTERACTION.OUTPUT` | RAG 不拥有生成；由选定的推理 Node 完成模型调用。 |
 
-新增和迁移 Node 的具体输入输出需在下一阶段单独冻结。案例目前只确定语义归属，不推测 EMBED、RANK、PACK、CACHE、SKILL 或 MCP 的字段。
+具体输入输出以 API Contract 为准。案例只确定语义归属，不虚构 CACHE 叶子或额外 RAG 阶段。
 
 ## 案例一 SWE-bench 真实代码修复
 
@@ -44,7 +44,7 @@
 
 | 顺序 | 节点 | 操作内容 |
 | --- | --- | --- |
-| 1 | INTERACTION.COMMUNICATE | 接收 Issue 描述、仓库版本和交付要求；recipients 指向处理该任务的 Agent/Worker。 |
+| 1 | APPLICATION/RUNTIME INPUT | 在 Graph 执行前接收 Issue 描述、仓库版本和交付要求；该边界不是 Node。 |
 | 2 | CONTEXT.LOAD | 加载 Issue、仓库树、基线 commit 和测试命令。 |
 | 3 | MEMORY.RAG.RETRIEVE | 从长期 Memory Corpus 语义检索仓库约定、已知构建问题和此前修复经验。 |
 | 4 | CONTEXT.SELECT | 从已加载上下文中选择与报错堆栈、符号和模块相关的证据。 |
@@ -78,7 +78,7 @@
 
 | 顺序 | 节点 | 操作内容 |
 | --- | --- | --- |
-| 1 | INTERACTION.COMMUNICATE | 接收自然语言问题、附件和答案格式。 |
+| 1 | APPLICATION/RUNTIME INPUT | 在 Graph 执行前接收自然语言问题、附件和答案格式；该边界不是 Node。 |
 | 2 | CONTEXT.LOAD | 加载问题、文件、日期限制及评测格式。 |
 | 3 | CONTEXT.UPDATE | 将来源优先级、引用要求和禁止猜测规则加入工作上下文。 |
 | 4 | INFER.REASONING.TRAJECTORY | 将问题拆成待验证事实和计算步骤。 |
@@ -101,7 +101,7 @@
 
 | 顺序 | 节点 | 操作内容 |
 | --- | --- | --- |
-| 1 | INTERACTION.COMMUNICATE | 接收用户的取消、改签、退款或换货请求。 |
+| 1 | APPLICATION/RUNTIME INPUT | 在 Graph 执行前接收用户的取消、改签、退款或换货请求；该边界不是 Node。 |
 | 2 | CONTEXT.LOAD | 加载当前对话、业务域和可用工具说明。 |
 | 3 | MEMORY.RAG.RETRIEVE | 从长期 Memory Corpus 语义检索客户交互经验；实时客户资料仍通过 ACT.TOOL 查询。 |
 | 4 | INTERACTION.ACT.TOOL | 查询客户、订单、航班或商品状态。 |
@@ -112,7 +112,7 @@
 | 9 | INFER.REASONING.DELIBERATE | 检查政策条件、费用、资格和互斥操作。 |
 | 10 | CONTEXT.SELECT | 只保留当前决定需要的客户与政策字段。 |
 
-交付与验证：向用户模拟器提出确认或澄清时用 COMMUNICATE，并提供真实 recipients；满足授权条件后由 TOOL 或 ACT 执行变更。以沙箱数据库最终状态和官方验证结果为准，不将建议、确认消息或上下文修改当作已执行退款。
+交付与验证：确认或澄清由应用通道承担；实际外部消息集成使用 ACT.TOOL 或 ACT.MCP。满足授权条件后由 ACT.TOOL 执行变更。以沙箱数据库最终状态和官方验证结果为准，不将建议、确认消息或上下文修改当作已执行退款。
 
 ## 案例四 MCPMark Verified 跨系统 CRUD
 
@@ -124,7 +124,7 @@
 
 | 顺序 | 节点 | 操作内容 |
 | --- | --- | --- |
-| 1 | INTERACTION.COMMUNICATE | 接收任务目标和允许操作的 MCP server 范围。 |
+| 1 | APPLICATION/RUNTIME INPUT | 在 Graph 执行前接收任务目标和允许操作的 MCP server 范围；该边界不是 Node。 |
 | 2 | CONTEXT.LOAD | 加载任务初始状态和 verifier 条件。 |
 | 3 | INTERACTION.ACT.MCP | 通过 MCP 发现任务所需能力；客户端连接、认证和 session 生命周期仍由应用/Runtime 管理。 |
 | 4 | INTERACTION.OBSERVE | 将服务能力、参数 schema 和资源描述接入 Agent 观察流。 |
@@ -185,6 +185,6 @@
 
 正式覆盖记录应关联 case id、原样本/任务 id、代码 commit、实际 Node Type、输入输出引用、工具/Provider 实现和验证结果。同一个 Node 在 Graph 中重复出现可有不同逻辑 id；统计类型覆盖时去重。应用入口、bind、连接初始化与测试侧 verifier 均单独记录，不充作 Node。
 
-《Agent 节点体系覆盖分析 · 报告》的 11/18 是此前 12 个样本对迁移前固定基线的离线分析；7 个未覆盖节点是当时的验证盲区。它既不是这六个案例的运行成绩，也不能换算成最终 26 个目标 Node Type 的覆盖率。最终覆盖必须按新全限定名称重新采集执行证据。
+《Agent 节点体系覆盖分析 · 报告》的 11/18 是此前 12 个样本对迁移前固定基线的离线分析；7 个未覆盖节点是当时的验证盲区。它既不是这六个案例的运行成绩，也不能换算成最终 25 个目标 Node Type 的覆盖率。最终覆盖必须按新全限定名称重新采集执行证据。
 
 实现现状依据 dev 提交 a9e43212162650259b2a1bf9ed907d8bad19e79f 的 contracts、interaction loop 和 MCP 适配器；目标分类依据负责人最终商定的节点体系。案例任务依据提供的《节点体系覆盖》和《Agent 节点体系覆盖分析 · 报告》。原图只包含流程截图，没有完整电子表格附件，因此可见行数保持不变。

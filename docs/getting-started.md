@@ -20,7 +20,7 @@ Copy `.env.example` to `.env`, then configure providers, models, keys, and permi
 
 `examples/` is currently empty and reserved for complete examples that build different Agents using the npm package. The package has not been published; the snippets below explain the API only.
 
-Public entries are `@ditto/core`, `contracts`, `worker`, `worker/node`, `worker/memory`, `worker/context`, `worker/reasoning`, `worker/reasoning/providers`, `worker/interaction`, `runtime`, and `runtime/sandbox`. The former top-level `node` / `agent` / `providers` / `sandbox` entries are not retained. The root entry still provides general exports.
+Public entries are `@ditto/core`, `contracts`, `worker`, `worker/node`, `worker/memory`, `worker/context`, `worker/infer`, `worker/infer/providers`, `worker/interaction`, `runtime`, and `runtime/sandbox`. The former top-level `node` / `agent` / `providers` / `presets` / `sandbox` entries are not retained. The root entry still provides general exports, including the four Runtime flow functions.
 
 Initialize built-in or previously declared extension namespaces with short operation names:
 

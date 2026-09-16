@@ -1,6 +1,12 @@
 export { createDitto, DittoRuntime } from "./runtime.js";
 export type { DittoOptions, WorkerHandle } from "./runtime.js";
-export { graph, ExecutionGraph } from "./graph.js";
+export {
+  graph, ExecutionGraph, runMcpFlow, runRagFlow, runSkillFlow, runToolCallFlow,
+} from "./graph.js";
+export type {
+  ContextRagFlowInput, McpFlowInput, MemoryRagFlowInput, RagFlowInput,
+  RuntimeFlowResult, SkillFlowInput, ToolCallFlowInput,
+} from "./graph.js";
 export { loop } from "./loop.js";
 export type { LoopDefinition } from "./loop.js";
 export { NoWorkerAvailableError } from "./router.js";

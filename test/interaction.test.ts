@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   McpRegistry, ToolRegistry, createDitto, createInteractionNodes, defineWorker,
-  interactionMcpContextUpdate, interactionToolContextUpdate, memorySkillContextUpdate,
-  mergeContextUpdate,
+  mergeContextUpdate, runMcpFlow, runRagFlow, runSkillFlow, runToolCallFlow,
+  type KnowledgeItem, type MemoryItem,
 } from "../src/index.js";
 
-test("Tool and MCP stay distinct and both cross the typed CONTEXT.UPDATE ingress", async () => {
+test("the four Runtime flows execute source Nodes and update Context", async () => {
   const tools = new ToolRegistry();
   tools.register({
     name: "echo", inputSchema: {}, validate: () => undefined,
@@ -17,19 +17,59 @@ test("Tool and MCP stay distinct and both cross the typed CONTEXT.UPDATE ingress
     listTools: async () => ({ tools: [{ name: "lookup", inputSchema: {} }] }),
     callTool: async ({ arguments: arguments_ }) => arguments_,
   });
+  const memory: MemoryItem = {
+    id: "memory-1",
+    key: "known-fix",
+    message: { role: "assistant", content: "past evidence" },
+  };
   const runtime = createDitto({ sandbox: { tools: ["echo"], mcp: ["docs"] }, workers: [
     defineWorker({ type: "INTERACTION", nodes: createInteractionNodes({ tools, mcp }) }),
-    defineWorker({ type: "CONTEXT", nodes: { "CONTEXT.UPDATE": mergeContextUpdate } }),
+    defineWorker({ type: "CONTEXT", nodes: {
+      "CONTEXT.UPDATE": mergeContextUpdate,
+      "CONTEXT.RAG.RETRIEVE": async ({ corpus }) => Array.isArray(corpus)
+        ? corpus.map((item: KnowledgeItem) => ({ item }))
+        : [],
+      "CONTEXT.RAG.RANK": async ({ candidates }) => candidates,
+    } }),
+    defineWorker({ type: "MEMORY", nodes: {
+      "MEMORY.SKILL": async ({ name, version }) => ({
+        name,
+        ...(version === undefined ? {} : { version }),
+        instructions: "follow the review checklist",
+      }),
+      "MEMORY.RAG.RETRIEVE": async () => [{ memory }],
+      "MEMORY.RAG.RANK": async ({ candidates }) => candidates,
+    } }),
   ] });
-  const toolResult = await runtime.invoke("INTERACTION.ACT.TOOL", { call: { name: "echo", arguments: { value: 1 } } });
-  const mcpResult = await runtime.invoke("INTERACTION.ACT.MCP", { operation: "invoke", server: "docs", call: { name: "lookup", arguments: { q: "ditto" } } });
-  const ingress = [
-    ...interactionToolContextUpdate.map(toolResult),
-    ...interactionMcpContextUpdate.map(mcpResult),
-    ...memorySkillContextUpdate.map({ name: "review", instructions: "check boundaries" }),
-  ];
-  const context = await runtime.invoke("CONTEXT.UPDATE", { context: { items: [] }, ingress });
-  assert.deepEqual(context.items.map((item) => item.metadata?.sourceNode), [
+
+  const tool = await runToolCallFlow(runtime, {
+    context: { items: [] },
+    call: { name: "echo", arguments: { value: 1 } },
+  });
+  const mcpResult = await runMcpFlow(runtime, {
+    context: tool.context,
+    request: { operation: "invoke", server: "docs", call: { name: "lookup", arguments: { q: "ditto" } } },
+  });
+  const skill = await runSkillFlow(runtime, { context: mcpResult.context, name: "review" });
+  const contextRag = await runRagFlow(runtime, {
+    scope: "context",
+    context: skill.context,
+    query: "current task",
+    corpus: [{ id: "doc-1", content: "current evidence" }],
+  });
+  const memoryRag = await runRagFlow(runtime, {
+    scope: "memory",
+    context: contextRag.context,
+    query: "past task",
+  });
+
+  assert.equal(tool.output.source, "echo");
+  assert.equal(mcpResult.output.operation, "invoke");
+  assert.equal(skill.output.name, "review");
+  assert.equal(contextRag.output[0]?.item.id, "doc-1");
+  assert.equal(memoryRag.output[0]?.memory.id, "memory-1");
+  assert.deepEqual(memoryRag.context.items.map((item) => item.metadata?.sourceNode), [
     "INTERACTION.ACT.TOOL", "INTERACTION.ACT.MCP", "MEMORY.SKILL",
+    "CONTEXT.RAG.RANK", "MEMORY.RAG.RANK",
   ]);
 });

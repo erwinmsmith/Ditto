@@ -9,14 +9,16 @@ const leaves = [
   "infer/reasoning/trajectory", "infer/reasoning/reflect", "infer/reasoning/deliberate", "infer/reasoning/sample",
   "context/load", "context/select", "context/update", "context/compress", "context/rag/embed", "context/rag/retrieve", "context/rag/rank", "context/skill",
   "memory/retrieve", "memory/write", "memory/update", "memory/consolidate", "memory/evict", "memory/rag/embed", "memory/rag/retrieve", "memory/rag/rank", "memory/skill",
-  "interaction/act/tool", "interaction/act/mcp", "interaction/observe", "interaction/communicate", "interaction/output",
+  "interaction/act/tool/node", "interaction/act/mcp", "interaction/observe", "interaction/output",
 ] as const;
 
 test("every agreed leaf Node has a TypeScript scaffold", async () => {
   await Promise.all(leaves.map((leaf) => access(join(root, "src", "worker", `${leaf}.ts`))));
-  assert.equal(leaves.length, 26);
+  assert.equal(leaves.length, 25);
   assert.equal(INFER_CACHE_NAMESPACE, "INFER.CACHE");
   await access(join(root, "src", "worker", "infer", "cache", "index.ts"));
+  await access(join(root, "src", "worker", "infer", "providers", "index.ts"));
+  await access(join(root, "src", "worker", "interaction", "act", "tool", "linux-commands", "index.ts"));
 });
 
 test("the bilingual contract documents describe the final taxonomy", async () => {
@@ -26,5 +28,6 @@ test("the bilingual contract documents describe the final taxonomy", async () =>
       assert.match(document, new RegExp(node.replaceAll(".", "\\.")));
     }
     assert.doesNotMatch(document, /CONTEXT\.RAG\.PACK/);
+    assert.doesNotMatch(document, /INTERACTION\.COMMUNICATE/);
   }
 });

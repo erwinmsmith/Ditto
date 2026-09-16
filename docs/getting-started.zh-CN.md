@@ -20,7 +20,7 @@ npm run check
 
 `examples/` 当前留空，后续用于通过 npm 包构建不同 Agent 的完整例子。包目前尚未发布；下面的代码仅用于说明 API。
 
-公开入口：`@ditto/core`、`contracts`、`worker`、`worker/node`、`worker/memory`、`worker/context`、`worker/reasoning`、`worker/reasoning/providers`、`worker/interaction`、`runtime`、`runtime/sandbox`。不保留顶层 `node` / `agent` / `providers` / `sandbox` 旧入口；根入口仍提供通用导出。
+公开入口：`@ditto/core`、`contracts`、`worker`、`worker/node`、`worker/memory`、`worker/context`、`worker/infer`、`worker/infer/providers`、`worker/interaction`、`runtime`、`runtime/sandbox`。不保留顶层 `node` / `agent` / `providers` / `presets` / `sandbox` 旧入口；根入口仍提供通用导出，包括四个 Runtime 流程函数。
 
 内置或已声明扩展的命名空间可用短操作名初始化：
 

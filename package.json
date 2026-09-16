@@ -53,10 +53,6 @@
     "./worker/node": {
       "types": "./dist/worker/node.d.ts",
       "import": "./dist/worker/node.js"
-    },
-    "./presets": {
-      "types": "./dist/presets/index.d.ts",
-      "import": "./dist/presets/index.js"
     }
   },
   "scripts": {

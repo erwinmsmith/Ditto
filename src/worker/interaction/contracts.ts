@@ -1,11 +1,9 @@
 import type {
-  Actor, Artifact, CommunicationReceipt, ExternalResult, McpCapability,
-  Message, Observation, OutputReceipt, ToolCall,
+  Artifact, ExternalResult, McpCapability, Message, Observation, OutputReceipt, ToolCall,
 } from "../../contracts/common.js";
 
 export type {
-  Actor, CommunicationReceipt, ExternalResult, McpCapability,
-  Observation, OutputReceipt, ToolCall,
+  ExternalResult, McpCapability, Observation, OutputReceipt, ToolCall,
 } from "../../contracts/common.js";
 
 export interface InteractionToolInput { call: ToolCall; }
@@ -18,8 +16,6 @@ export type InteractionMcpOutput =
   | { operation: "invoke"; result: ExternalResult };
 export interface InteractionObserveInput { result: ExternalResult; }
 export type InteractionObserveOutput = Observation;
-export interface InteractionCommunicateInput { message: Message; recipients: readonly Actor[]; }
-export type InteractionCommunicateOutput = CommunicationReceipt;
 export interface InteractionOutputInput { message: Message; artifacts?: readonly Artifact[]; }
 export type InteractionOutputOutput = OutputReceipt;
 
@@ -28,7 +24,6 @@ declare module "../../contracts/node-contract-map.js" {
     "INTERACTION.ACT.TOOL": NodeContract<InteractionToolInput, InteractionToolOutput>;
     "INTERACTION.ACT.MCP": NodeContract<InteractionMcpInput, InteractionMcpOutput>;
     "INTERACTION.OBSERVE": NodeContract<InteractionObserveInput, InteractionObserveOutput>;
-    "INTERACTION.COMMUNICATE": NodeContract<InteractionCommunicateInput, InteractionCommunicateOutput>;
     "INTERACTION.OUTPUT": NodeContract<InteractionOutputInput, InteractionOutputOutput>;
   }
 }

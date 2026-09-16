@@ -6,6 +6,19 @@
 
 本文是节点树、语义边界、公共基础类型和节点输入输出契约的唯一中文规范。Node 是可组合、可独立执行的语义操作；Worker 是实现、资源、部署和扩容边界；Graph 组合 Node；Runtime 负责调度、路由、通信与执行。
 
+## Runtime 预定义流程
+
+Ditto 从 `src/runtime/graph.ts` 公开四个可直接调用的 Runtime 函数。它们组合既有 Node 并更新当前 Context，不是 Node，也不进入 `NodeContractMap`。
+
+| 函数 | 标准流转 |
+| --- | --- |
+| `runRagFlow()` | 根据 `scope` 执行 `CONTEXT.RAG.RETRIEVE → CONTEXT.RAG.RANK → CONTEXT.UPDATE`，或 `MEMORY.RAG.RETRIEVE → MEMORY.RAG.RANK → CONTEXT.UPDATE` |
+| `runSkillFlow()` | `MEMORY.SKILL → CONTEXT.UPDATE` |
+| `runMcpFlow()` | `INTERACTION.ACT.MCP → CONTEXT.UPDATE` |
+| `runToolCallFlow()` | `INTERACTION.ACT.TOOL → CONTEXT.UPDATE` |
+
+每个函数接收 `RuntimeClient` 和当前 `Context`，调用来源 Node，将来源信息映射为 `ContextIngress`，调用 `CONTEXT.UPDATE`，并返回 `{ output, context }`。`runRagFlow()` 必须使用 `scope: "context" | "memory"` 区分两类 corpus。`EMBED` 属于索引准备操作，不在每次查询时自动重复执行。稳定 ingress ID、来源 Node、reference 与 metadata 由流程函数内部保留。
+
 ## 1. 最终节点树
 
 ```text
@@ -16,8 +29,9 @@ INFER
 │   ├── REFLECT
 │   ├── DELIBERATE
 │   └── SAMPLE
-└── CACHE/                      // 命名空间骨架
-    └── ...                     // 叶子 Node 另行确定
+├── CACHE/                      // 命名空间骨架
+│   └── ...                     // 叶子 Node 另行确定
+└── PROVIDERS/                  // 实现目录，不是 Node
 
 CONTEXT
 ├── LOAD
@@ -44,8 +58,8 @@ MEMORY
 
 INTERACTION
 ├── ACT/
-│   ├── TOOL/
-│   │   ├── Linux Commands/     // 工具文件夹，不是 Node
+│   ├── TOOL/                   // 源码目录；ACT.TOOL 仍是语义 Node
+│   │   ├── Linux Commands/     // 工具目录，不是 Node
 │   │   │   ├── grep            // 注册工具名
 │   │   │   ├── ls
 │   │   │   ├── cat
@@ -54,11 +68,10 @@ INTERACTION
 │   │   └── other registered tools
 │   └── MCP
 ├── OBSERVE
-├── COMMUNICATE
 └── OUTPUT
 ```
 
-节点树当前严格定义 26 个可路由的叶子 Node Contract。`INFER.REASONING`、两类 `RAG`、`INTERACTION.ACT`、`Linux Commands` 与 `INFER.CACHE` 是文件夹或能力命名空间。`INFER.CACHE` 已有源码目录骨架，但在叶子语义商定前不可路由。工具名以及 CoT/ToT/GoT 都不是 Node Type。
+节点树严格定义 25 个可路由叶子 Node Contract。`INFER.REASONING`、两类 `RAG`、`INTERACTION.ACT`、`Linux Commands`、`INFER.CACHE` 和 `INFER.PROVIDERS` 是文件夹或能力命名空间。`INFER.CACHE` 在叶子语义确定前不可路由。`INFER.PROVIDERS` 保持当前扁平 Provider 适配目录，不定义供应商子树，也不产生 Node Type。工具名以及 CoT/ToT/GoT 都不是 Node Type。
 
 ## 2. 能力域边界
 
@@ -68,13 +81,11 @@ INTERACTION
 - **MEMORY** 负责跨 invocation/session 的持久语义状态。普通 `RETRIEVE` 按 id/key/filter 直接读取；`MEMORY.RAG` 在长期 Memory Corpus 上做语义召回。
 - **RAG** 固定为 `EMBED → RETRIEVE → RANK`。两类 RAG 可共用算法，但 corpus 所有权、权限、生命周期与 trace 身份必须区分。搜索和排序算法属于 strategy。不存在 `RAG.GENERATE` 或 `RAG.PACK` Node。
 - **SKILL** 有两种生命周期：`MEMORY.SKILL` 解析持久 procedural knowledge；`CONTEXT.SKILL` 在当前 working context 中激活 Skill。
-- **INTERACTION** 负责与外部世界的语义交互。`ACT.TOOL` 调用直接注册工具；`ACT.MCP` 发现或调用 MCP 能力；`OBSERVE` 标准化外部结果；`COMMUNICATE` 面向外部 Actor；`OUTPUT` 提交最终结果。
+- **INTERACTION** 负责与外部世界的语义交互。`ACT.TOOL` 调用直接注册工具；`ACT.MCP` 发现或调用 MCP 能力；`OBSERVE` 标准化外部结果；`OUTPUT` 提交最终结果。
 
-Worker 之间的 `invoke` / `emit` 是 Runtime 内部通信，不属于 `INTERACTION.COMMUNICATE`。Node Contract 不包含位置和传输信息。
+任务和用户输入通过应用/Runtime 边界进入，不设置独立通信 Node。确实需要调用外部消息系统时，应使用注册 Tool 或 MCP 能力。Worker 之间的 `invoke` / `emit` 仍是 Runtime 内部通信。Node Contract 不包含位置和传输信息。
 
 ## 3. 固定公共基础类型
-
-以下定义是本 Contract 版本固定的公共边界。
 
 ```ts
 export type JsonPrimitive = string | number | boolean | null;
@@ -135,9 +146,6 @@ export interface ExternalResult {
   source: string; content: MessageContent; reference?: Reference; metadata?: JsonObject;
 }
 export interface Observation { source: string; message: Message; }
-export type ActorKind = "user" | "agent" | "human-reviewer" | "service";
-export interface Actor { id: string; kind: ActorKind; channel?: string; }
-export interface CommunicationReceipt { accepted: boolean; recipients: readonly string[]; }
 export interface Artifact { name: string; reference: Reference; }
 export interface OutputReceipt { accepted: boolean; artifacts?: readonly Artifact[]; }
 export interface McpCapability { server: string; name: string; description?: string; inputSchema?: JsonObject; }
@@ -215,8 +223,6 @@ export type InteractionMcpOutput =
   | { operation: "invoke"; result: ExternalResult };
 export interface InteractionObserveInput { result: ExternalResult; }
 export type InteractionObserveOutput = Observation;
-export interface InteractionCommunicateInput { message: Message; recipients: readonly Actor[]; }
-export type InteractionCommunicateOutput = CommunicationReceipt;
 export interface InteractionOutputInput { message: Message; artifacts?: readonly Artifact[]; }
 export type InteractionOutputOutput = OutputReceipt;
 ```
@@ -248,7 +254,6 @@ export interface NodeContractMap {
   "INTERACTION.ACT.TOOL": NodeContract<InteractionToolInput, InteractionToolOutput>;
   "INTERACTION.ACT.MCP": NodeContract<InteractionMcpInput, InteractionMcpOutput>;
   "INTERACTION.OBSERVE": NodeContract<InteractionObserveInput, InteractionObserveOutput>;
-  "INTERACTION.COMMUNICATE": NodeContract<InteractionCommunicateInput, InteractionCommunicateOutput>;
   "INTERACTION.OUTPUT": NodeContract<InteractionOutputInput, InteractionOutputOutput>;
 }
 export type NodeType = keyof NodeContractMap;
@@ -256,25 +261,13 @@ export type InputOf<N extends NodeType> = NodeContractMap[N]["input"];
 export type OutputOf<N extends NodeType> = NodeContractMap[N]["output"];
 ```
 
-## 5. 预定义跨节点 Context 入口
+## 5. 实现规则
 
-以下 preset 统一把信息送入 `CONTEXT.UPDATE`，不会创建新 Node Type，也不会隐藏 Graph 步骤。
-
-| Preset ID | 来源 | 目标 |
-| --- | --- | --- |
-| `memory.skill-context.update` | `MEMORY.SKILL` | `CONTEXT.UPDATE` |
-| `context.rag-context.update` | `CONTEXT.RAG.RANK` | `CONTEXT.UPDATE` |
-| `memory.rag-context.update` | `MEMORY.RAG.RANK` | `CONTEXT.UPDATE` |
-| `interaction.act.tool-context.update` | `INTERACTION.ACT.TOOL` | `CONTEXT.UPDATE` |
-| `interaction.act.mcp-context.update` | `INTERACTION.ACT.MCP` | `CONTEXT.UPDATE` |
-
-每个适配器输出 `ContextIngress[]`，必须提供稳定 id、保留 `sourceNode`、区分 inline content 与 reference，并保存来源 metadata。Context RAG 与 Memory RAG 必须可以区分。`CONTEXT.UPDATE` 只负责合并，不重新执行来源节点、不提升权限，也不写入长期 Memory。
-
-## 6. 实现规则
-
-- 每个已确定的叶子 Node 都有一个 `.ts` 骨架；骨架只固定语义身份和类型绑定，不预设业务实现。
+- 每个已确定的叶子 Node 都有 `.ts` 骨架；骨架只固定语义身份和类型绑定，不预设业务实现。
 - `INFER.CACHE` 目前只有目录骨架；叶子契约确定前禁止加入 `NodeContractMap`。
-- Provider 适配器位于 `src/worker/infer/providers/`，统一实现 `ModelProvider.invoke`。更换模型或供应商不新增 Node。
-- Tool 与 MCP registry 独立；Linux 命令名属于普通注册工具。
+- Provider adapter 保持扁平放置在 `src/worker/infer/providers/`，统一实现 `ModelProvider.invoke`。更换模型或供应商不新增 Node。
+- `INTERACTION.ACT.TOOL` 在源码中使用目录表示；其 `linux-commands/` 子目录和注册命令名都不是 Node。
+- Tool 与 MCP registry 保持独立。
+- 四个预定义流程位于 `src/runtime/graph.ts`；不再存在 `src/presets` package 或导出。
 - Core 保持轻依赖；数据库、RPC、NATS、MCP SDK、模型 SDK 与分布式 transport 都作为可选适配器。
 - 同一 Graph 与 Node Contract 必须能在本地或远端 Worker 间迁移，且不嵌入部署信息。

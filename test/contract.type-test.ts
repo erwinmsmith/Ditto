@@ -26,7 +26,6 @@ const nodeTypes = {
   "INTERACTION.ACT.TOOL": true,
   "INTERACTION.ACT.MCP": true,
   "INTERACTION.OBSERVE": true,
-  "INTERACTION.COMMUNICATE": true,
   "INTERACTION.OUTPUT": true,
 } as const satisfies Record<Exclude<NodeType, "MEMORY.ARCHIVE" | "BROWSER.OPEN">, true>;
 

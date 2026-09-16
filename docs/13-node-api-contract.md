@@ -6,6 +6,19 @@
 
 This is the sole normative English document for the Node tree, semantic boundaries, common public types, and Node input/output contracts. A Node is a composable, independently executable semantic operation. A Worker is the implementation, resource, deployment, and scaling boundary. Graphs compose Nodes; Runtime schedules, routes, communicates, and executes them.
 
+## Runtime predefined flows
+
+Ditto exposes four directly callable Runtime functions from `src/runtime/graph.ts`. They compose existing Nodes and update the current Context; they are not Nodes and do not appear in `NodeContractMap`.
+
+| Function | Standard flow |
+| --- | --- |
+| `runRagFlow()` | `CONTEXT.RAG.RETRIEVE → CONTEXT.RAG.RANK → CONTEXT.UPDATE`, or `MEMORY.RAG.RETRIEVE → MEMORY.RAG.RANK → CONTEXT.UPDATE` according to `scope` |
+| `runSkillFlow()` | `MEMORY.SKILL → CONTEXT.UPDATE` |
+| `runMcpFlow()` | `INTERACTION.ACT.MCP → CONTEXT.UPDATE` |
+| `runToolCallFlow()` | `INTERACTION.ACT.TOOL → CONTEXT.UPDATE` |
+
+Each function receives a `RuntimeClient` and current `Context`, invokes the source Nodes, maps provenance into `ContextIngress`, calls `CONTEXT.UPDATE`, and returns `{ output, context }`. `runRagFlow()` requires `scope: "context" | "memory"` so the two corpora remain distinguishable. `EMBED` is an index-preparation operation and is not repeated automatically for each query. Stable ingress IDs, source identity, references, and metadata are preserved internally.
+
 ## 1. Final Node tree
 
 ```text
@@ -16,8 +29,9 @@ INFER
 │   ├── REFLECT
 │   ├── DELIBERATE
 │   └── SAMPLE
-└── CACHE/                      // namespace skeleton
-    └── ...                     // leaf Nodes will be defined separately
+├── CACHE/                      // namespace skeleton
+│   └── ...                     // leaf Nodes will be defined separately
+└── PROVIDERS/                  // implementation folder, not a Node
 
 CONTEXT
 ├── LOAD
@@ -44,7 +58,7 @@ MEMORY
 
 INTERACTION
 ├── ACT/
-│   ├── TOOL/
+│   ├── TOOL/                   // source folder; ACT.TOOL remains the semantic Node
 │   │   ├── Linux Commands/     // tool folder, not a Node
 │   │   │   ├── grep            // registered tool name
 │   │   │   ├── ls
@@ -54,11 +68,10 @@ INTERACTION
 │   │   └── other registered tools
 │   └── MCP
 ├── OBSERVE
-├── COMMUNICATE
 └── OUTPUT
 ```
 
-The tree defines exactly 26 routable leaf Node Contracts. `INFER.REASONING`, both `RAG` branches, `INTERACTION.ACT`, `Linux Commands`, and `INFER.CACHE` are folders or namespaces. `INFER.CACHE` exists in the source layout but is not routable until its leaf semantics are approved. Tool names and CoT/ToT/GoT strategies are not Node Types.
+The tree defines exactly 25 routable leaf Node Contracts. `INFER.REASONING`, both `RAG` branches, `INTERACTION.ACT`, `Linux Commands`, `INFER.CACHE`, and `INFER.PROVIDERS` are folders or namespaces. `INFER.CACHE` is not routable until its leaf semantics are approved. `INFER.PROVIDERS` contains the current flat Provider adapter implementation and does not define vendor subtrees or Node Types. Tool names and CoT/ToT/GoT strategies are not Node Types.
 
 ## 2. Semantic boundaries
 
@@ -68,13 +81,11 @@ The tree defines exactly 26 routable leaf Node Contracts. `INFER.REASONING`, bot
 - **MEMORY** owns semantic state across invocations or sessions. Direct `RETRIEVE` uses id/key/filter. `MEMORY.RAG` performs semantic recall over the durable Memory corpus.
 - **RAG** uses `EMBED → RETRIEVE → RANK`. Algorithms may be shared, while corpus ownership, permissions, lifecycle, and trace identity remain different. Ranking/search algorithms are strategies. There is no `RAG.GENERATE` or `RAG.PACK` Node.
 - **SKILL** has two lifecycles: `MEMORY.SKILL` resolves durable procedural knowledge; `CONTEXT.SKILL` activates a Skill in the current working context.
-- **INTERACTION** owns semantic interaction with the outside world. `ACT.TOOL` calls registered native tools; `ACT.MCP` discovers or invokes MCP capabilities; `OBSERVE` standardizes external results; `COMMUNICATE` addresses external actors; `OUTPUT` submits the final result.
+- **INTERACTION** owns semantic interaction with the outside world. `ACT.TOOL` calls registered native tools; `ACT.MCP` discovers or invokes MCP capabilities; `OBSERVE` standardizes external results; `OUTPUT` submits the final result.
 
-Worker-to-Worker `invoke` and `emit` are Runtime communication primitives, never `INTERACTION.COMMUNICATE`. Location and transport do not appear in Node Contracts.
+Task and user input enter through the application/Runtime boundary, not through a dedicated communication Node. A live external messaging system may be invoked through a registered Tool or MCP capability. Worker-to-Worker `invoke` and `emit` remain Runtime communication primitives. Location and transport never appear in Node Contracts.
 
 ## 3. Fixed common public types
-
-The definitions below are the fixed public boundary for this Contract version.
 
 ```ts
 export type JsonPrimitive = string | number | boolean | null;
@@ -137,9 +148,6 @@ export interface ExternalResult {
   source: string; content: MessageContent; reference?: Reference; metadata?: JsonObject;
 }
 export interface Observation { source: string; message: Message; }
-export type ActorKind = "user" | "agent" | "human-reviewer" | "service";
-export interface Actor { id: string; kind: ActorKind; channel?: string; }
-export interface CommunicationReceipt { accepted: boolean; recipients: readonly string[]; }
 export interface Artifact { name: string; reference: Reference; }
 export interface OutputReceipt { accepted: boolean; artifacts?: readonly Artifact[]; }
 export interface McpCapability { server: string; name: string; description?: string; inputSchema?: JsonObject; }
@@ -217,8 +225,6 @@ export type InteractionMcpOutput =
   | { operation: "invoke"; result: ExternalResult };
 export interface InteractionObserveInput { result: ExternalResult; }
 export type InteractionObserveOutput = Observation;
-export interface InteractionCommunicateInput { message: Message; recipients: readonly Actor[]; }
-export type InteractionCommunicateOutput = CommunicationReceipt;
 export interface InteractionOutputInput { message: Message; artifacts?: readonly Artifact[]; }
 export type InteractionOutputOutput = OutputReceipt;
 ```
@@ -250,7 +256,6 @@ export interface NodeContractMap {
   "INTERACTION.ACT.TOOL": NodeContract<InteractionToolInput, InteractionToolOutput>;
   "INTERACTION.ACT.MCP": NodeContract<InteractionMcpInput, InteractionMcpOutput>;
   "INTERACTION.OBSERVE": NodeContract<InteractionObserveInput, InteractionObserveOutput>;
-  "INTERACTION.COMMUNICATE": NodeContract<InteractionCommunicateInput, InteractionCommunicateOutput>;
   "INTERACTION.OUTPUT": NodeContract<InteractionOutputInput, InteractionOutputOutput>;
 }
 export type NodeType = keyof NodeContractMap;
@@ -258,25 +263,13 @@ export type InputOf<N extends NodeType> = NodeContractMap[N]["input"];
 export type OutputOf<N extends NodeType> = NodeContractMap[N]["output"];
 ```
 
-## 5. Predefined cross-Node Context ingress
-
-These presets standardize information entering `CONTEXT.UPDATE`; they do not create new Node Types or hide Graph steps.
-
-| Preset ID | Source | Target |
-| --- | --- | --- |
-| `memory.skill-context.update` | `MEMORY.SKILL` | `CONTEXT.UPDATE` |
-| `context.rag-context.update` | `CONTEXT.RAG.RANK` | `CONTEXT.UPDATE` |
-| `memory.rag-context.update` | `MEMORY.RAG.RANK` | `CONTEXT.UPDATE` |
-| `interaction.act.tool-context.update` | `INTERACTION.ACT.TOOL` | `CONTEXT.UPDATE` |
-| `interaction.act.mcp-context.update` | `INTERACTION.ACT.MCP` | `CONTEXT.UPDATE` |
-
-Every adapter produces `ContextIngress[]` with a stable id, preserved `sourceNode`, content/reference separation, and provenance metadata. Context RAG and Memory RAG remain distinguishable. `CONTEXT.UPDATE` only merges entries; it does not rerun source operations, grant permissions, or persist Memory.
-
-## 6. Implementation rules
+## 5. Implementation rules
 
 - One `.ts` scaffold exists for every agreed leaf Node. A scaffold fixes identity and type binding without inventing business logic.
 - `INFER.CACHE` has a folder skeleton only. Adding it to `NodeContractMap` before leaf approval is forbidden.
-- Provider adapters live under `src/worker/infer/providers/` and implement `ModelProvider.invoke`. Model/vendor changes do not create Nodes.
-- Tool and MCP registries are distinct. Linux command names are ordinary registered tools.
+- Provider adapters remain flat under `src/worker/infer/providers/` and implement `ModelProvider.invoke`. Model/vendor changes do not create Nodes.
+- `INTERACTION.ACT.TOOL` is represented by a source directory. Its `linux-commands/` child and registered command names are not Nodes.
+- Tool and MCP registries remain distinct.
+- The four predefined flows live in `src/runtime/graph.ts`; there is no `src/presets` package or export.
 - Core remains dependency-light; databases, RPC, NATS, MCP SDKs, model SDKs, and distributed transports are optional adapters.
 - The same Graph and Node Contracts must run across local and remote Workers without embedding deployment information.

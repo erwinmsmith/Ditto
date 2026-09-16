@@ -1,12 +1,11 @@
 export type * from "./contracts.js";
 export * from "./act/index.js";
 export * from "./observe.js";
-export * from "./communicate.js";
 export * from "./output.js";
 
 import type { WorkerNodes } from "../define-worker.js";
 import { createMcpHandler, McpRegistry } from "./act/mcp.js";
-import { createToolHandler, ToolRegistry } from "./act/tool.js";
+import { createToolHandler, ToolRegistry } from "./act/tool/index.js";
 
 export interface InteractionNodeOptions {
   readonly tools?: ToolRegistry;

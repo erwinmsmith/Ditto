@@ -1,10 +1,7 @@
 import type {
   ExternalResult, JsonObject, MessageContent, ToolCall, ToolDefinition,
-} from "../../../contracts/common.js";
-import type { WorkerContext } from "../../node.js";
-import { createNodeScaffold } from "../../node-scaffold.js";
-
-export const interactionToolNode = createNodeScaffold("INTERACTION.ACT.TOOL");
+} from "../../../../contracts/common.js";
+import type { WorkerContext } from "../../../node.js";
 
 export interface RegisteredTool extends ToolDefinition {
   validate(arguments_: JsonObject): void;
@@ -39,10 +36,4 @@ export class ToolRegistry {
     tool.validate(call.arguments);
     return { source: call.name, content: await tool.execute(call.arguments, context) };
   }
-}
-
-export function createToolHandler<R = undefined, C = undefined>(
-  registry: ToolRegistry,
-): import("../../node.js").NodeHandler<"INTERACTION.ACT.TOOL", R, C> {
-  return (input, context) => registry.call(input.call, context);
 }

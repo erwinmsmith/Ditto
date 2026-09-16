@@ -2,7 +2,7 @@
 
 **English** · [简体中文](worker-communication.zh-CN.md)
 
-> Runtime `invoke` / `emit` semantics are unchanged by the [target Contract](13-node-api-contract.md) and never become `INTERACTION.COMMUNICATE`. `INTERACTION.RUN` has been removed. Application Graphs and Loops invoke exposed leaf capabilities; the Loop and its state remain with the caller.
+> Runtime `invoke` / `emit` are internal communication semantics, not Interaction Nodes. `INTERACTION.RUN` has been removed. Application Graphs and Loops invoke exposed leaf capabilities; the Loop and its state remain with the caller.
 
 ## Location and Invocation
 
@@ -22,15 +22,18 @@ Server:
 
 ```ts
 import { createServer } from "node:http";
-import { createDitto, defineWorker, createGenerateNode, loadRuntimeConfig, createWorkerHttpHandler } from "@ditto/core";
+import { createDitto, defineWorker, loadRuntimeConfig, createWorkerHttpHandler } from "@ditto/core";
 
 const token = process.env.DITTO_WORKER_TOKEN;
 if (!token) throw new Error("Set DITTO_WORKER_TOKEN");
 const runtime = createDitto({ hostId: "server-a", processId: "agent-service", config: loadRuntimeConfig() });
 const worker = runtime.register(defineWorker({
-  type: "assistant", concurrency: 8, expose: ["REASONING.GENERATE"],
-  nodes: { "REASONING.GENERATE": createGenerateNode() },
-}), "assistant-a");
+  type: "memory", concurrency: 8, expose: ["MEMORY.RETRIEVE"],
+  nodes: {
+    "MEMORY.RETRIEVE": async ({ selector }) =>
+      selector.ids?.map((id) => ({ id, message: { role: "assistant", content: `memory:${id}` } })) ?? [],
+  },
+}), "memory-a");
 const server = createServer(createWorkerHttpHandler(runtime, { token }));
 server.listen(8080, "127.0.0.1");
 console.log(worker.address); // Pass to the caller through deployment configuration; contains no key
@@ -48,17 +51,17 @@ const transport = createHttpTransport({
 });
 const runtime = createDitto({ hostId: "client", transports: [transport] });
 runtime.registerRemote({
-  address: { workerId: "assistant-a", workerType: "assistant", hostId: "server-a", processId: "agent-service" },
-  capabilities: ["REASONING.GENERATE"], transportId: transport.id,
+  address: { workerId: "memory-a", workerType: "memory", hostId: "server-a", processId: "agent-service" },
+  capabilities: ["MEMORY.RETRIEVE"], transportId: transport.id,
 });
 try {
-  console.log(await runtime.invoke("REASONING.GENERATE", { messages: [{ role: "user", content: "Hello" }] }));
+  console.log(await runtime.invoke("MEMORY.RETRIEVE", { selector: { ids: ["example"] } }));
 } finally { await runtime.close(); }
 ```
 
 For cross-server deployments, use a controlled HTTPS endpoint with TLS termination or a Node HTTPS Server. The plaintext loopback example is for local development. Install one transport per server and register each server's addresses. Workers exposing the same capability participate in routing without changing Graphs.
 
-The same registration works with `runtime.run()` and `runtime.loop()`. A Loop may select a different DAG each round; only that DAG's Node calls cross HTTP. Deploy and expose every capability the selected Graphs need. Generation uses server-owned model configuration; a tool-enabled application also deploys Interaction capabilities and keeps model-visible tool schemas aligned with execution permissions. Remote registration does not upload Graph functions or Loop state machines.
+The same registration works with `runtime.run()` and `runtime.loop()`. A Loop may select a different DAG each round; only that DAG's Node calls cross HTTP. Deploy and expose every capability the selected Graphs need. Each execution host owns its resources, Provider configuration, and permissions. Remote registration does not upload Graph functions or Loop state machines.
 
 ## Protocol and Responsibilities
 

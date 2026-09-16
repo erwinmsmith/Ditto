@@ -125,12 +125,6 @@ export interface ExternalResult {
   metadata?: JsonObject;
 }
 export interface Observation { source: string; message: Message; }
-export type ActorKind = "user" | "agent" | "human-reviewer" | "service";
-export interface Actor { id: string; kind: ActorKind; channel?: string; }
-export interface CommunicationReceipt {
-  accepted: boolean;
-  recipients: readonly string[];
-}
 export interface Artifact { name: string; reference: Reference; }
 export interface OutputReceipt { accepted: boolean; artifacts?: readonly Artifact[]; }
 export interface McpCapability {
