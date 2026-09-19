@@ -24,8 +24,8 @@
 import { createServer } from "node:http";
 import { createDitto, defineWorker, loadRuntimeConfig, createWorkerHttpHandler } from "@ditto/core";
 
-const token = process.env.DITTO_WORKER_TOKEN;
-if (!token) throw new Error("Set DITTO_WORKER_TOKEN");
+const token = process.env.DITTO_TRANSPORT_HTTP_WORKER_TOKEN;
+if (!token) throw new Error("Set DITTO_TRANSPORT_HTTP_WORKER_TOKEN");
 const runtime = createDitto({ hostId: "server-a", processId: "agent-service", config: loadRuntimeConfig() });
 const worker = runtime.register(defineWorker({
   type: "memory", concurrency: 8, expose: ["MEMORY.RETRIEVE"],
@@ -44,8 +44,8 @@ console.log(worker.address); // 通过部署配置传给调用端；不含 Key
 ```ts
 import { createDitto, createHttpTransport } from "@ditto/core";
 
-const token = process.env.DITTO_WORKER_TOKEN;
-if (!token) throw new Error("Set DITTO_WORKER_TOKEN");
+const token = process.env.DITTO_TRANSPORT_HTTP_WORKER_TOKEN;
+if (!token) throw new Error("Set DITTO_TRANSPORT_HTTP_WORKER_TOKEN");
 const transport = createHttpTransport({
   id: "server-a-http", url: "http://127.0.0.1:8080/ditto/invoke", token, timeoutMs: 30_000,
 });

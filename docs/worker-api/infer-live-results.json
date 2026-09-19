@@ -2093,6 +2093,337 @@
           "modelCalls": 0
         }
       ]
+    },
+    {
+      "startedAt": "2026-09-19T13:24:13.981Z",
+      "checkedAt": "2026-09-19T13:24:52.171Z",
+      "label": "Grouped env and YAML configuration smoke check",
+      "providers": [
+        "deepseek"
+      ],
+      "strategies": [
+        "cot",
+        "long-cot",
+        "tot",
+        "got",
+        "self-consistency"
+      ],
+      "cases": "sample,tot/arithmetic,got/arithmetic",
+      "maxTokens": 4096,
+      "settings": {
+        "runtime": {
+          "timeoutMs": 120000,
+          "maxTurns": 8
+        },
+        "infer": {
+          "generation": {
+            "maxTokens": 4096
+          },
+          "constraints": {
+            "maxSteps": 16,
+            "maxTotalTokens": 64000
+          },
+          "strategies": {
+            "cot": {
+              "rounds": 2
+            },
+            "long-cot": {
+              "rounds": 4
+            },
+            "tot": {
+              "breadth": 2,
+              "depth": 2,
+              "beamWidth": 2
+            },
+            "got": {
+              "breadth": 2,
+              "depth": 2
+            },
+            "self-consistency": {
+              "candidates": 3
+            }
+          }
+        },
+        "react": {
+          "maxActionCalls": 16,
+          "maxTotalTokens": 64000
+        }
+      },
+      "results": [
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "sample",
+          "status": "passed",
+          "ms": 1005,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 43,
+            "outputTokens": 21,
+            "totalTokens": 64,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 19
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "tot/arithmetic",
+          "status": "passed",
+          "ms": 19795,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"total\":33,\"change\":17}"
+          },
+          "usage": {
+            "inputTokens": 1700,
+            "outputTokens": 3720,
+            "reasoningTokens": 3390,
+            "cachedInputTokens": 384,
+            "totalTokens": 5420
+          },
+          "modelCalls": 8
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "got/arithmetic",
+          "status": "passed",
+          "ms": 16751,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"total\":33,\"change\":17}"
+          },
+          "usage": {
+            "inputTokens": 1278,
+            "outputTokens": 3405,
+            "reasoningTokens": 3201,
+            "cachedInputTokens": 256,
+            "totalTokens": 4683
+          },
+          "modelCalls": 6
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "sample/stream",
+          "status": "passed",
+          "ms": 617,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 43,
+            "outputTokens": 18,
+            "totalTokens": 61,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 16
+          }
+        }
+      ]
+    },
+    {
+      "startedAt": "2026-09-19T13:28:06.770Z",
+      "checkedAt": "2026-09-19T13:28:51.568Z",
+      "label": "DELIBERATE YAML defaults and trajectory integration",
+      "providers": [
+        "deepseek"
+      ],
+      "strategies": [
+        "cot",
+        "long-cot",
+        "tot",
+        "got",
+        "self-consistency"
+      ],
+      "cases": "deliberate,tot/arithmetic,got/arithmetic",
+      "maxTokens": 4096,
+      "settings": {
+        "runtime": {
+          "timeoutMs": 120000,
+          "maxTurns": 8
+        },
+        "infer": {
+          "generation": {
+            "maxTokens": 4096
+          },
+          "deliberate": {
+            "mode": "select",
+            "selectCount": 1,
+            "generation": {
+              "maxTokens": 4096
+            }
+          },
+          "constraints": {
+            "maxSteps": 16,
+            "maxTotalTokens": 64000
+          },
+          "strategies": {
+            "cot": {
+              "rounds": 2
+            },
+            "long-cot": {
+              "rounds": 4
+            },
+            "tot": {
+              "breadth": 2,
+              "depth": 2,
+              "beamWidth": 2
+            },
+            "got": {
+              "breadth": 2,
+              "depth": 2
+            },
+            "self-consistency": {
+              "candidates": 3
+            }
+          }
+        },
+        "react": {
+          "maxActionCalls": 16,
+          "maxTotalTokens": 64000
+        }
+      },
+      "results": [
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "tot/arithmetic",
+          "status": "passed",
+          "ms": 20237,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"total\":33,\"change\":17}"
+          },
+          "usage": {
+            "inputTokens": 1700,
+            "outputTokens": 4257,
+            "reasoningTokens": 3821,
+            "cachedInputTokens": 384,
+            "totalTokens": 5957
+          },
+          "modelCalls": 8
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "got/arithmetic",
+          "status": "passed",
+          "ms": 16181,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"total\":33,\"change\":17}"
+          },
+          "usage": {
+            "inputTokens": 1278,
+            "outputTokens": 3155,
+            "reasoningTokens": 2854,
+            "cachedInputTokens": 256,
+            "totalTokens": 4433
+          },
+          "modelCalls": 6
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "deliberate/select",
+          "status": "passed",
+          "ms": 1705,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 288,
+            "outputTokens": 288,
+            "totalTokens": 576,
+            "cachedInputTokens": 128,
+            "reasoningTokens": 169
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "deliberate/merge",
+          "status": "passed",
+          "ms": 2060,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 288,
+            "outputTokens": 383,
+            "totalTokens": 671,
+            "cachedInputTokens": 128,
+            "reasoningTokens": 267
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "deliberate/consensus",
+          "status": "passed",
+          "ms": 2116,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 289,
+            "outputTokens": 329,
+            "totalTokens": 618,
+            "cachedInputTokens": 128,
+            "reasoningTokens": 222
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "deliberate/debate",
+          "status": "passed",
+          "ms": 1485,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 289,
+            "outputTokens": 229,
+            "totalTokens": 518,
+            "cachedInputTokens": 128,
+            "reasoningTokens": 119
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "deliberate/defaults",
+          "status": "passed",
+          "ms": 982,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 285,
+            "outputTokens": 160,
+            "totalTokens": 445,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 50
+          },
+          "modelCalls": 1
+        }
+      ]
     }
   ]
 }

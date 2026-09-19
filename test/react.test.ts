@@ -55,7 +55,7 @@ test("ReAct deadline and cancellation stop scheduling without claiming to cancel
   } finally { await runtime.close(); }
 });
 test("SDK and Worker share Runtime provider selection and support multiple vendors", async () => {
-  const config = loadRuntimeConfig({ DITTO_PROVIDERS: "one,two,three", DITTO_PROVIDER_TWO_KIND: "anthropic", DITTO_PROVIDER_THREE_KIND: "gemini", DITTO_MODEL_PROVIDER: "two", DITTO_MODEL: "fixture" });
+  const config = loadRuntimeConfig({ DITTO_SHARED_PROVIDERS: "one,two,three", DITTO_SHARED_PROVIDER_TWO_KIND: "anthropic", DITTO_SHARED_PROVIDER_THREE_KIND: "gemini", DITTO_WORKER_INFER_MODEL_PROVIDER: "two", DITTO_WORKER_INFER_MODEL: "fixture" });
   assert.equal(config.providers.three?.baseUrl, "https://generativelanguage.googleapis.com/v1beta");
   const providers = new ProviderRegistry(Object.fromEntries(["one", "two", "three"].map(name => [name, { invoke: async () => ({ ...answer, message: { role: "assistant" as const, content: name } }) }])));
   const runtime = createDitto({ config, providers, workers: [createInferWorker()] });

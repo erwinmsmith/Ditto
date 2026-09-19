@@ -23,7 +23,7 @@ export interface RuntimeConfig {
   readonly timeoutMs: number;
   readonly maxTurns: number;
   readonly infer: InferSettings;
-  readonly react: NonNullable<RuntimeSettings["react"]>;
+  readonly react: NonNullable<NonNullable<RuntimeSettings["runtime"]>["react"]>;
   readonly sandbox: SandboxPolicy;
 }
 
@@ -31,16 +31,19 @@ export interface RuntimeConfig {
 export function loadRuntimeConfig(env: NodeJS.ProcessEnv = process.env, settings: RuntimeSettings = {}): RuntimeConfig {
   settings = validateRuntimeSettings(settings);
   for (const key of Object.keys(env)) {
-    if (env[key] !== undefined && (/^DITTO_(TIMEOUT_MS|MAX_TURNS)$/.test(key) || /^DITTO_PROVIDER_.+_(OPTIONS|MAX_TOKENS_FIELD)$/.test(key))) {
+    if (env[key] !== undefined && (/^DITTO_(TIMEOUT_MS|MAX_TURNS)$/.test(key) || /^DITTO_(?:SHARED_)?PROVIDER_.+_(OPTIONS|MAX_TOKENS_FIELD)$/.test(key))) {
       throw new Error(`${key} moved to ditto.yaml; remove it from env`);
     }
+    if (env[key] !== undefined && (/^DITTO_(ENV|WORKSPACE|PROVIDERS|MODEL_PROVIDER|MODEL|WORKER_TOKEN)$/.test(key) || /^DITTO_(PROVIDER_|ALLOW_)/.test(key))) {
+      throw new Error(`Legacy env key ${key}; use the runtime/shared/worker/transport prefixes in .env.example`);
+    }
   }
-  const environment = env.DITTO_ENV ?? "development";
-  if (!["development", "test", "production"].includes(environment)) throw new Error("Invalid DITTO_ENV");
+  const environment = env.DITTO_RUNTIME_ENV ?? "development";
+  if (!["development", "test", "production"].includes(environment)) throw new Error("Invalid DITTO_RUNTIME_ENV");
   const providers: Record<string, ProviderConfig> = Object.create(null) as Record<string, ProviderConfig>;
-  for (const name of (env.DITTO_PROVIDERS ?? "").split(",").map((name) => name.trim()).filter(Boolean)) {
+  for (const name of (env.DITTO_SHARED_PROVIDERS ?? "").split(",").map((name) => name.trim()).filter(Boolean)) {
     if (!/^[a-z][a-z0-9_]*$/.test(name) || Object.hasOwn(providers, name)) throw new Error(`Invalid or duplicate provider: ${name}`);
-    const prefix = `DITTO_PROVIDER_${name.toUpperCase()}_`;
+    const prefix = `DITTO_SHARED_PROVIDER_${name.toUpperCase()}_`;
     const kind = env[`${prefix}KIND`] ?? "openai-compatible";
     if (kind !== "openai-compatible" && kind !== "anthropic" && kind !== "gemini") throw new Error(`Invalid provider kind: ${name}`);
     const url = new URL(env[`${prefix}BASE_URL`] ?? (kind === "anthropic" ? "https://api.anthropic.com/v1" : kind === "gemini" ? "https://generativelanguage.googleapis.com/v1beta" : "https://api.openai.com/v1"));
@@ -49,16 +52,16 @@ export function loadRuntimeConfig(env: NodeJS.ProcessEnv = process.env, settings
     }
     const apiKey = env[`${prefix}API_KEY`];
     const model = env[`${prefix}MODEL`];
-    const maxTokensField = settings.providers?.[name]?.maxTokensField;
+    const maxTokensField = settings.shared?.providers?.[name]?.maxTokensField;
     if (maxTokensField && (kind !== "openai-compatible" || !["max_tokens", "max_completion_tokens"].includes(maxTokensField))) throw new Error(`Invalid max tokens field: ${name}`);
-    const providerOptions = settings.providers?.[name]?.options;
+    const providerOptions = settings.shared?.providers?.[name]?.options;
     providers[name] = Object.freeze({ kind, baseUrl: url.href.replace(/\/$/, ""), ...(apiKey ? { apiKey } : {}),
       ...(model ? { model } : {}), ...(maxTokensField ? { maxTokensField: maxTokensField as "max_tokens" | "max_completion_tokens" } : {}),
       ...(providerOptions ? { providerOptions } : {}) });
   }
-  const provider = env.DITTO_MODEL_PROVIDER;
-  const model = env.DITTO_MODEL;
-  if (Boolean(provider) !== Boolean(model)) throw new Error("Set DITTO_MODEL_PROVIDER and DITTO_MODEL together");
+  const provider = env.DITTO_WORKER_INFER_MODEL_PROVIDER;
+  const model = env.DITTO_WORKER_INFER_MODEL;
+  if (Boolean(provider) !== Boolean(model)) throw new Error("Set DITTO_WORKER_INFER_MODEL_PROVIDER and DITTO_WORKER_INFER_MODEL together");
   if (provider && !Object.hasOwn(providers, provider)) throw new Error(`Default provider is not configured: ${provider}`);
   const list = (name: string): readonly string[] => Object.freeze((env[name] ?? "").split(",").map((value) => value.trim()).filter(Boolean));
   const flag = (name: string): boolean => {
@@ -68,16 +71,16 @@ export function loadRuntimeConfig(env: NodeJS.ProcessEnv = process.env, settings
   };
   return Object.freeze({
     environment: environment as RuntimeConfig["environment"],
-    workspace: resolve(env.DITTO_WORKSPACE ?? process.cwd()),
+    workspace: resolve(env.DITTO_RUNTIME_WORKSPACE ?? process.cwd()),
     model: provider && model ? Object.freeze({ provider, model }) : undefined,
     providers: Object.freeze(providers),
     timeoutMs: settings.runtime?.timeoutMs ?? 30_000,
     maxTurns: settings.runtime?.maxTurns ?? 8,
-    infer: settings.infer ?? Object.freeze({}),
-    react: settings.react ?? Object.freeze({}),
-    sandbox: Object.freeze({ tools: list("DITTO_ALLOW_TOOLS"), mcp: list("DITTO_ALLOW_MCP"),
-      skills: list("DITTO_ALLOW_SKILLS"), network: list("DITTO_ALLOW_NETWORK"),
-      read: flag("DITTO_ALLOW_READ"), write: flag("DITTO_ALLOW_WRITE"), execute: flag("DITTO_ALLOW_EXECUTE") }),
+    infer: settings.workers?.infer ?? Object.freeze({}),
+    react: settings.runtime?.react ?? Object.freeze({}),
+    sandbox: Object.freeze({ tools: list("DITTO_SHARED_SANDBOX_ALLOW_TOOLS"), mcp: list("DITTO_SHARED_SANDBOX_ALLOW_MCP"),
+      skills: list("DITTO_SHARED_SANDBOX_ALLOW_SKILLS"), network: list("DITTO_SHARED_SANDBOX_ALLOW_NETWORK"),
+      read: flag("DITTO_SHARED_SANDBOX_ALLOW_READ"), write: flag("DITTO_SHARED_SANDBOX_ALLOW_WRITE"), execute: flag("DITTO_SHARED_SANDBOX_ALLOW_EXECUTE") }),
   });
 }
 

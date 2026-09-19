@@ -94,18 +94,18 @@ Usage comes from provider counters; missing counters are not fabricated. Anthrop
 import { createDitto, createInferWorker, loadRuntimeConfigFile } from "@ditto/core";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 const runtime = createDitto({ config, workers: [createInferWorker()] });
-if (!config.model) throw new Error("Configure DITTO_MODEL_PROVIDER and DITTO_MODEL");
+if (!config.model) throw new Error("Configure DITTO_WORKER_INFER_MODEL_PROVIDER and DITTO_WORKER_INFER_MODEL");
 const response = await runtime.invoke("INFER.REASONING.SAMPLE", {
   model: config.model, messages: [{ role: "user", content: "Hello" }],
 });
 await runtime.close();
 ```
 
-Load the example configuration explicitly: DITTO_PROVIDERS=deepseek,openai,glm,claude,gemini,local, with DITTO_PROVIDER_<NAME>_KIND/BASE_URL/API_KEY/MODEL for each entry. Names match [a-z][a-z0-9_]* and must be unique. Default base URLs by kind are https://api.openai.com/v1, https://api.anthropic.com/v1, and https://generativelanguage.googleapis.com/v1beta. Allow the corresponding origins through DITTO_ALLOW_NETWORK.
+Load the example configuration explicitly: DITTO_SHARED_PROVIDERS=deepseek,openai,glm,claude,gemini,local, with DITTO_SHARED_PROVIDER_<NAME>_KIND/BASE_URL/API_KEY/MODEL for each entry. Names match [a-z][a-z0-9_]* and must be unique. Default base URLs by kind are https://api.openai.com/v1, https://api.anthropic.com/v1, and https://generativelanguage.googleapis.com/v1beta. Allow the corresponding origins through DITTO_SHARED_SANDBOX_ALLOW_NETWORK.
 
-DITTO_MODEL_PROVIDER and DITTO_MODEL must be configured together; callers supply the model field on each request. Runtime never implicitly loads environment/files. Supplying createDitto({ providers }) skips provider construction from config.providers.
+DITTO_WORKER_INFER_MODEL_PROVIDER and DITTO_WORKER_INFER_MODEL must be configured together; callers supply the model field on each request. Runtime never implicitly loads environment/files. Supplying createDitto({ providers }) skips provider construction from config.providers.
 
-Provider behavior now lives in YAML as `providers.<name>.options` and `maxTokensField` (OpenAI-compatible only). See the [shared configuration API](configuration.md) for defaults, overrides and migration. Keep real configuration in the ignored root .env. Every Worker shares ctx.services.config/providers/sandbox; unused storage options are not invented. Reasoning models may count internal reasoning against maxTokens, so an exhausted budget produces length/partial rather than a complete success. Compatible tool messages also retain original reasoning_content when supplied, for replay only, never text_delta.
+Provider behavior now lives in YAML as `shared.providers.<name>.options` and `maxTokensField` (OpenAI-compatible only). See the [shared configuration API](configuration.md) for defaults, overrides and migration. Keep real configuration in the ignored root .env. Every Worker shares ctx.services.config/providers/sandbox; unused storage options are not invented. Reasoning models may count internal reasoning against maxTokens, so an exhausted budget produces length/partial rather than a complete success. Compatible tool messages also retain original reasoning_content when supplied, for replay only, never text_delta.
 
 Run real checks explicitly: npm run check:infer:live -- --provider deepseek. Options: --strategies cot,tot,got, --cases sample,tot, --max-tokens 4096, and --report path. Assertions check content as well as execution; any failure exits nonzero. Reports append history including failures without credentials. See the [live verification report](infer-live-report.md).
 

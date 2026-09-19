@@ -61,7 +61,7 @@ const handlers: { [N in InferNode]: (input: InferInput<N>, ctx: InferExecution) 
 };
 /** One executor per SDK/replica; invocation context is always passed per call. */
 function createExecutor(options: InferOptions) {
-  const defaults = options.defaults === undefined ? undefined : validateRuntimeSettings({ infer: options.defaults }).infer;
+  const defaults = options.defaults === undefined ? undefined : validateRuntimeSettings({ workers: { infer: options.defaults } }).workers!.infer;
   const providers = options.providers instanceof ProviderRegistry ? options.providers : options.providers ? new ProviderRegistry(options.providers) : undefined;
   const fallbackProviders = new ProviderRegistry();
   const strategies = Object.freeze({ ...options.strategies });
@@ -143,7 +143,7 @@ export interface InferWorkerOptions extends Omit<InferOptions, "runtime" | "cach
 }
 export function createInferWorker(options: InferWorkerOptions = {}): WorkerDefinition {
   number(options.timeoutMs ?? 30_000, "timeoutMs", 1, 2 ** 31 - 1, true);
-  if (options.defaults) options = { ...options, defaults: validateRuntimeSettings({ infer: options.defaults }).infer! };
+  if (options.defaults) options = { ...options, defaults: validateRuntimeSettings({ workers: { infer: options.defaults } }).workers!.infer! };
   options = { ...options, strategies: Object.freeze({ ...options.strategies }) };
   // Internal SAMPLE calls share the executor and consume no extra routing slot.
   return defineWorker({ type: "INFER",

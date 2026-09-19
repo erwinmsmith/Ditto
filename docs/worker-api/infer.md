@@ -287,7 +287,7 @@ export interface DeliberateInput {
   selectCount?: number;
   objective?: string;
   candidates: Array<{ id: string; result: Message; trajectory?: ReasoningStep[]; score?: number }>;
-  mode: "select" | "merge" | "consensus" | "debate";
+  mode?: "select" | "merge" | "consensus" | "debate";
   context?: ContextItem[];
   model: ModelConfig;
   generation?: GenerationConfig;
@@ -314,6 +314,8 @@ const decision = await infer.reasoning.deliberate({
 ```
 
 Selected/assessed IDs must refer to supplied candidates and cannot repeat. Select requires exactly selectCount IDs (default 1), ordered best first, and returns the first candidate's original Message, preventing unrequested rewriting. Other modes return the synthesized Message. JSON completeness/structure validation matches REFLECT. No additional REFLECT call is made.
+
+Defaults are configurable under `workers.infer.deliberate` in root `ditto.yaml`: `mode: select`, `selectCount: 1`, and `generation.maxTokens: 4096`. Omitted request fields inherit those defaults; request values override them. Node-specific generation overrides common INFER generation. Configured selectCount only applies to select mode; a count exceeding the candidate count fails before calling the provider. ToT/GoT retain their explicit modes and trajectory budgets. See the [configuration API](configuration.md).
 
 ## 7. CACHE
 

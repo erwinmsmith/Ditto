@@ -6,16 +6,16 @@ import test from "node:test";
 import { loadRuntimeConfig, Sandbox, SkillRegistry } from "../src/index.js";
 
 test("env config is explicit, validated and immutable; permissions deny by default", () => {
-  const config = loadRuntimeConfig({ DITTO_PROVIDERS: "primary,local", DITTO_MODEL_PROVIDER: "local", DITTO_MODEL: "test",
-    DITTO_PROVIDER_LOCAL_BASE_URL: "http://127.0.0.1:1234/v1", DITTO_ALLOW_TOOLS: "echo,add" });
+  const config = loadRuntimeConfig({ DITTO_SHARED_PROVIDERS: "primary,local", DITTO_WORKER_INFER_MODEL_PROVIDER: "local", DITTO_WORKER_INFER_MODEL: "test",
+    DITTO_SHARED_PROVIDER_LOCAL_BASE_URL: "http://127.0.0.1:1234/v1", DITTO_SHARED_SANDBOX_ALLOW_TOOLS: "echo,add" });
   assert.equal(config.providers.local!.baseUrl, "http://127.0.0.1:1234/v1");
   assert.deepEqual(config.model, { provider: "local", model: "test" });
   assert.deepEqual(config.sandbox.tools, ["echo", "add"]);
   assert.equal(config.sandbox.write, false);
   assert.ok(Object.isFrozen(config.providers));
-  for (const env of [{ DITTO_MAX_TURNS: "NaN" }, { DITTO_ENV: "unknown" }, { DITTO_MODEL: "orphan" },
-    { DITTO_ALLOW_READ: "yes" }, { DITTO_PROVIDERS: "x,x" },
-    { DITTO_PROVIDERS: "x", DITTO_PROVIDER_X_BASE_URL: "file:///tmp" }]) {
+  for (const env of [{ DITTO_MAX_TURNS: "NaN" }, { DITTO_RUNTIME_ENV: "unknown" }, { DITTO_WORKER_INFER_MODEL: "orphan" },
+    { DITTO_SHARED_SANDBOX_ALLOW_READ: "yes" }, { DITTO_SHARED_PROVIDERS: "x,x" },
+    { DITTO_SHARED_PROVIDERS: "x", DITTO_SHARED_PROVIDER_X_BASE_URL: "file:///tmp" }]) {
     assert.throws(() => loadRuntimeConfig(env));
   }
 });

@@ -33,7 +33,7 @@ const tasks = [
 for (const name of selected) {
   const provider = config.providers[name]; assert.ok(provider, `Provider not configured: ${name}`);
   const modelName = provider.model ?? (name === config.model?.provider ? config.model.model : undefined);
-  assert.ok(modelName, `Set DITTO_PROVIDER_${name.toUpperCase()}_MODEL`);
+  assert.ok(modelName, `Set DITTO_SHARED_PROVIDER_${name.toUpperCase()}_MODEL`);
   const model = { provider: name, model: modelName };
   const runtime = createDitto({ config, workers: [createInferWorker()] });
   const infer = createInfer({ runtime });
@@ -77,6 +77,15 @@ for (const name of selected) {
         candidates: [{ id: "correct", result: { role: "assistant", content: "391" } }, { id: "wrong", result: { role: "assistant", content: "400" } }], mode, generation,
       }));
       assert.equal(String(result.result.content).trim(), "391"); if (mode === "select") assert.deepEqual(result.selectedCandidateIds, ["correct"]);
+      return { answer: result.result, usage: result.usage, modelCalls: 1 };
+    });
+    await runCase("deliberate/defaults", async () => {
+      const result = output(await infer.reasoning.deliberate({
+        model, messages: [{ role: "user", content: "Compute 17 * 23. Return only the integer." }],
+        candidates: [{ id: "correct", result: { role: "assistant", content: "391" } }, { id: "wrong", result: { role: "assistant", content: "400" } }],
+      }));
+      assert.equal(String(result.result.content).trim(), "391");
+      if ((config.infer.deliberate?.mode ?? "select") === "select") assert.equal(result.selectedCandidateIds?.[0], "correct");
       return { answer: result.result, usage: result.usage, modelCalls: 1 };
     });
     for (const name of ["sample", "trajectory"] as const) await runCase(`${name}/stream`, async () => {
