@@ -2,7 +2,7 @@
 
 **English** · [简体中文](architecture.zh-CN.md)
 
-Ditto is a single TypeScript package with no third-party runtime dependencies. Workers own capabilities and resources. A Graph defines one finite DAG; a Loop advances application state and selects the next round's Graph. The Runtime provides execution, routing, communication, and shared services. The [Node Taxonomy and API Contract](13-node-api-contract.md) governs target classification and interfaces. `INTERACTION.RUN` has been removed; other names such as `REASONING.*`, `INTERACTION.TOOL/SKILL`, and `CONTEXT.RESET` still use the current pre-migration Contracts.
+Ditto is a single TypeScript package whose only third-party runtime dependency is the `yaml` parser. Workers own capabilities and resources. A Graph defines one finite DAG; a Loop advances application state and selects the next round's Graph. The Runtime provides execution, routing, communication, shared services, and four predefined Context flows. The [Node Taxonomy and API Contract](13-node-api-contract.md) governs the implemented classification and interfaces.
 
 ## Structure and Responsibilities
 
@@ -30,18 +30,18 @@ flowchart TB
 | `worker/node.ts`, `worker/execution-context.ts` | Shared typed handlers, `defineNode`, and execution context; no domain operations |
 | `worker/define-worker.ts` | `defineWorker` / `extendWorker`, public capabilities, and replica resources |
 | `worker/memory/` | `contracts.ts`: Memory entities and RETRIEVE / WRITE / UPDATE / CONSOLIDATE / EVICT contracts |
-| `worker/context/` | `contracts.ts`: Context entities and LOAD / SELECT / UPDATE / COMPRESS / RESET contracts |
-| `worker/infer/` (target) | `reasoning/`: final reasoning Contracts/handlers; `providers/`: unified vendor adapters. Current code remains under `worker/reasoning/` until migration. |
-| `worker/interaction/` | Interaction contracts, tools / MCP / Skills; leaf handler composition in `index.ts` |
-| `runtime/graph.ts` | Immutable finite DAG definition, dependency validation, and execution |
+| `worker/context/` | Context contracts and leaf scaffolds, including current-task RAG and Skill activation |
+| `worker/infer/` | `reasoning/`: reasoning Contracts/scaffolds; `providers/`: flat vendor-neutral adapters; `cache/`: reserved namespace skeleton |
+| `worker/interaction/` | ACT.TOOL directory, ACT.MCP, OBSERVE, OUTPUT, and leaf handler composition |
+| `runtime/graph.ts` | Immutable finite DAG definition, dependency validation, execution, and four predefined Context flows |
 | `runtime/loop.ts` | Graph selection, state transitions, stopping condition, and bounded repetition |
 | `runtime/runtime.ts` | `invoke` / `run` / `loop`, Worker registration, routing, and lifecycle |
 | `runtime/communication/` | InvokeTransport, HTTP, and asynchronous events; calls and events have separate semantics |
 | `runtime/sandbox/` | Permission checks, workspace file operations, and an isolated executor interface |
 
-A Node represents an execution operation. Memory retrieval belongs to memory, model generation to reasoning, and tools to interaction. Shared typed Node definitions live in `worker/node.ts`; operation contracts belong to their capability's `contracts.ts`. `createInteractionNodes` returns leaf handlers directly. Graph construction and scheduling share `runtime/graph.ts`, repetition lives in `runtime/loop.ts`, and registration and lifecycle share `runtime/runtime.ts`. There are no per-Worker node directories, separate Agent subsystem, runner, or control hierarchy.
+A Node represents an execution operation. Shared typed Node definitions live in `worker/node.ts`; operation contracts belong to their capability's `contracts.ts`. `createInteractionNodes` returns ACT.TOOL and optional ACT.MCP handlers. Graph construction, scheduling, and the four standard flow functions share `runtime/graph.ts`; repetition lives in `runtime/loop.ts`; registration and lifecycle share `runtime/runtime.ts`.
 
-Memory and Context currently provide contracts; applications supply their data strategies. Reasoning provides replaceable model adapters and a generation Node. Interaction provides single/batch tools and Skill access. Applications compose those capabilities into Graphs and Loops; no Worker owns a built-in Agent loop.
+Memory and Context expose typed contracts while applications supply storage and retrieval strategies. Infer owns reasoning and replaceable Provider adapters. Interaction owns Tool/MCP execution, observation, and final output. Applications compose those capabilities into Graphs and Loops; no Worker owns a built-in Agent loop.
 
 ## What Belongs in contracts
 
@@ -102,19 +102,15 @@ Routing filters public capabilities, availability, and local concurrency capacit
 
 Handlers must await work they start. Closing a Runtime may reject Graph descendants that have not started or new cross-Worker requests, so applications should stop accepting requests and await top-level work before closing it. A handler must not await its own handle.close: that would wait for the handler itself. Applications own EventFabric, external Provider/MCP clients, and HTTP Server lifecycles.
 
-## Contracts and the Target Node Taxonomy
+## Contracts and the Final Node Taxonomy
 
-The current `NodeContractMap` contains the 18 v1.0 contracts plus `INTERACTION.TOOL/TOOL_BATCH/SKILL` and `REASONING.GENERATE`. `INTERACTION.RUN` is removed. The remaining names are a migration baseline, not the final catalog. The target taxonomy requires:
+`NodeContractMap` contains the 25 approved executable leaf Contracts. Reasoning lives under `INFER.REASONING.*`; current-task and durable retrieval remain separate under `CONTEXT.RAG.*` and `MEMORY.RAG.*`; Skills use `CONTEXT.SKILL` and `MEMORY.SKILL`; external calls use `INTERACTION.ACT.TOOL` and `INTERACTION.ACT.MCP`. Reset/session lifecycle and repeated execution belong to Runtime rather than Node Contracts. Task input enters at the application/Runtime boundary, while `INTERACTION.OUTPUT` submits the final result.
 
-- moving model generation and explicit reasoning under `INFER.*`;
-- adding `CONTEXT.RAG.*` and `MEMORY.RAG.*` while separating current-task knowledge from the durable Memory Corpus;
-- splitting Skill into `MEMORY.SKILL` and `CONTEXT.SKILL`;
-- placing tools and MCP under `INTERACTION.ACT.TOOL` and `INTERACTION.ACT.MCP` respectively;
-- removing `CONTEXT.RESET` in favor of Runtime lifecycle; RUN orchestration already belongs to Graph + Loop.
+Custom capabilities still use declaration merging without hard-coding a Node enum into the Router or Scheduler. The fixed TypeScript inputs and outputs are defined by the [Node Taxonomy and API Contract](13-node-api-contract.md).
 
-Custom capabilities still use declaration merging without hard-coding a Node enum into the Router or Scheduler. Exact TypeScript inputs and outputs for new and renamed Nodes must be frozen before handlers and Graphs change; this documentation pass does not speculate about fields.
+Provider adaptation remains flat under `worker/infer/providers/`, not in Node names or Graph input. Core depends only on `ModelProvider.invoke(SampleInput, { signal })` and optional `stream`. Credentials, base URLs, model selection, timeouts, and optional vendor SDKs remain Runtime configuration or adapter concerns.
 
-Provider adaptation belongs under target `worker/infer/providers/`, not in Node names or Graph input. Core depends only on `ModelProvider.invoke(ProviderRequest)`. OpenAI-compatible, Anthropic, and future vendor adapters normalize messages, tool calls, completion state, and usage into the common `ModelOutput`; credentials, base URLs, model selection, timeouts, and vendor SDKs remain runtime configuration or optional dependencies.
+Four directly callable standard flows live in `runtime/graph.ts`: RAG, Skill, MCP, and Tool Call. They invoke existing leaf Nodes and route results into `CONTEXT.UPDATE`; they do not extend `NodeContractMap`.
 
 Use `resources: () => ({ ... })` so each registration creates its own resources. Factory semantics prevent accidentally sharing mutable state through a resource object. Graphs continue to use `.node(id, type, dependencies, bind)` for explicit input mapping, rather than passing raw retrieval results into a reasoning Node that expects messages.
 

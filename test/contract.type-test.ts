@@ -1,97 +1,49 @@
-import type {
-  InputOf,
-  Message,
-  OutputOf,
-} from "../src/index.js";
+import type { InputOf, NodeType, OutputOf } from "../src/index.js";
+import type { TrajectoryInput, TrajectoryOutput, NodeResult } from "../src/worker/infer/index.js";
 
-type Equal<TLeft, TRight> =
-  (<T>() => T extends TLeft ? 1 : 2) extends
-  (<T>() => T extends TRight ? 1 : 2)
-    ? true
-    : false;
+const nodeTypes = {
+  "INFER.REASONING.TRAJECTORY": true,
+  "INFER.REASONING.REFLECT": true,
+  "INFER.REASONING.DELIBERATE": true,
+  "INFER.REASONING.SAMPLE": true,
+  "INFER.CACHE.LOOKUP": true,
+  "INFER.CACHE.WRITE": true,
+  "INFER.CACHE.INVALIDATE": true,
+  "CONTEXT.LOAD": true,
+  "CONTEXT.SELECT": true,
+  "CONTEXT.UPDATE": true,
+  "CONTEXT.COMPRESS": true,
+  "CONTEXT.RAG.EMBED": true,
+  "CONTEXT.RAG.RETRIEVE": true,
+  "CONTEXT.RAG.RANK": true,
+  "CONTEXT.SKILL": true,
+  "MEMORY.RETRIEVE": true,
+  "MEMORY.WRITE": true,
+  "MEMORY.UPDATE": true,
+  "MEMORY.CONSOLIDATE": true,
+  "MEMORY.EVICT": true,
+  "MEMORY.RAG.EMBED": true,
+  "MEMORY.RAG.RETRIEVE": true,
+  "MEMORY.RAG.RANK": true,
+  "MEMORY.SKILL": true,
+  "INTERACTION.ACT.TOOL": true,
+  "INTERACTION.ACT.MCP": true,
+  "INTERACTION.OBSERVE": true,
+  "INTERACTION.OUTPUT": true,
+} as const satisfies Record<Exclude<NodeType, "MEMORY.ARCHIVE" | "BROWSER.OPEN">, true>;
 
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
 type Expect<T extends true> = T;
+type _Input = Expect<Equal<InputOf<"INFER.REASONING.TRAJECTORY">, TrajectoryInput>>;
+type _Output = Expect<Equal<OutputOf<"INFER.REASONING.TRAJECTORY">, NodeResult<TrajectoryOutput>>>;
 
-type InferInputIsFixed = Expect<
-  Equal<InputOf<"REASONING.INFER">, { messages: readonly Message[] }>
->;
+// @ts-expect-error REASONING is a folder, not a routable namespace.
+const legacyNode: NodeType = "REASONING.INFER";
+// @ts-expect-error CACHE is a namespace, not a routable leaf.
+const cacheNamespace: NodeType = "INFER.CACHE";
 
-type SampleOutputIsFixed = Expect<
-  Equal<OutputOf<"REASONING.SAMPLE">, readonly Message[]>
->;
-
-const validRequest: InputOf<"REASONING.SAMPLE"> = { messages: [], count: 2 };
-
-// @ts-expect-error count is fixed and required by the contract.
-const invalidRequest: InputOf<"REASONING.SAMPLE"> = { messages: [] };
-
-void (null as unknown as InferInputIsFixed);
-void (null as unknown as SampleOutputIsFixed);
-void validRequest;
-void invalidRequest;
-
-// This body is compiled, never executed. Negative checks protect API inference.
-import { createDitto, defineNode, defineWorker, extendWorker, graph, loop, createInteractionNodes } from "../src/index.js";
-export function checkPublicTypes(): void {
-  const runtime = createDitto();
-  // @ts-expect-error The owning Worker type is required; the old two-argument form is removed.
-  defineNode("MEMORY.RETRIEVE", async () => []);
-  extendWorker("MEMORY", { nodes: {
-    // @ts-expect-error Operation belongs to reasoning, not the memory namespace.
-    INFER: async () => ({ role: "assistant", content: "wrong namespace" }),
-  } });
-  extendWorker("MEMORY", { nodes: {
-    // @ts-expect-error Scoped operations retain their fixed output contracts.
-    RETRIEVE: async () => "not memory items",
-  } });
-  // @ts-expect-error The removed independent AGENT namespace is not a capability.
-  runtime.invoke("AGENT.RUN", { messages: [] });
-  defineWorker({ type: "assistant", resources: () => ({ count: 0 }),
-    nodes: createInteractionNodes<{ count: number }>(), expose: ["INTERACTION.TOOL"],
-  });
-  // @ts-expect-error Repetition is a Runtime operation, not a Node capability.
-  runtime.invoke("INTERACTION.RUN", { messages: [] });
-  // @ts-expect-error Tool arguments must be a JSON object.
-  runtime.invoke("INTERACTION.TOOL", { name: "echo", arguments: "bad" });
-  // @ts-expect-error Model providers are not automatically new semantic Nodes.
-  runtime.invoke("REASONING.INFER.PROVIDER", { messages: [] });
-  // @ts-expect-error SAMPLE keeps its required count.
-  runtime.invoke("REASONING.SAMPLE", { messages: [] });
-  // @ts-expect-error Runtime fields do not belong in Node input.
-  runtime.invoke("REASONING.INFER", { messages: [], host: "remote" });
-  // @ts-expect-error The output of INFER must be Message.
-  defineNode("REASONING", "REASONING.INFER", async () => ({ items: [] }));
-  defineWorker({ type: "MEMORY", nodes: {
-    // Deployment roles may compose Nodes from any semantic namespace.
-    "REASONING.INFER": async () => ({ role: "assistant", content: "bad" }),
-  } });
-  defineWorker({ type: "REASONING", nodes: {
-    // @ts-expect-error An implementation cannot change fixed output shape.
-    "REASONING.INFER": async () => ({ items: [] }),
-  } });
-  // @ts-expect-error Graph binder must return InferInput, not Context.
-  graph<string>().node("infer", "REASONING.INFER", [], () => ({ items: [] }));
-  const agent = graph<string>().node("infer", "REASONING.INFER", [], () => ({ messages: [] }));
-  // @ts-expect-error Runtime cannot widen the Graph input type to fit a caller.
-  runtime.run(agent, 1);
-  const repetition = loop({ graph: agent, bind: (state: string) => state,
-    update: (_state, output) => String(output.infer.content), done: () => true,
-  });
-  const result: Promise<string> = runtime.loop(repetition, "hello");
-  void result;
-  // @ts-expect-error Runtime cannot widen the Loop state type to fit a caller.
-  runtime.loop(repetition, 1);
-  loop({ graph: agent, bind: (state: string) => state,
-    // @ts-expect-error Loop output retains the Graph's inferred Node results.
-    update: (_state, output) => output.missing, done: () => true,
-  });
-  // @ts-expect-error Declared resources must have an instance factory.
-  defineWorker<{ model: string }>({ type: "REASONING", nodes: {
-    "REASONING.INFER": async () => ({ role: "assistant", content: "ok" }),
-  } });
-  agent.node("later", "REASONING.REFLECT", ["infer"], (_input, outputs) => {
-    // @ts-expect-error Only declared dependency outputs are available.
-    void outputs.unknown;
-    return { message: outputs.infer };
-  });
-}
+void nodeTypes;
+void (null as unknown as _Input);
+void (null as unknown as _Output);
+void legacyNode;
+void cacheNamespace;

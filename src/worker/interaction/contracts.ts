@@ -1,54 +1,29 @@
-import type { JsonObject, JsonValue, Message } from "../../contracts/common.js";
-import type { ToolCall } from "../reasoning/providers/index.js";
-import type { Skill } from "./skills.js";
+import type {
+  Artifact, ExternalResult, McpCapability, Message, Observation, OutputReceipt, ToolCall,
+} from "../../contracts/common.js";
 
-export interface Action {
-  name: string;
-  arguments: JsonObject;
-}
+export type {
+  ExternalResult, McpCapability, Observation, OutputReceipt, ToolCall,
+} from "../../contracts/common.js";
 
-export interface Observation {
-  source: string;
-  message: Message;
-}
-
-export interface Recipient {
-  id: string;
-  channel?: string;
-}
-
-export interface InteractionToolBatchInput { readonly calls: readonly ToolCall[] }
-export type InteractionToolBatchOutput = readonly { readonly id: string; readonly result: JsonValue }[];
+export interface InteractionToolInput { call: ToolCall; }
+export type InteractionToolOutput = ExternalResult;
+export type InteractionMcpInput =
+  | { operation: "discover"; server?: string }
+  | { operation: "invoke"; server: string; call: ToolCall };
+export type InteractionMcpOutput =
+  | { operation: "discover"; capabilities: readonly McpCapability[] }
+  | { operation: "invoke"; result: ExternalResult };
+export interface InteractionObserveInput { result: ExternalResult; }
+export type InteractionObserveOutput = Observation;
+export interface InteractionOutputInput { message: Message; artifacts?: readonly Artifact[]; }
+export type InteractionOutputOutput = OutputReceipt;
 
 declare module "../../contracts/node-contract-map.js" {
   interface NodeContractMap {
-    "INTERACTION.ACT": NodeContract<InteractionActInput, InteractionActOutput>;
+    "INTERACTION.ACT.TOOL": NodeContract<InteractionToolInput, InteractionToolOutput>;
+    "INTERACTION.ACT.MCP": NodeContract<InteractionMcpInput, InteractionMcpOutput>;
     "INTERACTION.OBSERVE": NodeContract<InteractionObserveInput, InteractionObserveOutput>;
-    "INTERACTION.COMMUNICATE": NodeContract<InteractionCommunicateInput, InteractionCommunicateOutput>;
     "INTERACTION.OUTPUT": NodeContract<InteractionOutputInput, InteractionOutputOutput>;
-    "INTERACTION.TOOL": NodeContract<{ readonly name: string; readonly arguments: JsonObject }, JsonValue>;
-    "INTERACTION.TOOL_BATCH": NodeContract<InteractionToolBatchInput, InteractionToolBatchOutput>;
-    "INTERACTION.SKILL": NodeContract<{ readonly name: string }, Skill>;
   }
 }
-
-export interface InteractionActInput {
-  action: Action;
-}
-export type InteractionActOutput = Message;
-
-export interface InteractionObserveInput {
-  observation: Observation;
-}
-export type InteractionObserveOutput = Message;
-
-export interface InteractionCommunicateInput {
-  message: Message;
-  recipients: readonly Recipient[];
-}
-export type InteractionCommunicateOutput = Message;
-
-export interface InteractionOutputInput {
-  message: Message;
-}
-export type InteractionOutputOutput = Message;

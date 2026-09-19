@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { InputOf, OutputOf } from "../contracts/index.js";
-import type { NodeType, RuntimeClient, WorkerContext } from "../worker/node.js";
+import type { InputOf, NodeType, OutputOf } from "../contracts/index.js";
+import type { RuntimeClient, WorkerContext } from "../worker/node.js";
 import type { WorkerDefinition } from "../worker/define-worker.js";
 import { PayloadCodec, type ArtifactStore } from "./artifact.js";
 import { LocalEventFabric, type EventFabric, type EventHandler, type RuntimeEvent } from "./communication/events.js";

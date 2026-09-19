@@ -2,7 +2,7 @@
 
 [English](worker-communication.md) · **简体中文**
 
-> Runtime 的 `invoke` / `emit` 语义不因[目标 Contract](13-node-api-contract.zh-CN.md)改变，也不归入 `INTERACTION.COMMUNICATE`。`INTERACTION.RUN` 已移除；应用 Graph 与 Loop 调用公开的叶子能力，Loop 和状态留在调用端。
+> Runtime 的 `invoke` / `emit` 是内部通信语义，不属于 Interaction Node。`INTERACTION.RUN` 已移除；应用 Graph 与 Loop 调用公开的叶子能力，Loop 和状态留在调用端。
 
 ## 位置与调用
 
@@ -22,15 +22,18 @@
 
 ```ts
 import { createServer } from "node:http";
-import { createDitto, defineWorker, createGenerateNode, loadRuntimeConfig, createWorkerHttpHandler } from "@ditto/core";
+import { createDitto, defineWorker, loadRuntimeConfig, createWorkerHttpHandler } from "@ditto/core";
 
 const token = process.env.DITTO_WORKER_TOKEN;
 if (!token) throw new Error("Set DITTO_WORKER_TOKEN");
 const runtime = createDitto({ hostId: "server-a", processId: "agent-service", config: loadRuntimeConfig() });
 const worker = runtime.register(defineWorker({
-  type: "assistant", concurrency: 8, expose: ["REASONING.GENERATE"],
-  nodes: { "REASONING.GENERATE": createGenerateNode() },
-}), "assistant-a");
+  type: "memory", concurrency: 8, expose: ["MEMORY.RETRIEVE"],
+  nodes: {
+    "MEMORY.RETRIEVE": async ({ selector }) =>
+      selector.ids?.map((id) => ({ id, message: { role: "assistant", content: `memory:${id}` } })) ?? [],
+  },
+}), "memory-a");
 const server = createServer(createWorkerHttpHandler(runtime, { token }));
 server.listen(8080, "127.0.0.1");
 console.log(worker.address); // 通过部署配置传给调用端；不含 Key
@@ -48,11 +51,11 @@ const transport = createHttpTransport({
 });
 const runtime = createDitto({ hostId: "client", transports: [transport] });
 runtime.registerRemote({
-  address: { workerId: "assistant-a", workerType: "assistant", hostId: "server-a", processId: "agent-service" },
-  capabilities: ["REASONING.GENERATE"], transportId: transport.id,
+  address: { workerId: "memory-a", workerType: "memory", hostId: "server-a", processId: "agent-service" },
+  capabilities: ["MEMORY.RETRIEVE"], transportId: transport.id,
 });
 try {
-  console.log(await runtime.invoke("REASONING.GENERATE", { messages: [{ role: "user", content: "Hello" }] }));
+  console.log(await runtime.invoke("MEMORY.RETRIEVE", { selector: { ids: ["example"] } }));
 } finally { await runtime.close(); }
 ```
 

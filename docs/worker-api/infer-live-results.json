@@ -1,0 +1,2098 @@
+{
+  "runs": [
+    {
+      "checkedAt": "2026-09-19T12:51:02.224Z",
+      "results": [
+        {
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "case": "sample",
+          "status": "passed",
+          "ms": 925,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 17,
+            "outputTokens": 1,
+            "totalTokens": 18,
+            "cachedInputTokens": 0
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "case": "cot/arithmetic",
+          "status": "failed",
+          "ms": 1217,
+          "detail": "Unexpected token 'L', \"Let's brea\"... is not valid JSON"
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "case": "cot/shortest-path",
+          "status": "passed",
+          "ms": 822,
+          "answer": {
+            "role": "assistant",
+            "content": "```json\n{\"path\":[\"A\",\"C\",\"B\",\"D\"],\"cost\":5}\n```"
+          },
+          "usage": {
+            "inputTokens": 105,
+            "outputTokens": 21,
+            "cachedInputTokens": 0,
+            "totalTokens": 126
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "case": "long-cot/arithmetic",
+          "status": "passed",
+          "ms": 2111,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"total\": 33, \"change\": 17}"
+          },
+          "usage": {
+            "inputTokens": 491,
+            "outputTokens": 82,
+            "cachedInputTokens": 0,
+            "totalTokens": 573
+          },
+          "modelCalls": 3
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "case": "long-cot/shortest-path",
+          "status": "passed",
+          "ms": 2832,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"path\":[\"A\",\"C\",\"B\",\"D\"],\"cost\":5}"
+          },
+          "usage": {
+            "inputTokens": 712,
+            "outputTokens": 223,
+            "cachedInputTokens": 128,
+            "totalTokens": 935
+          },
+          "modelCalls": 3
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "case": "tot/arithmetic",
+          "status": "failed",
+          "ms": 2812,
+          "detail": "select requires exactly selectCount candidate IDs\n+ actual - expected\n\n+ 'failed'\n- 'success'\n"
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "case": "tot/shortest-path",
+          "status": "failed",
+          "ms": 6424,
+          "detail": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n+   cost: 6,\n-   cost: 5,\n    path: [\n      'A',\n-     'C',\n      'B',\n      'D'\n    ]\n  }\n"
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "case": "got/arithmetic",
+          "status": "passed",
+          "ms": 5906,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"total\": 33, \"change\": 17}"
+          },
+          "usage": {
+            "inputTokens": 1138,
+            "outputTokens": 552,
+            "cachedInputTokens": 0,
+            "totalTokens": 1690
+          },
+          "modelCalls": 6
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "case": "got/shortest-path",
+          "status": "passed",
+          "ms": 5355,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"path\":[\"A\",\"C\",\"B\",\"D\"],\"cost\":5}"
+          },
+          "usage": {
+            "inputTokens": 1118,
+            "outputTokens": 432,
+            "cachedInputTokens": 0,
+            "totalTokens": 1550
+          },
+          "modelCalls": 6
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "case": "self-consistency/arithmetic",
+          "status": "failed",
+          "ms": 1981,
+          "detail": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n+   change: 11,\n+   total: 39\n-   change: 17,\n-   total: 33\n  }\n"
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "case": "self-consistency/shortest-path",
+          "status": "passed",
+          "ms": 2198,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"path\":[\"A\",\"C\",\"B\",\"D\"],\"cost\":5}"
+          },
+          "usage": {
+            "inputTokens": 303,
+            "outputTokens": 82,
+            "cachedInputTokens": 0,
+            "totalTokens": 385
+          },
+          "modelCalls": 3
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "case": "reflect/critique",
+          "status": "passed",
+          "ms": 982,
+          "answer": {
+            "assessment": {
+              "passed": false,
+              "summary": "The response gives 400 for 17 * 23, which is incorrect; the correct product is 391."
+            },
+            "issues": [
+              {
+                "severity": "error",
+                "description": "The assistant's answer is wrong: 17 * 23 = 391, not 400.",
+                "suggestedFix": "Return the integer 391."
+              }
+            ],
+            "usage": {
+              "inputTokens": 188,
+              "outputTokens": 78,
+              "totalTokens": 266,
+              "cachedInputTokens": 0
+            }
+          },
+          "usage": {
+            "inputTokens": 188,
+            "outputTokens": 78,
+            "totalTokens": 266,
+            "cachedInputTokens": 0
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "case": "reflect/verify",
+          "status": "passed",
+          "ms": 782,
+          "answer": {
+            "assessment": {
+              "passed": false,
+              "summary": "The assistant's answer 400 is incorrect; 17 * 23 = 391. The response also violates the instruction to provide the integer only? Actually it provides integer only but wrong."
+            },
+            "issues": [
+              {
+                "severity": "error",
+                "description": "Incorrect product: 17 * 23 = 391, not 400.",
+                "suggestedFix": "Replace '400' with '391'."
+              }
+            ],
+            "usage": {
+              "inputTokens": 187,
+              "outputTokens": 116,
+              "totalTokens": 303,
+              "cachedInputTokens": 0
+            }
+          },
+          "usage": {
+            "inputTokens": 187,
+            "outputTokens": 116,
+            "totalTokens": 303,
+            "cachedInputTokens": 0
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "case": "reflect/revise",
+          "status": "passed",
+          "ms": 1019,
+          "answer": {
+            "assessment": {
+              "passed": false,
+              "summary": "The target answer 400 is incorrect; 17 * 23 equals 391."
+            },
+            "issues": [
+              {
+                "severity": "error",
+                "description": "The computed answer is wrong: 17 * 23 = 391, but the target says 400.",
+                "suggestedFix": "Replace the content with the integer 391."
+              }
+            ],
+            "revisedResult": {
+              "role": "assistant",
+              "content": "391"
+            },
+            "usage": {
+              "inputTokens": 188,
+              "outputTokens": 124,
+              "totalTokens": 312,
+              "cachedInputTokens": 0
+            }
+          },
+          "usage": {
+            "inputTokens": 188,
+            "outputTokens": 124,
+            "totalTokens": 312,
+            "cachedInputTokens": 0
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "case": "deliberate/select",
+          "status": "passed",
+          "ms": 1134,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 195,
+            "outputTokens": 96,
+            "totalTokens": 291,
+            "cachedInputTokens": 0
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "case": "deliberate/merge",
+          "status": "passed",
+          "ms": 749,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 195,
+            "outputTokens": 118,
+            "totalTokens": 313,
+            "cachedInputTokens": 0
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "case": "deliberate/consensus",
+          "status": "passed",
+          "ms": 1087,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 196,
+            "outputTokens": 112,
+            "totalTokens": 308,
+            "cachedInputTokens": 0
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "case": "deliberate/debate",
+          "status": "passed",
+          "ms": 916,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 196,
+            "outputTokens": 133,
+            "totalTokens": 329,
+            "cachedInputTokens": 0
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "case": "sample/stream",
+          "status": "passed",
+          "ms": 507,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 17,
+            "outputTokens": 1,
+            "totalTokens": 18,
+            "cachedInputTokens": 0
+          }
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "case": "trajectory/stream",
+          "status": "passed",
+          "ms": 651,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 56,
+            "outputTokens": 1,
+            "cachedInputTokens": 0,
+            "totalTokens": 57
+          }
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "case": "react/tool-roundtrip",
+          "status": "passed",
+          "ms": 1482,
+          "answer": {
+            "role": "assistant",
+            "content": "ORCHID-731"
+          },
+          "usage": {
+            "inputTokens": 647,
+            "outputTokens": 52,
+            "cachedInputTokens": 128,
+            "totalTokens": 699
+          },
+          "modelCalls": 2
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-v4-flash",
+          "case": "cache/roundtrip",
+          "status": "passed",
+          "ms": 2,
+          "modelCalls": 0
+        },
+        {
+          "provider": "glm",
+          "model": "glm-4-flash",
+          "case": "sample",
+          "status": "passed",
+          "ms": 493,
+          "detail": "391"
+        },
+        {
+          "provider": "glm",
+          "model": "glm-4-flash",
+          "case": "cot/arithmetic",
+          "status": "failed",
+          "ms": 2330,
+          "detail": "Returned total=45, change=0; expected 33,17"
+        },
+        {
+          "provider": "glm",
+          "model": "glm-4-flash",
+          "case": "cot/shortest-path",
+          "status": "failed",
+          "ms": 1879,
+          "detail": "Returned cost=8; expected 5"
+        },
+        {
+          "provider": "glm",
+          "model": "glm-4-flash",
+          "case": "long-cot/arithmetic",
+          "status": "passed",
+          "ms": 12841,
+          "detail": "total=33, change=17"
+        },
+        {
+          "provider": "glm",
+          "model": "glm-4-flash",
+          "case": "long-cot/shortest-path",
+          "status": "failed",
+          "ms": 6773,
+          "detail": "Returned cost=6; expected 5"
+        },
+        {
+          "provider": "glm",
+          "model": "glm-4-flash",
+          "case": "tot/arithmetic",
+          "status": "failed",
+          "ms": 120007,
+          "detail": "INFER deadline exceeded"
+        },
+        {
+          "provider": "openai",
+          "model": "gpt-4o-mini",
+          "case": "connectivity",
+          "status": "failed",
+          "detail": "UND_ERR_CONNECT_TIMEOUT; authentication and generation not reached"
+        }
+      ],
+      "label": "Initial implementation, thinking disabled; failures retained",
+      "interrupted": "Stopped the remaining old GLM run after 120-second timeout to apply strategy fixes. Unexecuted cases are not passes."
+    },
+    {
+      "startedAt": "2026-09-19T12:54:31.852Z",
+      "checkedAt": "2026-09-19T12:56:25.444Z",
+      "label": "Corrected strategies with deepseek-flash thinking low",
+      "providers": [
+        "deepseek"
+      ],
+      "strategies": [
+        "cot",
+        "long-cot",
+        "tot",
+        "got",
+        "self-consistency"
+      ],
+      "results": [
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "sample",
+          "status": "passed",
+          "ms": 768,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 43,
+            "outputTokens": 20,
+            "totalTokens": 63,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 18
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "cot/arithmetic",
+          "status": "passed",
+          "ms": 3674,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"total\":33,\"change\":17}"
+          },
+          "usage": {
+            "inputTokens": 288,
+            "outputTokens": 675,
+            "reasoningTokens": 655,
+            "cachedInputTokens": 0,
+            "totalTokens": 963
+          },
+          "modelCalls": 2
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "cot/shortest-path",
+          "status": "passed",
+          "ms": 2127,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"path\":[\"A\",\"C\",\"B\",\"D\"],\"cost\":5}"
+          },
+          "usage": {
+            "inputTokens": 318,
+            "outputTokens": 441,
+            "reasoningTokens": 405,
+            "cachedInputTokens": 0,
+            "totalTokens": 759
+          },
+          "modelCalls": 2
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "long-cot/arithmetic",
+          "status": "passed",
+          "ms": 8932,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"total\":33,\"change\":17}"
+          },
+          "usage": {
+            "inputTokens": 583,
+            "outputTokens": 1818,
+            "reasoningTokens": 1713,
+            "cachedInputTokens": 128,
+            "totalTokens": 2401
+          },
+          "modelCalls": 3
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "long-cot/shortest-path",
+          "status": "failed",
+          "ms": 9539,
+          "detail": "max_tokens\n+ actual - expected\n\n+ 'partial'\n- 'completed'\n"
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "tot/arithmetic",
+          "status": "passed",
+          "ms": 17987,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"total\":33,\"change\":17}"
+          },
+          "usage": {
+            "inputTokens": 1700,
+            "outputTokens": 3579,
+            "reasoningTokens": 3209,
+            "cachedInputTokens": 0,
+            "totalTokens": 5279
+          },
+          "modelCalls": 8
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "tot/shortest-path",
+          "status": "failed",
+          "ms": 10489,
+          "detail": "max_tokens\n+ actual - expected\n\n+ 'partial'\n- 'completed'\n"
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "got/arithmetic",
+          "status": "passed",
+          "ms": 16605,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"total\":33,\"change\":17}"
+          },
+          "usage": {
+            "inputTokens": 1278,
+            "outputTokens": 3277,
+            "reasoningTokens": 3017,
+            "cachedInputTokens": 256,
+            "totalTokens": 4555
+          },
+          "modelCalls": 6
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "got/shortest-path",
+          "status": "passed",
+          "ms": 14330,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"path\":[\"A\",\"C\",\"B\",\"D\"],\"cost\":5}"
+          },
+          "usage": {
+            "inputTokens": 1408,
+            "outputTokens": 2616,
+            "reasoningTokens": 2364,
+            "cachedInputTokens": 128,
+            "totalTokens": 4024
+          },
+          "modelCalls": 6
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "self-consistency/arithmetic",
+          "status": "passed",
+          "ms": 5757,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"total\":33,\"change\":17}"
+          },
+          "usage": {
+            "inputTokens": 399,
+            "outputTokens": 1042,
+            "reasoningTokens": 839,
+            "cachedInputTokens": 0,
+            "totalTokens": 1441
+          },
+          "modelCalls": 3
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "self-consistency/shortest-path",
+          "status": "passed",
+          "ms": 4575,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"path\":[\"A\",\"C\",\"B\",\"D\"],\"cost\":5}"
+          },
+          "usage": {
+            "inputTokens": 432,
+            "outputTokens": 788,
+            "reasoningTokens": 553,
+            "cachedInputTokens": 0,
+            "totalTokens": 1220
+          },
+          "modelCalls": 3
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "reflect/critique",
+          "status": "passed",
+          "ms": 1861,
+          "answer": {
+            "assessment": {
+              "passed": false,
+              "summary": "The submitted answer is incorrect. 17 × 23 = 391, not 400."
+            },
+            "issues": [
+              {
+                "severity": "error",
+                "description": "Arithmetic error: 17 multiplied by 23 equals 391, but the target answer is 400.",
+                "suggestedFix": "Replace the answer with 391."
+              }
+            ],
+            "usage": {
+              "inputTokens": 206,
+              "outputTokens": 266,
+              "totalTokens": 472,
+              "cachedInputTokens": 0,
+              "reasoningTokens": 188
+            }
+          },
+          "usage": {
+            "inputTokens": 206,
+            "outputTokens": 266,
+            "totalTokens": 472,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 188
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "reflect/verify",
+          "status": "passed",
+          "ms": 2430,
+          "answer": {
+            "assessment": {
+              "passed": false,
+              "summary": "Incorrect arithmetic: 17 * 23 = 391, not 400."
+            },
+            "issues": [
+              {
+                "severity": "error",
+                "description": "The target answer 400 is not the product of 17 and 23.",
+                "suggestedFix": "Replace 400 with 391."
+              }
+            ],
+            "usage": {
+              "inputTokens": 205,
+              "outputTokens": 304,
+              "totalTokens": 509,
+              "cachedInputTokens": 0,
+              "reasoningTokens": 234
+            }
+          },
+          "usage": {
+            "inputTokens": 205,
+            "outputTokens": 304,
+            "totalTokens": 509,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 234
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "reflect/revise",
+          "status": "passed",
+          "ms": 1034,
+          "answer": {
+            "assessment": {
+              "passed": false,
+              "summary": "The target answer is incorrect; 17 * 23 equals 391, not 400."
+            },
+            "issues": [
+              {
+                "severity": "error",
+                "description": "Arithmetic error: 17 multiplied by 23 is 391, but the target states 400.",
+                "suggestedFix": "Replace the assistant content with the integer 391."
+              }
+            ],
+            "revisedResult": {
+              "role": "assistant",
+              "content": "391"
+            },
+            "usage": {
+              "inputTokens": 206,
+              "outputTokens": 159,
+              "totalTokens": 365,
+              "cachedInputTokens": 0,
+              "reasoningTokens": 65
+            }
+          },
+          "usage": {
+            "inputTokens": 206,
+            "outputTokens": 159,
+            "totalTokens": 365,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 65
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "deliberate/select",
+          "status": "passed",
+          "ms": 1414,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 288,
+            "outputTokens": 155,
+            "totalTokens": 443,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 52
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "deliberate/merge",
+          "status": "passed",
+          "ms": 1852,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 288,
+            "outputTokens": 273,
+            "totalTokens": 561,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 160
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "deliberate/consensus",
+          "status": "passed",
+          "ms": 2566,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 289,
+            "outputTokens": 389,
+            "totalTokens": 678,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 280
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "deliberate/debate",
+          "status": "passed",
+          "ms": 1685,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 289,
+            "outputTokens": 258,
+            "totalTokens": 547,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 140
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "sample/stream",
+          "status": "passed",
+          "ms": 817,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 43,
+            "outputTokens": 20,
+            "totalTokens": 63,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 18
+          }
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "trajectory/stream",
+          "status": "passed",
+          "ms": 3329,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 204,
+            "outputTokens": 338,
+            "reasoningTokens": 334,
+            "cachedInputTokens": 0,
+            "totalTokens": 542
+          }
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "react/tool-roundtrip",
+          "status": "passed",
+          "ms": 1775,
+          "answer": {
+            "role": "assistant",
+            "content": "ORCHID-731"
+          },
+          "usage": {
+            "inputTokens": 695,
+            "outputTokens": 53,
+            "reasoningTokens": 8,
+            "cachedInputTokens": 128,
+            "totalTokens": 748
+          },
+          "modelCalls": 2
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "cache/roundtrip",
+          "status": "passed",
+          "ms": 1,
+          "modelCalls": 0
+        }
+      ]
+    },
+    {
+      "startedAt": "2026-09-19T12:57:12.564Z",
+      "checkedAt": "2026-09-19T12:59:54.277Z",
+      "label": "Final DeepSeek suite; corrected strategies and 4096 output/reasoning token budget",
+      "providers": [
+        "deepseek"
+      ],
+      "strategies": [
+        "cot",
+        "long-cot",
+        "tot",
+        "got",
+        "self-consistency"
+      ],
+      "maxTokens": 4096,
+      "results": [
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "sample",
+          "status": "passed",
+          "ms": 905,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 43,
+            "outputTokens": 19,
+            "totalTokens": 62,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 17
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "cot/arithmetic",
+          "status": "passed",
+          "ms": 2630,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"total\":33,\"change\":17}"
+          },
+          "usage": {
+            "inputTokens": 288,
+            "outputTokens": 445,
+            "reasoningTokens": 425,
+            "cachedInputTokens": 0,
+            "totalTokens": 733
+          },
+          "modelCalls": 2
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "cot/shortest-path",
+          "status": "passed",
+          "ms": 2890,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"path\":[\"A\",\"C\",\"B\",\"D\"],\"cost\":5}"
+          },
+          "usage": {
+            "inputTokens": 318,
+            "outputTokens": 613,
+            "reasoningTokens": 577,
+            "cachedInputTokens": 0,
+            "totalTokens": 931
+          },
+          "modelCalls": 2
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "long-cot/arithmetic",
+          "status": "passed",
+          "ms": 8959,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"total\":33,\"change\":17}"
+          },
+          "usage": {
+            "inputTokens": 518,
+            "outputTokens": 1733,
+            "reasoningTokens": 1693,
+            "cachedInputTokens": 0,
+            "totalTokens": 2251
+          },
+          "modelCalls": 3
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "long-cot/shortest-path",
+          "status": "passed",
+          "ms": 13463,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"path\":[\"A\",\"C\",\"B\",\"D\"],\"cost\":5}"
+          },
+          "usage": {
+            "inputTokens": 886,
+            "outputTokens": 2895,
+            "reasoningTokens": 2520,
+            "cachedInputTokens": 128,
+            "totalTokens": 3781
+          },
+          "modelCalls": 3
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "tot/arithmetic",
+          "status": "passed",
+          "ms": 17165,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"total\":33,\"change\":17}"
+          },
+          "usage": {
+            "inputTokens": 1700,
+            "outputTokens": 3423,
+            "reasoningTokens": 3022,
+            "cachedInputTokens": 384,
+            "totalTokens": 5123
+          },
+          "modelCalls": 8
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "tot/shortest-path",
+          "status": "passed",
+          "ms": 56125,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"path\":[\"A\",\"C\",\"B\",\"D\"],\"cost\":5}"
+          },
+          "usage": {
+            "inputTokens": 1875,
+            "outputTokens": 12863,
+            "reasoningTokens": 12507,
+            "cachedInputTokens": 256,
+            "totalTokens": 14738
+          },
+          "modelCalls": 8
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "got/arithmetic",
+          "status": "passed",
+          "ms": 20224,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"total\":33,\"change\":17}"
+          },
+          "usage": {
+            "inputTokens": 1278,
+            "outputTokens": 4098,
+            "reasoningTokens": 3919,
+            "cachedInputTokens": 256,
+            "totalTokens": 5376
+          },
+          "modelCalls": 6
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "got/shortest-path",
+          "status": "passed",
+          "ms": 9982,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"path\":[\"A\",\"C\",\"B\",\"D\"],\"cost\":5}"
+          },
+          "usage": {
+            "inputTokens": 1408,
+            "outputTokens": 1749,
+            "reasoningTokens": 1410,
+            "cachedInputTokens": 256,
+            "totalTokens": 3157
+          },
+          "modelCalls": 6
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "self-consistency/arithmetic",
+          "status": "passed",
+          "ms": 4599,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"total\":33,\"change\":17}"
+          },
+          "usage": {
+            "inputTokens": 399,
+            "outputTokens": 904,
+            "reasoningTokens": 711,
+            "cachedInputTokens": 0,
+            "totalTokens": 1303
+          },
+          "modelCalls": 3
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "self-consistency/shortest-path",
+          "status": "passed",
+          "ms": 5113,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"path\":[\"A\",\"C\",\"B\",\"D\"],\"cost\":5}"
+          },
+          "usage": {
+            "inputTokens": 432,
+            "outputTokens": 1057,
+            "reasoningTokens": 832,
+            "cachedInputTokens": 0,
+            "totalTokens": 1489
+          },
+          "modelCalls": 3
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "reflect/critique",
+          "status": "passed",
+          "ms": 2467,
+          "answer": {
+            "assessment": {
+              "passed": false,
+              "summary": "The target answer is incorrect. 17 × 23 equals 391, not 400."
+            },
+            "issues": [
+              {
+                "severity": "error",
+                "description": "Arithmetic error: 17 × 23 = 391, but the target responds with 400.",
+                "suggestedFix": "Change the assistant response to \"391\"."
+              }
+            ],
+            "usage": {
+              "inputTokens": 206,
+              "outputTokens": 450,
+              "totalTokens": 656,
+              "cachedInputTokens": 0,
+              "reasoningTokens": 371
+            }
+          },
+          "usage": {
+            "inputTokens": 206,
+            "outputTokens": 450,
+            "totalTokens": 656,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 371
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "reflect/verify",
+          "status": "passed",
+          "ms": 3559,
+          "answer": {
+            "assessment": {
+              "passed": false,
+              "summary": "Target answer 400 is incorrect; 17 × 23 = 391."
+            },
+            "issues": [
+              {
+                "severity": "error",
+                "description": "Arithmetic error: 17 * 23 equals 391, not 400.",
+                "suggestedFix": "Return 391 as the integer only."
+              }
+            ],
+            "usage": {
+              "inputTokens": 205,
+              "outputTokens": 746,
+              "totalTokens": 951,
+              "cachedInputTokens": 0,
+              "reasoningTokens": 675
+            }
+          },
+          "usage": {
+            "inputTokens": 205,
+            "outputTokens": 746,
+            "totalTokens": 951,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 675
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "reflect/revise",
+          "status": "passed",
+          "ms": 1031,
+          "answer": {
+            "assessment": {
+              "passed": false,
+              "summary": "The target answer 400 is incorrect; 17 × 23 equals 391."
+            },
+            "issues": [
+              {
+                "severity": "error",
+                "description": "Arithmetic error: 17 * 23 was computed as 400 instead of 391.",
+                "suggestedFix": "Replace the answer with 391."
+              }
+            ],
+            "revisedResult": {
+              "role": "assistant",
+              "content": "391"
+            },
+            "usage": {
+              "inputTokens": 206,
+              "outputTokens": 132,
+              "totalTokens": 338,
+              "cachedInputTokens": 0,
+              "reasoningTokens": 45
+            }
+          },
+          "usage": {
+            "inputTokens": 206,
+            "outputTokens": 132,
+            "totalTokens": 338,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 45
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "deliberate/select",
+          "status": "passed",
+          "ms": 2158,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 288,
+            "outputTokens": 385,
+            "totalTokens": 673,
+            "cachedInputTokens": 128,
+            "reasoningTokens": 283
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "deliberate/merge",
+          "status": "passed",
+          "ms": 1900,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 288,
+            "outputTokens": 279,
+            "totalTokens": 567,
+            "cachedInputTokens": 128,
+            "reasoningTokens": 195
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "deliberate/consensus",
+          "status": "passed",
+          "ms": 3196,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 289,
+            "outputTokens": 553,
+            "totalTokens": 842,
+            "cachedInputTokens": 128,
+            "reasoningTokens": 439
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "deliberate/debate",
+          "status": "passed",
+          "ms": 1596,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 289,
+            "outputTokens": 261,
+            "totalTokens": 550,
+            "cachedInputTokens": 128,
+            "reasoningTokens": 141
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "sample/stream",
+          "status": "passed",
+          "ms": 558,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 43,
+            "outputTokens": 19,
+            "totalTokens": 62,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 17
+          }
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "trajectory/stream",
+          "status": "passed",
+          "ms": 1834,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 204,
+            "outputTokens": 169,
+            "reasoningTokens": 165,
+            "cachedInputTokens": 0,
+            "totalTokens": 373
+          }
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "react/tool-roundtrip",
+          "status": "passed",
+          "ms": 1333,
+          "answer": {
+            "role": "assistant",
+            "content": "ORCHID-731"
+          },
+          "usage": {
+            "inputTokens": 750,
+            "outputTokens": 72,
+            "reasoningTokens": 27,
+            "cachedInputTokens": 384,
+            "totalTokens": 822
+          },
+          "modelCalls": 2
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "cache/roundtrip",
+          "status": "passed",
+          "ms": 2,
+          "modelCalls": 0
+        }
+      ]
+    },
+    {
+      "startedAt": "2026-09-19T12:55:07.089Z",
+      "checkedAt": "2026-09-19T12:56:10.995Z",
+      "label": "Corrected strategies with glm-4.7-flash thinking enabled",
+      "providers": [
+        "glm"
+      ],
+      "strategies": [
+        "cot",
+        "long-cot",
+        "tot",
+        "got",
+        "self-consistency"
+      ],
+      "results": [
+        {
+          "provider": "glm",
+          "model": "glm-4.7-flash",
+          "case": "sample",
+          "status": "failed",
+          "ms": 63874,
+          "detail": "Expected values to be strictly equal:\n\n'' !== '391'\n"
+        }
+      ]
+    },
+    {
+      "startedAt": "2026-09-19T12:57:13.059Z",
+      "checkedAt": "2026-09-19T12:57:13.439Z",
+      "label": "GLM 4.7 Flash non-thinking connectivity and SSE",
+      "providers": [
+        "glm"
+      ],
+      "strategies": [
+        "cot",
+        "long-cot",
+        "tot",
+        "got",
+        "self-consistency"
+      ],
+      "cases": "sample",
+      "maxTokens": 4096,
+      "results": [
+        {
+          "provider": "glm",
+          "model": "glm-4.7-flash",
+          "case": "sample",
+          "status": "failed",
+          "ms": 372,
+          "detail": "Model provider returned HTTP 429\n+ actual - expected\n\n+ 'failed'\n- 'success'\n"
+        }
+      ]
+    },
+    {
+      "startedAt": "2026-09-19T12:57:41.791Z",
+      "checkedAt": "2026-09-19T12:57:45.293Z",
+      "label": "Real Anthropic protocol through DeepSeek compatibility endpoint (not Claude)",
+      "providers": [
+        "deepseek_anthropic"
+      ],
+      "strategies": [
+        "cot",
+        "long-cot",
+        "tot",
+        "got",
+        "self-consistency"
+      ],
+      "cases": "sample,react/tool-roundtrip",
+      "maxTokens": 4096,
+      "results": [
+        {
+          "provider": "deepseek_anthropic",
+          "model": "deepseek-flash",
+          "case": "sample",
+          "status": "passed",
+          "ms": 894,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 18,
+            "outputTokens": 1,
+            "totalTokens": 19,
+            "cachedInputTokens": 0
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek_anthropic",
+          "model": "deepseek-flash",
+          "case": "sample/stream",
+          "status": "passed",
+          "ms": 674,
+          "answer": {
+            "role": "assistant",
+            "content": "391",
+            "metadata": {
+              "provider": "anthropic",
+              "contentBlocks": [
+                {
+                  "type": "text",
+                  "text": "391"
+                }
+              ]
+            }
+          },
+          "usage": {
+            "inputTokens": 18,
+            "outputTokens": 1,
+            "totalTokens": 19,
+            "cachedInputTokens": 0
+          }
+        },
+        {
+          "provider": "deepseek_anthropic",
+          "model": "deepseek-flash",
+          "case": "react/tool-roundtrip",
+          "status": "passed",
+          "ms": 1927,
+          "answer": {
+            "role": "assistant",
+            "content": "ORCHID-731",
+            "metadata": {
+              "provider": "anthropic",
+              "contentBlocks": [
+                {
+                  "type": "text",
+                  "text": "ORCHID-731"
+                }
+              ]
+            }
+          },
+          "usage": {
+            "inputTokens": 683,
+            "outputTokens": 52,
+            "cachedInputTokens": 128,
+            "totalTokens": 735
+          },
+          "modelCalls": 2
+        }
+      ]
+    },
+    {
+      "startedAt": "2026-09-19T13:02:21.398Z",
+      "checkedAt": "2026-09-19T13:02:22.888Z",
+      "label": "Shared root env: default Worker/SDK configuration without duplicated per-worker options",
+      "providers": [
+        "deepseek"
+      ],
+      "strategies": [
+        "cot",
+        "long-cot",
+        "tot",
+        "got",
+        "self-consistency"
+      ],
+      "cases": "sample",
+      "maxTokens": 4096,
+      "results": [
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "sample",
+          "status": "passed",
+          "ms": 676,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 43,
+            "outputTokens": 19,
+            "totalTokens": 62,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 17
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "sample/stream",
+          "status": "passed",
+          "ms": 805,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 43,
+            "outputTokens": 20,
+            "totalTokens": 63,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 18
+          }
+        }
+      ]
+    },
+    {
+      "startedAt": "2026-09-19T13:11:15.196Z",
+      "checkedAt": "2026-09-19T13:13:39.883Z",
+      "label": "Root YAML defaults: SDK and Worker full regression",
+      "providers": [
+        "deepseek"
+      ],
+      "strategies": [
+        "cot",
+        "long-cot",
+        "tot",
+        "got",
+        "self-consistency"
+      ],
+      "maxTokens": 4096,
+      "settings": {
+        "runtime": {
+          "timeoutMs": 120000,
+          "maxTurns": 8
+        },
+        "infer": {
+          "generation": {
+            "maxTokens": 4096
+          },
+          "constraints": {
+            "maxSteps": 16,
+            "maxTotalTokens": 64000
+          },
+          "strategies": {
+            "cot": {
+              "rounds": 2
+            },
+            "long-cot": {
+              "rounds": 4
+            },
+            "tot": {
+              "breadth": 2,
+              "depth": 2,
+              "beamWidth": 2
+            },
+            "got": {
+              "breadth": 2,
+              "depth": 2
+            },
+            "self-consistency": {
+              "candidates": 3
+            }
+          }
+        },
+        "react": {
+          "maxActionCalls": 16,
+          "maxTotalTokens": 64000
+        }
+      },
+      "results": [
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "sample",
+          "status": "passed",
+          "ms": 882,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 43,
+            "outputTokens": 19,
+            "totalTokens": 62,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 17
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "cot/arithmetic",
+          "status": "passed",
+          "ms": 2582,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"total\":33,\"change\":17}"
+          },
+          "usage": {
+            "inputTokens": 288,
+            "outputTokens": 401,
+            "reasoningTokens": 381,
+            "cachedInputTokens": 0,
+            "totalTokens": 689
+          },
+          "modelCalls": 2
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "cot/shortest-path",
+          "status": "passed",
+          "ms": 2793,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"path\":[\"A\",\"C\",\"B\",\"D\"],\"cost\":5}"
+          },
+          "usage": {
+            "inputTokens": 318,
+            "outputTokens": 434,
+            "reasoningTokens": 398,
+            "cachedInputTokens": 0,
+            "totalTokens": 752
+          },
+          "modelCalls": 2
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "long-cot/arithmetic",
+          "status": "passed",
+          "ms": 11863,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"total\":33,\"change\":17}"
+          },
+          "usage": {
+            "inputTokens": 779,
+            "outputTokens": 2391,
+            "reasoningTokens": 2351,
+            "cachedInputTokens": 128,
+            "totalTokens": 3170
+          },
+          "modelCalls": 4
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "long-cot/shortest-path",
+          "status": "passed",
+          "ms": 22079,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"path\":[\"A\",\"C\",\"B\",\"D\"],\"cost\":5}"
+          },
+          "usage": {
+            "inputTokens": 1237,
+            "outputTokens": 4766,
+            "reasoningTokens": 4462,
+            "cachedInputTokens": 384,
+            "totalTokens": 6003
+          },
+          "modelCalls": 4
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "tot/arithmetic",
+          "status": "passed",
+          "ms": 16973,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"total\":33,\"change\":17}"
+          },
+          "usage": {
+            "inputTokens": 1700,
+            "outputTokens": 3232,
+            "reasoningTokens": 2828,
+            "cachedInputTokens": 384,
+            "totalTokens": 4932
+          },
+          "modelCalls": 8
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "tot/shortest-path",
+          "status": "passed",
+          "ms": 32073,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"path\":[\"A\",\"C\",\"B\",\"D\"],\"cost\":5}"
+          },
+          "usage": {
+            "inputTokens": 1892,
+            "outputTokens": 6928,
+            "reasoningTokens": 6455,
+            "cachedInputTokens": 384,
+            "totalTokens": 8820
+          },
+          "modelCalls": 8
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "got/arithmetic",
+          "status": "passed",
+          "ms": 16445,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"total\":33,\"change\":17}"
+          },
+          "usage": {
+            "inputTokens": 1280,
+            "outputTokens": 3003,
+            "reasoningTokens": 2874,
+            "cachedInputTokens": 256,
+            "totalTokens": 4283
+          },
+          "modelCalls": 6
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "got/shortest-path",
+          "status": "passed",
+          "ms": 13929,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"path\":[\"A\",\"C\",\"B\",\"D\"],\"cost\":5}"
+          },
+          "usage": {
+            "inputTokens": 1408,
+            "outputTokens": 2426,
+            "reasoningTokens": 2071,
+            "cachedInputTokens": 256,
+            "totalTokens": 3834
+          },
+          "modelCalls": 6
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "self-consistency/arithmetic",
+          "status": "passed",
+          "ms": 5766,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"total\":33,\"change\":17}"
+          },
+          "usage": {
+            "inputTokens": 399,
+            "outputTokens": 1278,
+            "reasoningTokens": 1090,
+            "cachedInputTokens": 0,
+            "totalTokens": 1677
+          },
+          "modelCalls": 3
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "self-consistency/shortest-path",
+          "status": "passed",
+          "ms": 4653,
+          "answer": {
+            "role": "assistant",
+            "content": "{\"path\":[\"A\",\"C\",\"B\",\"D\"],\"cost\":5}"
+          },
+          "usage": {
+            "inputTokens": 432,
+            "outputTokens": 905,
+            "reasoningTokens": 706,
+            "cachedInputTokens": 0,
+            "totalTokens": 1337
+          },
+          "modelCalls": 3
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "reflect/critique",
+          "status": "passed",
+          "ms": 1446,
+          "answer": {
+            "assessment": {
+              "passed": false,
+              "summary": "The target answer 400 is incorrect. 17 × 23 = 391."
+            },
+            "issues": [
+              {
+                "severity": "error",
+                "description": "Arithmetic error: 17 multiplied by 23 equals 391, not 400.",
+                "suggestedFix": "Replace the content with 391."
+              }
+            ],
+            "usage": {
+              "inputTokens": 206,
+              "outputTokens": 231,
+              "totalTokens": 437,
+              "cachedInputTokens": 0,
+              "reasoningTokens": 159
+            }
+          },
+          "usage": {
+            "inputTokens": 206,
+            "outputTokens": 231,
+            "totalTokens": 437,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 159
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "reflect/verify",
+          "status": "passed",
+          "ms": 1556,
+          "answer": {
+            "assessment": {
+              "passed": false,
+              "summary": "The target answer is incorrect: 17 * 23 equals 391, not 400."
+            },
+            "issues": [
+              {
+                "severity": "error",
+                "description": "Arithmetic error: 17 multiplied by 23 is 391, but the target says 400.",
+                "suggestedFix": "Replace the answer with the integer 391."
+              }
+            ],
+            "usage": {
+              "inputTokens": 205,
+              "outputTokens": 194,
+              "totalTokens": 399,
+              "cachedInputTokens": 0,
+              "reasoningTokens": 115
+            }
+          },
+          "usage": {
+            "inputTokens": 205,
+            "outputTokens": 194,
+            "totalTokens": 399,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 115
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "reflect/revise",
+          "status": "passed",
+          "ms": 1006,
+          "answer": {
+            "assessment": {
+              "passed": false,
+              "summary": "The target answer 400 is incorrect. 17 × 23 = 391."
+            },
+            "issues": [
+              {
+                "severity": "error",
+                "description": "Arithmetic error: 17 * 23 equals 391, not 400.",
+                "suggestedFix": "Replace 400 with 391."
+              }
+            ],
+            "revisedResult": {
+              "role": "assistant",
+              "content": "391"
+            },
+            "usage": {
+              "inputTokens": 206,
+              "outputTokens": 132,
+              "totalTokens": 338,
+              "cachedInputTokens": 0,
+              "reasoningTokens": 47
+            }
+          },
+          "usage": {
+            "inputTokens": 206,
+            "outputTokens": 132,
+            "totalTokens": 338,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 47
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "deliberate/select",
+          "status": "passed",
+          "ms": 1279,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 288,
+            "outputTokens": 196,
+            "totalTokens": 484,
+            "cachedInputTokens": 128,
+            "reasoningTokens": 108
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "deliberate/merge",
+          "status": "passed",
+          "ms": 1441,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 288,
+            "outputTokens": 250,
+            "totalTokens": 538,
+            "cachedInputTokens": 128,
+            "reasoningTokens": 129
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "deliberate/consensus",
+          "status": "passed",
+          "ms": 2401,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 289,
+            "outputTokens": 300,
+            "totalTokens": 589,
+            "cachedInputTokens": 128,
+            "reasoningTokens": 186
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "deliberate/debate",
+          "status": "passed",
+          "ms": 1168,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 289,
+            "outputTokens": 214,
+            "totalTokens": 503,
+            "cachedInputTokens": 128,
+            "reasoningTokens": 117
+          },
+          "modelCalls": 1
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "sample/stream",
+          "status": "passed",
+          "ms": 542,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 43,
+            "outputTokens": 19,
+            "totalTokens": 62,
+            "cachedInputTokens": 0,
+            "reasoningTokens": 17
+          }
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "trajectory/stream",
+          "status": "passed",
+          "ms": 2425,
+          "answer": {
+            "role": "assistant",
+            "content": "391"
+          },
+          "usage": {
+            "inputTokens": 204,
+            "outputTokens": 269,
+            "reasoningTokens": 265,
+            "cachedInputTokens": 0,
+            "totalTokens": 473
+          }
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "react/tool-roundtrip",
+          "status": "passed",
+          "ms": 1304,
+          "answer": {
+            "role": "assistant",
+            "content": "ORCHID-731"
+          },
+          "usage": {
+            "inputTokens": 693,
+            "outputTokens": 51,
+            "reasoningTokens": 6,
+            "cachedInputTokens": 256,
+            "totalTokens": 744
+          },
+          "modelCalls": 2
+        },
+        {
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "case": "cache/roundtrip",
+          "status": "passed",
+          "ms": 1,
+          "modelCalls": 0
+        }
+      ]
+    }
+  ]
+}

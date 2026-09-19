@@ -1,4 +1,4 @@
-import { ProviderRegistry, createHttpProvider } from "../worker/reasoning/providers/index.js";
+import { ProviderRegistry, createHttpProvider } from "../worker/infer/providers/index.js";
 import { Sandbox, type SandboxExecutor, type SandboxPolicy } from "./sandbox/index.js";
 import { loadRuntimeConfig, type RuntimeConfig } from "./config.js";
 
