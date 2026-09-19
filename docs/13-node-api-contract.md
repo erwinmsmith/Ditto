@@ -1,10 +1,12 @@
 # Ditto Node Taxonomy and API Contract
 
+> The implemented [INFER API](worker-api/infer.md), including CACHE leaves, supersedes the initial INFER scaffold signatures below. Other Worker contracts remain as documented here.
+
 **English** | [简体中文](13-node-api-contract.zh-CN.md)
 
 > Status: final Node taxonomy; API Contract `2.0-rc.1`; TypeScript source skeleton initialized on `dev`.
 
-This is the sole normative English document for the Node tree, semantic boundaries, common public types, and Node input/output contracts. A Node is a composable, independently executable semantic operation. A Worker is the implementation, resource, deployment, and scaling boundary. Graphs compose Nodes; Runtime schedules, routes, communicates, and executes them.
+This document and the linked INFER API define the Node tree, semantic boundaries, common public types, and Node input/output contracts. A Node is a composable, independently executable semantic operation. A Worker is the implementation, resource, deployment, and scaling boundary. Graphs compose Nodes; Runtime schedules, routes, communicates, and executes them.
 
 ## Runtime predefined flows
 
@@ -29,8 +31,10 @@ INFER
 │   ├── REFLECT
 │   ├── DELIBERATE
 │   └── SAMPLE
-├── CACHE/                      // namespace skeleton
-│   └── ...                     // leaf Nodes will be defined separately
+├── CACHE/
+│   ├── LOOKUP
+│   ├── WRITE
+│   └── INVALIDATE
 └── PROVIDERS/                  // implementation folder, not a Node
 
 CONTEXT
@@ -71,11 +75,11 @@ INTERACTION
 └── OUTPUT
 ```
 
-The tree defines exactly 25 routable leaf Node Contracts. `INFER.REASONING`, both `RAG` branches, `INTERACTION.ACT`, `Linux Commands`, `INFER.CACHE`, and `INFER.PROVIDERS` are folders or namespaces. `INFER.CACHE` is not routable until its leaf semantics are approved. `INFER.PROVIDERS` contains the current flat Provider adapter implementation and does not define vendor subtrees or Node Types. Tool names and CoT/ToT/GoT strategies are not Node Types.
+There are 28 routable leaf contracts. INFER.REASONING, INFER.CACHE, INFER.PROVIDERS, RAG branches and INTERACTION.ACT are namespaces; CACHE executes through LOOKUP, WRITE and INVALIDATE. Tool names and reasoning strategies are not Nodes.
 
 ## 2. Semantic boundaries
 
-- **INFER** owns model computation. `REASONING` organizes explicit reasoning; it is not hidden model thought. `TRAJECTORY` accepts CoT/ToT/GoT through `strategy`; `REFLECT` revisits a result; `DELIBERATE` adds compute budget; `SAMPLE` creates alternatives. There is no separate Generate Node. Providers are implementation adapters, not Nodes. `CACHE` reuses computation results and is not Memory.
+- **INFER** owns model computation. `REASONING` organizes explicit reasoning; it is not hidden model thought. `TRAJECTORY` accepts CoT/ToT/GoT through `strategy`; `REFLECT` revisits a result; `DELIBERATE` compares/combines candidates; `SAMPLE` generates one candidate. There is no separate Generate Node. Providers are implementation adapters, not Nodes. `CACHE` reuses computation results and is not Memory.
 - **CONTEXT** owns the working set of the current invocation or turn. `LOAD`, `SELECT`, `UPDATE`, and `COMPRESS` alter that working set. Reset/session lifecycle belongs to Runtime. Context-to-model assembly is an internal `ModelInput` boundary, not a Node.
 - **CONTEXT.RAG** retrieves current-task knowledge from documents, repositories, web sources, knowledge bases, or temporary corpora. Its results are not durable by default.
 - **MEMORY** owns semantic state across invocations or sessions. Direct `RETRIEVE` uses id/key/filter. `MEMORY.RAG` performs semantic recall over the durable Memory corpus.
@@ -117,24 +121,8 @@ export interface MemoryItem extends MemoryDraft { id: string; }
 export interface MemoryReference { id: string; }
 export interface MemorySelector { ids?: readonly string[]; keys?: readonly string[]; filter?: JsonObject; }
 
-export interface ModelInput { messages: readonly Message[]; context?: Context; responseFormat?: JsonObject; }
 export interface ToolCall { id?: string; name: string; arguments: JsonObject; }
 export interface ToolDefinition { name: string; description?: string; inputSchema: JsonObject; }
-export interface ModelUsage { inputTokens?: number; outputTokens?: number; }
-export interface ModelOutput {
-  message: Message; toolCalls?: readonly ToolCall[]; finishReason?: string; usage?: ModelUsage;
-}
-export interface ReasoningBudget { maxSteps?: number; maxTokens?: number; }
-export interface ReasoningTraceEvent {
-  step: number; kind: string; summary?: string; references?: readonly Reference[];
-}
-export interface ProviderRequest {
-  model: string; input: ModelInput; tools?: readonly ToolDefinition[];
-  maxTokens?: number; signal?: AbortSignal;
-}
-export interface ModelProvider { invoke(request: ProviderRequest): Promise<ModelOutput>; }
-export interface ProviderResolver { get(name: string): ModelProvider; }
-
 export interface KnowledgeItem { id: string; content: MessageContent; source?: Reference; metadata?: JsonObject; }
 export interface EmbeddingRecord { itemId: string; vector: readonly number[]; }
 export interface RagCandidate { item: KnowledgeItem; score?: number; }
@@ -156,14 +144,12 @@ export interface McpCapability { server: string; name: string; description?: str
 ## 4. Fixed Node inputs and outputs
 
 ```ts
-export interface TrajectoryInput { input: ModelInput; strategy: string; budget?: ReasoningBudget; }
-export interface TrajectoryOutput { result: ModelOutput; trace: readonly ReasoningTraceEvent[]; }
-export interface ReflectInput { result: ModelOutput; context?: Context; criteria?: readonly Message[]; }
-export type ReflectOutput = ModelOutput;
-export interface DeliberateInput { input: ModelInput; budget: ReasoningBudget; alternatives?: readonly ModelOutput[]; }
-export type DeliberateOutput = ModelOutput;
-export interface SampleInput { input: ModelInput; count: number; }
-export type SampleOutput = readonly ModelOutput[];
+import type {
+  NodeResult, TrajectoryInput, TrajectoryOutput, ReflectInput, ReflectOutput,
+  DeliberateInput, DeliberateOutput, SampleInput, SampleOutput,
+  CacheLookupInput, CacheLookupOutput, CacheWriteInput, CacheWriteOutput,
+  CacheInvalidateInput, CacheInvalidateOutput,
+} from "@ditto/core/worker/infer";
 
 export interface ContextLoadInput { sources: readonly ContextSource[]; }
 export type ContextLoadOutput = Context;
@@ -232,10 +218,13 @@ export type InteractionOutputOutput = OutputReceipt;
 ```ts
 export interface NodeContract<Input, Output> { readonly input: Input; readonly output: Output; }
 export interface NodeContractMap {
-  "INFER.REASONING.TRAJECTORY": NodeContract<TrajectoryInput, TrajectoryOutput>;
-  "INFER.REASONING.REFLECT": NodeContract<ReflectInput, ReflectOutput>;
-  "INFER.REASONING.DELIBERATE": NodeContract<DeliberateInput, DeliberateOutput>;
-  "INFER.REASONING.SAMPLE": NodeContract<SampleInput, SampleOutput>;
+  "INFER.REASONING.TRAJECTORY": NodeContract<TrajectoryInput, NodeResult<TrajectoryOutput>>;
+  "INFER.REASONING.REFLECT": NodeContract<ReflectInput, NodeResult<ReflectOutput>>;
+  "INFER.REASONING.DELIBERATE": NodeContract<DeliberateInput, NodeResult<DeliberateOutput>>;
+  "INFER.REASONING.SAMPLE": NodeContract<SampleInput, NodeResult<SampleOutput>>;
+  "INFER.CACHE.LOOKUP": NodeContract<CacheLookupInput, NodeResult<CacheLookupOutput>>;
+  "INFER.CACHE.WRITE": NodeContract<CacheWriteInput, NodeResult<CacheWriteOutput>>;
+  "INFER.CACHE.INVALIDATE": NodeContract<CacheInvalidateInput, NodeResult<CacheInvalidateOutput>>;
   "CONTEXT.LOAD": NodeContract<ContextLoadInput, ContextLoadOutput>;
   "CONTEXT.SELECT": NodeContract<ContextSelectInput, ContextSelectOutput>;
   "CONTEXT.UPDATE": NodeContract<ContextUpdateInput, ContextUpdateOutput>;
@@ -266,8 +255,8 @@ export type OutputOf<N extends NodeType> = NodeContractMap[N]["output"];
 ## 5. Implementation rules
 
 - One `.ts` scaffold exists for every agreed leaf Node. A scaffold fixes identity and type binding without inventing business logic.
-- `INFER.CACHE` has a folder skeleton only. Adding it to `NodeContractMap` before leaf approval is forbidden.
-- Provider adapters remain flat under `src/worker/infer/providers/` and implement `ModelProvider.invoke`. Model/vendor changes do not create Nodes.
+- INFER.CACHE is a namespace; LOOKUP, WRITE and INVALIDATE are implemented leaves.
+- Providers live in `src/worker/infer/providers/`. Runtime and INFER share ModelProvider.invoke/stream and ProviderRegistry; see [Provider API](worker-api/providers.md). ReAct is a predefined Runtime graph flow, not an INFER strategy. Model/vendor changes do not create Nodes.
 - `INTERACTION.ACT.TOOL` is represented by a source directory. Its `linux-commands/` child and registered command names are not Nodes.
 - Tool and MCP registries remain distinct.
 - The four predefined flows live in `src/runtime/graph.ts`; there is no `src/presets` package or export.

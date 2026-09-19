@@ -6,22 +6,7 @@
 
 ## 模型 Provider
 
-Provider 适配器保持在扁平目录 `src/worker/infer/providers/` 中。`PROVIDERS` 是 `INFER` 下的实现边界，不是可路由 Node，也不是供应商分类树。在不同实现真正需要独立结构前，不新增供应商子目录。
-
-`ProviderRegistry` 按名称解析 Provider。每个适配器实现固定边界 `ModelProvider.invoke(ProviderRequest): Promise<ModelOutput>`。Provider 选择、凭证、模型 ID、部署位置和副本数均不会产生新的 Node Type。
-
-```ts
-import { ProviderRegistry } from "@ditto/core/worker/infer/providers";
-
-const providers = new ProviderRegistry();
-providers.register("custom", {
-  invoke: async (request) => ({
-    message: { role: "assistant", content: `已处理 ${request.input.messages.length} 条消息` },
-  }),
-});
-```
-
-内置 HTTP 适配器只是可选便利实现。自定义 SDK 适配器可通过同一接口注册。Core 不维护模型目录、不自动选择供应商，也不会把供应商定义成 Node。
+Provider 适配器位于 `src/worker/infer/providers/`。Runtime 与 INFER 使用同一套 `ModelProvider.invoke/stream` 和 `ProviderRegistry`，支持 OpenAI 兼容、Anthropic、Gemini。默认通过 `ctx.services.providers` 注入 Worker；本地 SDK 使用 `createInfer({ runtime })` 共享配置。构造参数、环境配置、工具消息与流式契约见 [Provider API](worker-api/providers.zh-CN.md)。供应商与模型均不会产生新的 Node Type。
 
 ## Interaction 边界
 
@@ -102,3 +87,69 @@ const tool = await runToolCallFlow(runtime, {
 文件、命令、Tool、MCP、Skill 和网络访问保持默认拒绝。Sandbox 是协作式权限服务；不可信实现应放入具备相应隔离能力的操作系统进程或容器。
 
 Graph 定义与 Node Contract 不包含 Provider 密钥、主机地址或 Worker ID。因此 Runtime 可以在不改变语义 Node 调用的情况下，将同一 Graph 从本地执行迁移到远程 Worker。
+
+## ReAct 预定义 Graph 流程
+
+ReAct 放在 `src/runtime/react.ts`，是 Graph 的预定义运行流程：SAMPLE → 已声明动作 → 结果回填 → 下一轮 SAMPLE。它不是 INFER Node 或 TRAJECTORY 策略。循环状态、预算和跨 Worker 调度都由 Runtime 流程持有；所有模型计算仍由 SAMPLE 完成。
+
+```ts
+import { runReactFlow, createInferWorker, defineWorker } from "@ditto/core";
+runtime.register(createInferWorker());
+runtime.register(defineWorker({ type: "INTERACTION", nodes: {
+  "INTERACTION.ACT.TOOL": async ({ call }) => ({
+    source: `tool:${call.name}`, content: { found: true },
+  }),
+} }));
+const result = await runReactFlow(runtime, {
+  model: { provider: "primary", model: "your-model-id" },
+  messages: [{ role: "user", content: "Search and answer." }],
+  actions: [{ name: "search", inputSchema: {
+    type: "object", properties: { query: { type: "string" } }, required: ["query"],
+  } }],
+  constraints: { maxSteps: 8, maxActionCalls: 4, maxTotalTokens: 16_000 },
+}, { graphId: "search-agent", timeoutMs: 20_000 });
+console.log(result.status, result.result, result.observations);
+```
+
+```ts
+runReactFlow(
+  runtime: Pick<DittoRuntime, "run" | "services">,
+  input: ReactFlowInput,
+  options?: { graphId?: string; signal?: AbortSignal; timeoutMs?: number },
+): Promise<ReactFlowResult>;
+```
+
+```ts
+export interface ReactFlowInput extends SampleInput {
+  constraints?: { maxSteps?: number; maxActionCalls?: number; maxTotalTokens?: number; timeoutMs?: number };
+}
+export interface ReactFlowResult {
+  result: Message;
+  samples: SampleOutput[];
+  observations: Observation[];
+  actionRequests: ActionRequest[];
+  status: "completed" | "partial" | "failed";
+  stopReason: "completed" | "max_steps" | "max_action_calls" | "max_tokens" | "timeout" | "cancelled" | "dependency_failed" | "error";
+  usage: Usage;
+  error?: { code: string; message: string };
+}
+```
+
+`ReactFlowInput` 继承 SAMPLE 的 model/messages/generation/actions/metadata。Context、Memory 或计划由上游 Graph 获取并组装成 messages。输入校验错误直接抛出；运行期间错误返回 ReactFlowResult，不套 INFER NodeResult。
+
+| 参数 | 默认与行为 |
+| --- | --- |
+| `graphId` | `react`；每次 SAMPLE/action 都经过 runtime.run，保留 Graph execution scope；各次 run 有独立 runId |
+| `maxSteps` | Runtime config.maxTurns（默认 8）；最大 SAMPLE 次数，正整数 |
+| `maxActionCalls` | Runtime config.react.maxActionCalls，回退值为 16，非负整数；0 禁止执行动作，但保留模型产生的请求 |
+| `maxTotalTokens` | Runtime config.react.maxTotalTokens，未配置时不限；已累计 usage 限制后续采样，不是单次请求的付费硬上限 |
+| `timeoutMs` | constraints 与 options/Runtime config.timeoutMs 的较小值；库回退值为 30 秒，根目录 YAML 为 120 秒 |
+| `signal` | 取消等待与后续调度；已派发的远程请求/动作可能继续执行 |
+
+未指定 targetNode 时路由到 INTERACTION.ACT.TOOL，输入包装成 `{ call: { id, name, arguments } }`；其他 targetNode 直接接收 arguments，因此动作 schema 必须符合目标公共 Contract。目标只能来自调用者 action descriptor。多个动作顺序执行；目标失败后记录 observation 并停止，不自动重试。目标为 MCP 时使用 INTERACTION.ACT.MCP，并让 arguments 包含其 operation/server/call 契约。
+
+成功返回 completed；预算/超时/错误中止且已有 SAMPLE 时返回 partial，否则 failed。actionRequests 仅保留尚未处理的请求；超时中的动作结果未知，仍保留 pending，调用者不能据此认定动作未发生。成功观察回填到下一轮工具消息，原始供应商 metadata 保持完整。步数耗尽且没有下一轮可消费观察时，不再执行新动作。
+
+Token 计数缺失返回 USAGE_UNAVAILABLE；重复 action ID、未声明动作和非法模型输出均停止流程。与其他 Runtime Graph 一致，没有跨 Worker 取消协议；deadline 只停止本流程等待和后续调度。需要先规划时，在上游 Graph 调用 SAMPLE，再将计划传给此流程；不保留一个重复的 plan-and-act 策略。
+
+采样与预算默认参数见 [统一配置 API](worker-api/configuration.zh-CN.md)。

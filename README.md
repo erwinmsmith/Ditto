@@ -29,7 +29,7 @@ Changing a model, database, tool Provider, deployment location, or replica count
 ## Final Node Domains
 
 - `INFER.REASONING.*`: explicit reasoning organization (`TRAJECTORY`, `REFLECT`, `DELIBERATE`, `SAMPLE`);
-- `INFER.CACHE`: reserved namespace scaffold;
+- `INFER.CACHE.*`: inference cache `LOOKUP`, `WRITE`, and `INVALIDATE`;
 - `CONTEXT.*`: the current invocation/turn working set, including task-local RAG and activated Skills;
 - `MEMORY.*`: durable cross-invocation semantic state, including Memory RAG and stored Skills;
 - `INTERACTION.ACT.TOOL` / `INTERACTION.ACT.MCP`: external actions;
@@ -82,15 +82,25 @@ const review = graph<Message>("review")
     sources: [query, ...memories.map((memory) => memory.message)],
   }))
   .node("reason", "INFER.REASONING.TRAJECTORY", ["context"], (_query, { context }) => ({
-    input: { messages: [], context },
-    strategy: "CoT",
+    messages: [{ role: _query.role, content: typeof _query.content === "string"
+      ? _query.content : JSON.stringify(_query.content) }],
+    context: context.items.map(item => ({ id: item.id, content: item.content })),
+    model: { model: "your-model-name" },
+    strategy: { name: "cot" },
   }))
-  .node("output", "INTERACTION.OUTPUT", ["reason"], (_query, { reason }) => ({
-    message: reason.result.message,
-  }));
+  .node("output", "INTERACTION.OUTPUT", ["reason"], (_query, { reason }) => {
+    if (reason.status !== "success" || reason.output?.status !== "completed") {
+      throw new Error(reason.error?.message ?? "Trajectory incomplete");
+    }
+    return { message: { role: reason.output.result.role,
+      content: typeof reason.output.result.content === "string"
+        ? reason.output.result.content : JSON.stringify(reason.output.result.content) } };
+  });
 ```
 
 Registering more Worker replicas adds capacity without changing this Graph. The same contracts support local execution, multiple Workers, multiple processes, or custom remote transports.
+
+See the [INFER Worker API](docs/worker-api/infer.md) for setup and all seven leaf contracts.
 
 ## Repository Structure
 
@@ -103,15 +113,15 @@ src/
 │   └── communication/            # invoke/emit, transports, artifacts
 └── worker/
     ├── infer/
-    │   ├── reasoning/            # leaf Node scaffolds
-    │   ├── cache/                # reserved namespace scaffold
-    │   └── providers/            # flat Provider adapter boundary
+    │   ├── reasoning/            # reasoning leaves and node scaffolds
+    │   ├── cache/                # LOOKUP / WRITE / INVALIDATE
+    │   └── providers/            # shared provider registry and wire protocols
     ├── context/
     ├── memory/
     └── interaction/act/tool/     # Tool Node, registry, implementation folders
 ```
 
-Core has no third-party runtime dependencies. Heavy RPC, event buses, MCP SDKs, database drivers, and model SDKs remain optional application/adapter choices.
+Core uses only the `yaml` parser as a third-party runtime dependency. Heavy RPC, event buses, MCP SDKs, database drivers, and model SDKs remain optional application/adapter choices.
 
 ## Development
 
@@ -133,3 +143,5 @@ The package is currently private and is not published to npm. Other experiment r
 - [Providers, Interaction, and predefined flows](docs/interaction-runtime.md)
 
 Use [GitHub Issues](https://github.com/erwinmsmith/Ditto/issues) for concrete use cases, bugs, and architecture discussions.
+
+Behavior defaults live in root [`ditto.yaml`](ditto.yaml); credentials and deployment bindings use [`.env.example`](.env.example). All Workers share Runtime services; see the [configuration API](docs/worker-api/configuration.md). Run `npm run check:infer:live -- --provider deepseek` explicitly; see the [INFER live verification report](docs/worker-api/infer-live-report.md).

@@ -4,7 +4,7 @@
 
 ## Environment and Checks
 
-Use Node.js 24+ and npm 11+. `.nvmrc` selects Node 24. There are no third-party runtime dependencies; TypeScript and Node types are development dependencies only.
+Use Node.js 24+ and npm 11+. `.nvmrc` selects Node 24. The only third-party runtime dependency is the `yaml` parser; TypeScript and Node types are development dependencies only.
 
 ```bash
 nvm use
@@ -16,7 +16,7 @@ npm run check
 
 ## Configuration and Future Examples
 
-Copy `.env.example` to `.env`, then configure providers, models, keys, and permissions using [Interaction and Runtime Configuration](interaction-runtime.md). The library does not load environment files implicitly; application startup code loads them explicitly and calls `loadRuntimeConfig()`.
+Copy `.env.example` to `.env`, then configure providers, models, keys, and permissions using [Interaction and Runtime Configuration](interaction-runtime.md). The library does not load environment files implicitly; application startup code loads them explicitly and calls `loadRuntimeConfigFile("ditto.yaml", process.env)`.
 
 `examples/` is currently empty and reserved for complete examples that build different Agents using the npm package. The package has not been published; the snippets below explain the API only.
 
@@ -87,3 +87,5 @@ try {
 Add a Node through declaration merging and a handler. Change models through Provider/model configuration. Do not add keys, hosts, transports, or sandbox fields to fixed business inputs.
 
 Use `ctx.run` to compose an internal Worker Graph and `ctx.invoke` for cross-Worker calls. See [Architecture](architecture.md) for their semantics and usage.
+
+Behavior defaults live in root `ditto.yaml`; see the [shared configuration API](worker-api/configuration.md) for fields and override precedence.

@@ -2,7 +2,7 @@
 
 [English](architecture.md) · **简体中文**
 
-Ditto 保持一个 TypeScript package，Core 没有第三方运行时依赖。Worker 拥有能力与资源；Graph 定义一轮有限 DAG；Loop 推进应用状态并选择下一轮 Graph。Runtime 提供执行、路由、通信、共享服务和四个预定义 Context 流程。当前实现分类与接口以[节点体系与 API Contract](13-node-api-contract.zh-CN.md)为准。
+Ditto 保持一个 TypeScript package，Core 的第三方运行时依赖仅有 `yaml` 解析器。Worker 拥有能力与资源；Graph 定义一轮有限 DAG；Loop 推进应用状态并选择下一轮 Graph。Runtime 提供执行、路由、通信、共享服务和四个预定义 Context 流程。当前实现分类与接口以[节点体系与 API Contract](13-node-api-contract.zh-CN.md)为准。
 
 ## 结构与职责
 
@@ -108,7 +108,7 @@ Handler 必须 await 自己启动的工作。关闭 Runtime 时未开始的 Grap
 
 自定义能力仍通过 declaration merging 扩展，不在 Router 或 Scheduler 中硬编码 Node enum。固定 TypeScript 输入输出以[节点体系与 API Contract](13-node-api-contract.zh-CN.md)为准。
 
-Provider adapter 保持扁平放置在 `worker/infer/providers/`，不进入 Node 名称或 Graph 业务输入。Core 只依赖 `ModelProvider.invoke(ProviderRequest)`；凭证、base URL、模型选择、超时和可选供应商 SDK 仍属于 Runtime 配置或 adapter。
+Provider adapter 保持扁平放置在 `worker/infer/providers/`，不进入 Node 名称或 Graph 业务输入。Core 只依赖 `ModelProvider.invoke(SampleInput, { signal })` 和可选的 `stream`；凭证、base URL、模型选择、超时和可选供应商 SDK 仍属于 Runtime 配置或 adapter。
 
 四个可直接调用的标准流程位于 `runtime/graph.ts`：RAG、Skill、MCP 和 Tool Call。它们调用既有叶子 Node 并把结果送入 `CONTEXT.UPDATE`，不会扩展 `NodeContractMap`。
 

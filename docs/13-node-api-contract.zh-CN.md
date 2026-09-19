@@ -1,10 +1,12 @@
 # Ditto 节点体系与 API Contract
 
+> INFER 的完整实现契约（包括 CACHE 叶子）见 [Worker API](worker-api/infer.zh-CN.md)，取代本页最初的 INFER 骨架签名。其他 Worker 保持本页契约。
+
 [English](13-node-api-contract.md) | **简体中文**
 
 > 状态：节点体系最终版；API Contract `2.0-rc.1`；TypeScript 源码骨架已在 `dev` 初始化。
 
-本文是节点树、语义边界、公共基础类型和节点输入输出契约的唯一中文规范。Node 是可组合、可独立执行的语义操作；Worker 是实现、资源、部署和扩容边界；Graph 组合 Node；Runtime 负责调度、路由、通信与执行。
+本文与 INFER API 共同定义节点树、语义边界、公共基础类型和节点输入输出契约。Node 是可组合、可独立执行的语义操作；Worker 是实现、资源、部署和扩容边界；Graph 组合 Node；Runtime 负责调度、路由、通信与执行。
 
 ## Runtime 预定义流程
 
@@ -29,8 +31,10 @@ INFER
 │   ├── REFLECT
 │   ├── DELIBERATE
 │   └── SAMPLE
-├── CACHE/                      // 命名空间骨架
-│   └── ...                     // 叶子 Node 另行确定
+├── CACHE/
+│   ├── LOOKUP
+│   ├── WRITE
+│   └── INVALIDATE
 └── PROVIDERS/                  // 实现目录，不是 Node
 
 CONTEXT
@@ -71,7 +75,7 @@ INTERACTION
 └── OUTPUT
 ```
 
-节点树严格定义 25 个可路由叶子 Node Contract。`INFER.REASONING`、两类 `RAG`、`INTERACTION.ACT`、`Linux Commands`、`INFER.CACHE` 和 `INFER.PROVIDERS` 是文件夹或能力命名空间。`INFER.CACHE` 在叶子语义确定前不可路由。`INFER.PROVIDERS` 保持当前扁平 Provider 适配目录，不定义供应商子树，也不产生 Node Type。工具名以及 CoT/ToT/GoT 都不是 Node Type。
+当前包含 28 个可路由叶子 Contract。`INFER.REASONING`、`INFER.CACHE`、`INFER.PROVIDERS`、`RAG` 分支和 `INTERACTION.ACT` 都是命名空间；CACHE 的可执行叶子为 LOOKUP、WRITE、INVALIDATE。工具名与推理策略不是 Node。
 
 ## 2. 能力域边界
 
@@ -116,24 +120,8 @@ export interface MemoryItem extends MemoryDraft { id: string; }
 export interface MemoryReference { id: string; }
 export interface MemorySelector { ids?: readonly string[]; keys?: readonly string[]; filter?: JsonObject; }
 
-export interface ModelInput { messages: readonly Message[]; context?: Context; responseFormat?: JsonObject; }
 export interface ToolCall { id?: string; name: string; arguments: JsonObject; }
 export interface ToolDefinition { name: string; description?: string; inputSchema: JsonObject; }
-export interface ModelUsage { inputTokens?: number; outputTokens?: number; }
-export interface ModelOutput {
-  message: Message; toolCalls?: readonly ToolCall[]; finishReason?: string; usage?: ModelUsage;
-}
-export interface ReasoningBudget { maxSteps?: number; maxTokens?: number; }
-export interface ReasoningTraceEvent {
-  step: number; kind: string; summary?: string; references?: readonly Reference[];
-}
-export interface ProviderRequest {
-  model: string; input: ModelInput; tools?: readonly ToolDefinition[];
-  maxTokens?: number; signal?: AbortSignal;
-}
-export interface ModelProvider { invoke(request: ProviderRequest): Promise<ModelOutput>; }
-export interface ProviderResolver { get(name: string): ModelProvider; }
-
 export interface KnowledgeItem { id: string; content: MessageContent; source?: Reference; metadata?: JsonObject; }
 export interface EmbeddingRecord { itemId: string; vector: readonly number[]; }
 export interface RagCandidate { item: KnowledgeItem; score?: number; }
@@ -154,14 +142,12 @@ export interface McpCapability { server: string; name: string; description?: str
 ## 4. 固定节点输入输出
 
 ```ts
-export interface TrajectoryInput { input: ModelInput; strategy: string; budget?: ReasoningBudget; }
-export interface TrajectoryOutput { result: ModelOutput; trace: readonly ReasoningTraceEvent[]; }
-export interface ReflectInput { result: ModelOutput; context?: Context; criteria?: readonly Message[]; }
-export type ReflectOutput = ModelOutput;
-export interface DeliberateInput { input: ModelInput; budget: ReasoningBudget; alternatives?: readonly ModelOutput[]; }
-export type DeliberateOutput = ModelOutput;
-export interface SampleInput { input: ModelInput; count: number; }
-export type SampleOutput = readonly ModelOutput[];
+import type {
+  NodeResult, TrajectoryInput, TrajectoryOutput, ReflectInput, ReflectOutput,
+  DeliberateInput, DeliberateOutput, SampleInput, SampleOutput,
+  CacheLookupInput, CacheLookupOutput, CacheWriteInput, CacheWriteOutput,
+  CacheInvalidateInput, CacheInvalidateOutput,
+} from "@ditto/core/worker/infer";
 
 export interface ContextLoadInput { sources: readonly ContextSource[]; }
 export type ContextLoadOutput = Context;
@@ -230,10 +216,13 @@ export type InteractionOutputOutput = OutputReceipt;
 ```ts
 export interface NodeContract<Input, Output> { readonly input: Input; readonly output: Output; }
 export interface NodeContractMap {
-  "INFER.REASONING.TRAJECTORY": NodeContract<TrajectoryInput, TrajectoryOutput>;
-  "INFER.REASONING.REFLECT": NodeContract<ReflectInput, ReflectOutput>;
-  "INFER.REASONING.DELIBERATE": NodeContract<DeliberateInput, DeliberateOutput>;
-  "INFER.REASONING.SAMPLE": NodeContract<SampleInput, SampleOutput>;
+  "INFER.REASONING.TRAJECTORY": NodeContract<TrajectoryInput, NodeResult<TrajectoryOutput>>;
+  "INFER.REASONING.REFLECT": NodeContract<ReflectInput, NodeResult<ReflectOutput>>;
+  "INFER.REASONING.DELIBERATE": NodeContract<DeliberateInput, NodeResult<DeliberateOutput>>;
+  "INFER.REASONING.SAMPLE": NodeContract<SampleInput, NodeResult<SampleOutput>>;
+  "INFER.CACHE.LOOKUP": NodeContract<CacheLookupInput, NodeResult<CacheLookupOutput>>;
+  "INFER.CACHE.WRITE": NodeContract<CacheWriteInput, NodeResult<CacheWriteOutput>>;
+  "INFER.CACHE.INVALIDATE": NodeContract<CacheInvalidateInput, NodeResult<CacheInvalidateOutput>>;
   "CONTEXT.LOAD": NodeContract<ContextLoadInput, ContextLoadOutput>;
   "CONTEXT.SELECT": NodeContract<ContextSelectInput, ContextSelectOutput>;
   "CONTEXT.UPDATE": NodeContract<ContextUpdateInput, ContextUpdateOutput>;
@@ -264,8 +253,8 @@ export type OutputOf<N extends NodeType> = NodeContractMap[N]["output"];
 ## 5. 实现规则
 
 - 每个已确定的叶子 Node 都有 `.ts` 骨架；骨架只固定语义身份和类型绑定，不预设业务实现。
-- `INFER.CACHE` 目前只有目录骨架；叶子契约确定前禁止加入 `NodeContractMap`。
-- Provider adapter 保持扁平放置在 `src/worker/infer/providers/`，统一实现 `ModelProvider.invoke`。更换模型或供应商不新增 Node。
+- `INFER.CACHE` 是命名空间，已实现的叶子为 LOOKUP、WRITE、INVALIDATE。
+- Provider 位于 `src/worker/infer/providers/`。Runtime 与 INFER 统一使用 `ModelProvider.invoke/stream` 和 `ProviderRegistry`，详见 [Provider API](worker-api/providers.zh-CN.md)。ReAct 是 Runtime 的预定义 Graph 流程，不属于 INFER 策略。模型/供应商变化不产生 Node。
 - `INTERACTION.ACT.TOOL` 在源码中使用目录表示；其 `linux-commands/` 子目录和注册命令名都不是 Node。
 - Tool 与 MCP registry 保持独立。
 - 四个预定义流程位于 `src/runtime/graph.ts`；不再存在 `src/presets` package 或导出。

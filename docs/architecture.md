@@ -2,7 +2,7 @@
 
 **English** · [简体中文](architecture.zh-CN.md)
 
-Ditto is a single TypeScript package with no third-party runtime dependencies. Workers own capabilities and resources. A Graph defines one finite DAG; a Loop advances application state and selects the next round's Graph. The Runtime provides execution, routing, communication, shared services, and four predefined Context flows. The [Node Taxonomy and API Contract](13-node-api-contract.md) governs the implemented classification and interfaces.
+Ditto is a single TypeScript package whose only third-party runtime dependency is the `yaml` parser. Workers own capabilities and resources. A Graph defines one finite DAG; a Loop advances application state and selects the next round's Graph. The Runtime provides execution, routing, communication, shared services, and four predefined Context flows. The [Node Taxonomy and API Contract](13-node-api-contract.md) governs the implemented classification and interfaces.
 
 ## Structure and Responsibilities
 
@@ -108,7 +108,7 @@ Handlers must await work they start. Closing a Runtime may reject Graph descenda
 
 Custom capabilities still use declaration merging without hard-coding a Node enum into the Router or Scheduler. The fixed TypeScript inputs and outputs are defined by the [Node Taxonomy and API Contract](13-node-api-contract.md).
 
-Provider adaptation remains flat under `worker/infer/providers/`, not in Node names or Graph input. Core depends only on `ModelProvider.invoke(ProviderRequest)`. Credentials, base URLs, model selection, timeouts, and optional vendor SDKs remain Runtime configuration or adapter concerns.
+Provider adaptation remains flat under `worker/infer/providers/`, not in Node names or Graph input. Core depends only on `ModelProvider.invoke(SampleInput, { signal })` and optional `stream`. Credentials, base URLs, model selection, timeouts, and optional vendor SDKs remain Runtime configuration or adapter concerns.
 
 Four directly callable standard flows live in `runtime/graph.ts`: RAG, Skill, MCP, and Tool Call. They invoke existing leaf Nodes and route results into `CONTEXT.UPDATE`; they do not extend `NodeContractMap`.
 

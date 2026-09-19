@@ -59,11 +59,6 @@ export interface MemorySelector {
   filter?: JsonObject;
 }
 
-export interface ModelInput {
-  messages: readonly Message[];
-  context?: Context;
-  responseFormat?: JsonObject;
-}
 export interface ToolCall {
   id?: string;
   name: string;
@@ -74,33 +69,6 @@ export interface ToolDefinition {
   description?: string;
   inputSchema: JsonObject;
 }
-export interface ModelUsage { inputTokens?: number; outputTokens?: number; }
-export interface ModelOutput {
-  message: Message;
-  toolCalls?: readonly ToolCall[];
-  finishReason?: string;
-  usage?: ModelUsage;
-}
-export interface ReasoningBudget { maxSteps?: number; maxTokens?: number; }
-export interface ReasoningTraceEvent {
-  step: number;
-  kind: string;
-  summary?: string;
-  references?: readonly Reference[];
-}
-
-export interface ProviderRequest {
-  model: string;
-  input: ModelInput;
-  tools?: readonly ToolDefinition[];
-  maxTokens?: number;
-  signal?: AbortSignal;
-}
-export interface ModelProvider {
-  invoke(request: ProviderRequest): Promise<ModelOutput>;
-}
-export interface ProviderResolver { get(name: string): ModelProvider; }
-
 export interface KnowledgeItem {
   id: string;
   content: MessageContent;

@@ -29,7 +29,7 @@ Ditto 将系统拆分为四个概念：
 ## 最终能力域
 
 - `INFER.REASONING.*`：显式推理组织能力，包括 `TRAJECTORY`、`REFLECT`、`DELIBERATE`、`SAMPLE`；
-- `INFER.CACHE`：保留的命名空间骨架；
+- `INFER.CACHE.*`：推理缓存的 `LOOKUP`、`WRITE`、`INVALIDATE`；
 - `CONTEXT.*`：当前 invocation/turn 的 working set，包括任务知识 RAG 与本轮激活的 Skill；
 - `MEMORY.*`：跨 invocation 持久存在的语义状态，包括 Memory RAG 与持久化 Skill；
 - `INTERACTION.ACT.TOOL` / `INTERACTION.ACT.MCP`：对外动作；
@@ -82,15 +82,26 @@ const review = graph<Message>("review")
     sources: [query, ...memories.map((memory) => memory.message)],
   }))
   .node("reason", "INFER.REASONING.TRAJECTORY", ["context"], (_query, { context }) => ({
-    input: { messages: [], context },
-    strategy: "CoT",
+    messages: [{ role: _query.role, content: typeof _query.content === "string"
+      ? _query.content : JSON.stringify(_query.content) }],
+    context: context.items.map(item => ({ id: item.id, content: item.content })),
+    model: { model: "your-model-name" },
+    strategy: { name: "cot" },
   }))
-  .node("output", "INTERACTION.OUTPUT", ["reason"], (_query, { reason }) => ({
-    message: reason.result.message,
-  }));
+  .node("output", "INTERACTION.OUTPUT", ["reason"], (_query, { reason }) => {
+    if (reason.status !== "success" || reason.output?.status !== "completed") {
+      throw new Error(reason.error?.message ?? "Trajectory incomplete");
+    }
+    return { message: { role: reason.output.result.role,
+      content: typeof reason.output.result.content === "string"
+        ? reason.output.result.content : JSON.stringify(reason.output.result.content) } };
+  });
 ```
 
 注册更多 Worker 副本即可扩容，不需要改变 Graph。同一套契约可用于单进程、多 Worker、多进程或自定义远程传输。
+
+
+详细 INFER 接入与七个叶子接口见 [Worker API](docs/worker-api/infer.zh-CN.md)。
 
 ## 仓库结构
 
@@ -103,15 +114,15 @@ src/
 │   └── communication/            # invoke/emit、传输与 Artifact
 └── worker/
     ├── infer/
-    │   ├── reasoning/            # 叶子 Node 骨架
-    │   ├── cache/                # 保留命名空间骨架
-    │   └── providers/            # 扁平 Provider 适配边界
+    │   ├── reasoning/            # 推理叶子实现与节点骨架
+    │   ├── cache/                # LOOKUP / WRITE / INVALIDATE
+    │   └── providers/            # 统一 Provider 注册和供应商协议
     ├── context/
     ├── memory/
     └── interaction/act/tool/     # Tool Node、注册表与实现目录
 ```
 
-Core 没有第三方运行时依赖。重型 RPC、事件总线、MCP SDK、数据库驱动与模型 SDK 保持为可选的应用/适配器选择。
+Core 的第三方运行时依赖仅有 `yaml` 解析器。重型 RPC、事件总线、MCP SDK、数据库驱动与模型 SDK 保持为可选的应用/适配器选择。
 
 ## 开发
 
@@ -133,3 +144,5 @@ npm run check
 - [Provider、Interaction 与预定义流程](docs/interaction-runtime.zh-CN.md)
 
 具体使用案例、缺陷与架构讨论请提交至 [GitHub Issues](https://github.com/erwinmsmith/Ditto/issues)。
+
+行为参数统一放根目录 [`ditto.yaml`](ditto.yaml)，凭证与部署配置使用 [`.env.example`](.env.example)，所有 Worker 共用 Runtime services。详见 [统一配置 API](docs/worker-api/configuration.zh-CN.md)。显式运行 `npm run check:infer:live -- --provider deepseek`，查看 [INFER 真实验证报告](docs/worker-api/infer-live-report.md)。

@@ -1,0 +1,49 @@
+# Shared non-secret defaults for all Workers. Load once with loadRuntimeConfigFile().
+# 凭证、地址、模型选择与部署权限放 .env；算法参数放这里，单次请求可覆盖。
+runtime:
+  timeoutMs: 120000
+  maxTurns: 8
+
+infer:
+  generation:
+    maxTokens: 4096
+  constraints:
+    maxSteps: 16
+    maxTotalTokens: 64000
+  strategies:
+    cot:
+      rounds: 2
+    long-cot:
+      rounds: 4
+    tot:
+      breadth: 2
+      depth: 2
+      beamWidth: 2
+    got:
+      breadth: 2
+      depth: 2
+    self-consistency:
+      candidates: 3
+
+# ReAct is a Runtime graph preset, not an INFER strategy.
+react:
+  maxActionCalls: 16
+  maxTotalTokens: 64000
+
+# Provider behavior only. Names bind to DITTO_PROVIDERS in .env.
+providers:
+  deepseek:
+    maxTokensField: max_tokens
+    options:
+      thinking:
+        type: enabled
+      reasoning_effort: low
+  openai:
+    maxTokensField: max_completion_tokens
+  glm:
+    maxTokensField: max_tokens
+    options:
+      thinking:
+        type: enabled
+  local:
+    maxTokensField: max_tokens

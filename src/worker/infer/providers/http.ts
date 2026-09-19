@@ -1,122 +1,67 @@
-import type { MessageContent, ModelOutput, ModelProvider, ProviderRequest, ToolCall } from "../../../contracts/common.js";
 import type { ProviderConfig } from "../../../runtime/config.js";
 import type { Sandbox } from "../../../runtime/sandbox/index.js";
-import { jsonObject } from "./types.js";
-
+import type { SampleInput } from "../reasoning/sample/types.js";
+import { validateSample, validateSampleOutput } from "../reasoning/sample/schema.js";
+import { abortable, InferError, number } from "../validation.js";
+import type { ModelProvider, ModelStreamEvent } from "./types.js";
+import { openai } from "./openai.js";
+import { anthropic } from "./anthropic.js";
+import { gemini } from "./gemini.js";
+import { readSse } from "./sse.js";
 export interface HttpProviderOptions extends ProviderConfig {
-  readonly sandbox: Sandbox;
-  readonly timeoutMs?: number;
-  readonly fetch?: typeof globalThis.fetch;
+  sandbox: Pick<Sandbox, "assert">;
+  timeoutMs?: number;
+  fetch?: typeof globalThis.fetch;
 }
-
-/** Lightweight text/tool HTTP adapter. Vendor SDKs remain optional integrations. */
+const protocols = { "openai-compatible": openai, anthropic, gemini };
+function endpoint(value: string): string {
+  const url = new URL(value);
+  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new InferError("INVALID_INPUT", "Invalid provider URL");
+  return url.href.replace(/\/$/, "");
+}
+/** One transport and public interface, with three wire protocols and no vendor SDKs. */
 export function createHttpProvider(options: HttpProviderOptions): ModelProvider {
-  const baseUrl = new URL(options.baseUrl);
-  if (!['https:', 'http:'].includes(baseUrl.protocol) || baseUrl.username || baseUrl.password || baseUrl.search || baseUrl.hash) {
-    throw new Error("Invalid provider URL");
+  const base = endpoint(options.baseUrl); const origin = new URL(base).origin;
+  if (!Object.hasOwn(protocols, options.kind)) throw new InferError("INVALID_INPUT", "Unsupported provider kind");
+  const protocol = protocols[options.kind];
+  const timeoutMs = options.timeoutMs ?? 30_000; number(timeoutMs, "timeoutMs", 1, 2 ** 31 - 1, true);
+  const signalFor = (signal: AbortSignal) => AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]);
+  async function request(input: SampleInput, signal: AbortSignal, streaming: boolean): Promise<Response> {
+    validateSample(input);
+    if (input.model.endpoint !== undefined && endpoint(input.model.endpoint) !== base) throw new InferError("ENDPOINT_MISMATCH", "model.endpoint must match the configured provider URL");
+    options.sandbox.assert("network", origin);
+    const configured = { ...input, model: { ...input.model, providerOptions: { ...options.providerOptions, ...input.model.providerOptions } } };
+    const body = protocol.body(configured, streaming) as Record<string, unknown>;
+    if (options.kind === "openai-compatible" && options.maxTokensField === "max_tokens" && input.generation?.maxTokens !== undefined) {
+      body.max_tokens = input.generation.maxTokens; delete body.max_completion_tokens;
+    }
+    const response = await abortable(() => (options.fetch ?? globalThis.fetch)(base + protocol.path(input.model.model, streaming), {
+      method: "POST", redirect: "error", signal,
+      headers: { "content-type": "application/json", ...protocol.headers(options.apiKey) },
+      body: JSON.stringify(body),
+    }), signal);
+    if (!response.ok) { await response.body?.cancel(); throw new InferError("PROVIDER_HTTP_ERROR", `Model provider returned HTTP ${response.status}`); }
+    return response;
   }
   return {
-    async invoke(request): Promise<ModelOutput> {
-      options.sandbox.assert("network", baseUrl.origin);
-      const anthropic = options.kind === "anthropic";
-      const timeout = AbortSignal.timeout(options.timeoutMs ?? 30_000);
-      const response = await (options.fetch ?? globalThis.fetch)(
-        `${baseUrl.href.replace(/\/$/, "")}/${anthropic ? "messages" : "chat/completions"}`,
-        {
-          method: "POST",
-          redirect: "error",
-          signal: request.signal ? AbortSignal.any([request.signal, timeout]) : timeout,
-          headers: { "content-type": "application/json", ...(anthropic
-            ? { "anthropic-version": "2023-06-01", ...(options.apiKey ? { "x-api-key": options.apiKey } : {}) }
-            : options.apiKey ? { authorization: `Bearer ${options.apiKey}` } : {}) },
-          body: JSON.stringify(anthropic ? anthropicBody(request) : openaiBody(request)),
-        },
-      );
-      if (!response.ok) {
-        await response.body?.cancel();
-        throw new Error(`Provider request failed (HTTP ${response.status})`);
-      }
-      return anthropic ? parseAnthropic(await response.json()) : parseOpenAi(await response.json());
+    async invoke(input, options) {
+      const signal = signalFor(options.signal); const response = await request(input, signal, false);
+      let raw: unknown;
+      try { raw = await abortable(() => response.json(), signal); }
+      catch { signal.throwIfAborted(); throw new InferError("INVALID_MODEL_OUTPUT", "Provider returned invalid JSON"); }
+      const output = protocol.parse(raw); validateSampleOutput(output); return output;
     },
-  };
-}
-
-function contentText(content: MessageContent): string {
-  if (typeof content === "string") return content;
-  return JSON.stringify(content);
-}
-
-function openaiBody(request: ProviderRequest): unknown {
-  return {
-    model: request.model,
-    messages: request.input.messages.map((message) => ({
-      role: message.role,
-      content: contentText(message.content),
-      ...(message.role === "tool" && message.name ? { tool_call_id: message.name } : {}),
-    })),
-    ...(request.tools?.length ? { tools: request.tools.map((tool) => ({
-      type: "function", function: {
-        name: tool.name, description: tool.description, parameters: tool.inputSchema,
-      },
-    })) } : {}),
-    ...(request.maxTokens === undefined ? {} : { max_completion_tokens: request.maxTokens }),
-  };
-}
-
-function anthropicBody(request: ProviderRequest): unknown {
-  const messages = request.input.messages.filter((message) => message.role !== "system").map((message) => ({
-    role: message.role === "assistant" ? "assistant" : "user",
-    content: contentText(message.content),
-  }));
-  return {
-    model: request.model,
-    max_tokens: request.maxTokens ?? 4096,
-    system: request.input.messages.filter((message) => message.role === "system")
-      .map((message) => contentText(message.content)).join("\n\n"),
-    messages,
-    ...(request.tools?.length ? { tools: request.tools.map((tool) => ({
-      name: tool.name, description: tool.description, input_schema: tool.inputSchema,
-    })) } : {}),
-  };
-}
-
-function parseCall(id: unknown, name: unknown, args: unknown): ToolCall {
-  if (typeof id !== "string" || !id || typeof name !== "string" || !name) throw new Error("Invalid tool call identity");
-  return { id, name, arguments: jsonObject(args) };
-}
-
-function parseOpenAi(raw: unknown): ModelOutput {
-  const data = jsonObject(raw);
-  if (!Array.isArray(data.choices) || !data.choices.length) throw new Error("Invalid completion response");
-  const choice = jsonObject(data.choices[0]);
-  const message = jsonObject(choice.message);
-  if (message.content !== null && typeof message.content !== "string") throw new Error("Unsupported completion content");
-  const toolCalls = (Array.isArray(message.tool_calls) ? message.tool_calls : []).map((entry) => {
-    const call = jsonObject(entry);
-    const fn = jsonObject(call.function);
-    if (typeof fn.arguments !== "string") throw new Error("Unsupported tool call");
-    return parseCall(call.id, fn.name, JSON.parse(fn.arguments));
-  });
-  return {
-    message: { role: "assistant", content: typeof message.content === "string" ? message.content : "" },
-    ...(toolCalls.length ? { toolCalls } : {}),
-    ...(typeof choice.finish_reason === "string" ? { finishReason: choice.finish_reason } : {}),
-  };
-}
-
-function parseAnthropic(raw: unknown): ModelOutput {
-  const data = jsonObject(raw);
-  if (!Array.isArray(data.content)) throw new Error("Invalid Anthropic response");
-  const text: string[] = [];
-  const toolCalls: ToolCall[] = [];
-  for (const entry of data.content) {
-    const block = jsonObject(entry);
-    if (block.type === "text" && typeof block.text === "string") text.push(block.text);
-    else if (block.type === "tool_use") toolCalls.push(parseCall(block.id, block.name, block.input));
-  }
-  return {
-    message: { role: "assistant", content: text.join("") },
-    ...(toolCalls.length ? { toolCalls } : {}),
-    ...(typeof data.stop_reason === "string" ? { finishReason: data.stop_reason } : {}),
+    async *stream(input, options): AsyncIterable<ModelStreamEvent> {
+      const signal = signalFor(options.signal); const response = await request(input, signal, true);
+      try {
+        for await (const event of protocol.stream(readSse(response, signal))) {
+          if (event.type === "result") validateSampleOutput(event.output);
+          yield event;
+        }
+      } catch (error) {
+        if (error instanceof InferError && error.code === "INVALID_INPUT") throw new InferError("INVALID_MODEL_OUTPUT", error.message);
+        throw error;
+      }
+    },
   };
 }

@@ -4,7 +4,7 @@
 
 ## 环境与检查
 
-使用 Node.js 24+、npm 11+，`.nvmrc` 固定主版本 24。项目没有第三方运行时依赖；TypeScript 与 Node 类型仅用于开发。
+使用 Node.js 24+、npm 11+，`.nvmrc` 固定主版本 24。项目的第三方运行时依赖仅有 `yaml` 解析器；TypeScript 与 Node 类型仅用于开发。
 
 ```bash
 nvm use
@@ -16,7 +16,7 @@ npm run check
 
 ## 配置与后续示例
 
-复制 `.env.example` 为 `.env`，按 [Agent 与运行配置](interaction-runtime.zh-CN.md) 设置 Provider、模型、Key 和权限。库本身不会隐式加载环境文件；由应用启动代码显式加载并调用 `loadRuntimeConfig()`。
+复制 `.env.example` 为 `.env`，按 [Agent 与运行配置](interaction-runtime.zh-CN.md) 设置 Provider、模型、Key 和权限。库本身不会隐式加载环境文件；由应用启动代码显式加载并调用 `loadRuntimeConfigFile("ditto.yaml", process.env)`。
 
 `examples/` 当前留空，后续用于通过 npm 包构建不同 Agent 的完整例子。包目前尚未发布；下面的代码仅用于说明 API。
 
@@ -87,3 +87,5 @@ try {
 增加 Node 通过声明合并和 handler 完成；更换模型通过 Provider/模型配置完成。不要在固定业务输入里添加 Key、host、transport 或 sandbox 字段。
 
 组合 Worker 内部 Graph 使用 `ctx.run`；跨 Worker 调用使用 `ctx.invoke`。两者的示例和语义见 [架构](architecture.zh-CN.md)。
+
+行为参数统一放根目录 `ditto.yaml`；配置字段与覆盖顺序见 [统一配置 API](worker-api/configuration.zh-CN.md)。

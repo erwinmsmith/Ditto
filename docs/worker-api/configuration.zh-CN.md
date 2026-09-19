@@ -1,0 +1,74 @@
+# 统一配置 API
+
+[English](configuration.md) · [Worker API](README.zh-CN.md)
+
+根目录 [`ditto.yaml`](../../ditto.yaml) 是可提交的行为参数配置；[`.env.example`](../../.env.example) 是部署模板，真实 `.env` 被 Git 忽略。Node 用 `--env-file=.env` 加载环境变量，应用显式加载 YAML，一次构建的 Runtime services 供所有 Worker 使用。导入库、创建默认 Runtime 不会读取文件或环境变量。
+
+```ts
+import { createDitto, createInfer, createInferWorker, loadRuntimeConfigFile } from "@ditto/core";
+const config = loadRuntimeConfigFile("ditto.yaml", process.env);
+const runtime = createDitto({ config, workers: [createInferWorker()] });
+const infer = createInfer({ runtime });
+const result = await infer.reasoning.trajectory({
+  model: { provider: config.model!.provider, model: config.model!.model },
+  messages: [{ role: "user", content: "计算 17 × 23，只返回整数。" }],
+  strategy: { name: "tot" }, // 使用 YAML 中的 breadth / depth / beamWidth
+});
+await runtime.close();
+```
+
+## 配置边界
+
+| 文件 | 配置内容 |
+| --- | --- |
+| `.env` | `DITTO_ENV`、`DITTO_WORKSPACE`；启用供应商的 `DITTO_PROVIDERS`；默认模型 `DITTO_MODEL_PROVIDER` + `DITTO_MODEL`；每家供应商 `DITTO_PROVIDER_<NAME>_KIND/BASE_URL/API_KEY/MODEL`；`DITTO_ALLOW_NETWORK/TOOLS/MCP/SKILLS/READ/WRITE/EXECUTE` 部署权限；应用显式读取的 HTTP Worker token |
+| `ditto.yaml` | Runtime 超时与循环次数、INFER 采样参数与轨迹预算、各推理策略的轮数/宽度/深度、ReAct 动作预算、供应商请求行为 |
+| 单次 Node 输入 | 本次消息、模型、候选、反思标准等业务内容，以及可选的参数覆盖 |
+
+旧的 `DITTO_TIMEOUT_MS`、`DITTO_MAX_TURNS`、`DITTO_PROVIDER_*_OPTIONS/MAX_TOKENS_FIELD` 已迁移到 YAML；仍在 env 中设置会抛出迁移提示，避免两份配置互相覆盖。YAML 不做 `${ENV}` 插值，不允许 `apiKey` / `baseUrl` 等部署字段。供应商 options 是透传参数对象，不要放任何凭证。
+
+## 加载接口
+
+```ts
+loadRuntimeConfigFile(path = "ditto.yaml", env = process.env): RuntimeConfig
+loadRuntimeConfig(env = process.env, settings: RuntimeSettings = {}): RuntimeConfig
+```
+
+第一个接口读取 UTF-8 YAML；相对路径基于当前工作目录。第二个是纯配置解析，供测试、嵌入式应用传对象使用，不访问文件。返回不可变配置快照，包含 `environment/workspace/model/providers/timeoutMs/maxTurns/infer/react/sandbox`。配置只读取一次；修改 YAML 后需重新加载并创建 Runtime。Worker 通过 `ctx.services.config` 访问同一快照。
+
+缺失文件、空文件、非对象、未知字段、重复键、YAML alias、非法数字在启动时抛错，不静默退回默认值。只使用标准 YAML 数据结构，不使用自定义 tag 或 merge key。显式自定义 `providers` Registry 时，Runtime 不再从配置构建 HTTP Provider。
+
+## YAML 字段
+
+字段可省略；下表区分库内置回退值与仓库当前 YAML 配置。单次请求优先，其次配置，最后库回退值。
+
+| 路径 | 含义与范围 | 库回退 / 当前 YAML |
+| --- | --- | --- |
+| `runtime.timeoutMs` | 单次 INFER / ReAct 超时，整数 1–2147483647 毫秒 | 30000 / 120000 |
+| `runtime.maxTurns` | ReAct 默认轮数，正安全整数 | 8 / 8 |
+| `infer.generation.maxTokens` | 每次生成上限，正安全整数；供应商可能含内部推理 Token | 供应商默认 / 4096 |
+| `infer.generation.temperature/topP/topK/stop/seed` | 与 [GenerationConfig](infer.zh-CN.md) 相同：0–2 / 0–1 / 正整数 / 非空字符串数组 / 安全整数 | 均未指定 |
+| `infer.constraints.maxSteps` | 轨迹最多模型调用数，含评估/合并调用，正安全整数 | 16 / 16 |
+| `infer.constraints.maxTotalTokens` | 整条轨迹累计预算，正安全整数；需要真实 usage | 不设上限 / 64000 |
+| `infer.constraints.timeoutMs` | 轨迹额外时限，范围同 runtime.timeoutMs | 均未指定 |
+| `infer.strategies.cot.rounds` | 线性求解轮数，1–64 | 2 / 2 |
+| `infer.strategies.long-cot.rounds` | 长路径求解轮数，1–64 | 4 / 4 |
+| `infer.strategies.tot.breadth/depth/beamWidth` | 每父节点分支数 / 搜索深度 / 保留宽度，各 1–16 | 3/2/2 / 2/2/2 |
+| `infer.strategies.got.breadth/depth` | 每层贡献数 / 聚合层数，各 1–16 | 3/2 / 2/2 |
+| `infer.strategies.self-consistency.candidates` | 独立采样次数，1–16 | 3 / 3 |
+| `react.maxActionCalls` | ReAct 动作调用数，非负安全整数 | 16 / 16 |
+| `react.maxTotalTokens` | ReAct 累计采样预算，正安全整数 | 不设上限 / 64000 |
+| `providers.<name>.maxTokensField` | 兼容协议使用 `max_tokens` 或 `max_completion_tokens` | 未指定时兼容适配器使用后者 |
+| `providers.<name>.options` | 供应商原生请求参数对象，如 thinking；不包含路由和凭证 | 空 |
+
+YAML 中的供应商名称只设置行为，不自动启用供应商；由 `.env` 的 `DITTO_PROVIDERS` 决定启用集合。未启用项可作为共享模板保留。`maxTokensField` 仅适用于启用的 OpenAI 兼容供应商。
+
+## 覆盖与预算
+
+- `generation`、`constraints` 和当前策略的 `strategy.options` 按字段覆盖，不修改原始输入；例如只传 `depth: 3` 仍保留 YAML 的 breadth 和 beamWidth。REFLECT / DELIBERATE 的内部 SAMPLE 同样继承 generation。
+- SDK `createInfer({ runtime })` 与 Runtime Worker 使用相同默认值。`InferOptions.defaults?: InferSettings` 可用于独立 SDK，或为某 Worker **整体替换** Runtime 的 infer 默认配置；省略时继承 Runtime。自定义策略仍通过 `strategies` 函数注册，其 options 放单次请求中。
+- 调用级 `timeoutMs` 优先于 Worker/SDK 构造选项，再到 Runtime 超时；轨迹 constraints.timeoutMs 与它取较小值。单次 constraints.timeoutMs 可以覆盖 YAML 的额外时限。
+- 轨迹嵌套 SAMPLE 的 maxTokens 取剩余总预算与生成上限的较小值。增大深度可能先达到 maxSteps/maxTotalTokens，返回 partial 和明确 stopReason，不虚报 completed。当前 YAML 的 ToT 为 8 次模型调用，GoT 为 6 次。
+- `runReactFlow` 是 Runtime 预定义 Graph，使用 runtime.maxTurns、react 预算和 infer.generation；不读取 infer 的轨迹策略参数。
+
+运行 `npm run check:infer:live -- --provider deepseek` 使用同一 YAML；`--max-tokens` 仅覆盖该次实验的生成上限。报告记录有效默认配置与真实结果，见 [实测报告](infer-live-report.md)。

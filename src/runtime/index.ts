@@ -20,3 +20,5 @@ export type {
 export * from "./config.js";
 export * from "./services.js";
 export * from "./communication/http.js";
+export { runReactFlow } from "./react.js";
+export type { ReactFlowInput, ReactFlowResult } from "./react.js";
