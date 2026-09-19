@@ -15,6 +15,7 @@ export class TrajectoryFailure extends InferError {
 class Stop extends Error { constructor(readonly reason: TrajectoryOutput["stopReason"]) { super(reason); } }
 export async function trajectoryNode(input: TrajectoryInput, ctx: InferExecution): Promise<TrajectoryOutput> {
   validateTrajectory(input);
+  const requestedGeneration = input.generation;
   const defaults = ctx.defaults;
   const strategyDefaults = defaults?.strategies?.[input.strategy.name as keyof NonNullable<typeof defaults.strategies>];
   input = { ...input, generation: { ...defaults?.generation, ...input.generation },
@@ -58,7 +59,7 @@ export async function trajectoryNode(input: TrajectoryInput, ctx: InferExecution
       const decision = await deliberateNode({ model: input.model, messages, candidates, mode,
         ...(options.selectCount !== undefined ? { selectCount: options.selectCount } : {}),
         ...(input.objective !== undefined ? { objective: input.objective } : {}), ...(input.context ? { context: input.context } : {}),
-        ...(input.generation ? { generation: input.generation } : {}), ...(input.metadata ? { metadata: input.metadata } : {}) },
+        ...(requestedGeneration ? { generation: requestedGeneration } : {}), ...(input.metadata ? { metadata: input.metadata } : {}) },
         { ...ctx, sample: async request => { const sampled = await guardedSample(request, options, false); stepId = sampled.stepId; return sampled; } });
       result = decision.result;
       return { ...decision, stepId };

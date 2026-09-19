@@ -26,10 +26,10 @@ test("provider adapters implement the vendor-neutral invoke boundary", async () 
 
 test("shared config separates provider deployment from behavior and validates token mappings", async () => {
   const { loadRuntimeConfig } = await import("../src/runtime/config.js");
-  const env = { DITTO_PROVIDERS: "deepseek", DITTO_PROVIDER_DEEPSEEK_MODEL: "fixture" };
-  const settings = { providers: { deepseek: { options: { thinking: { type: "enabled" } }, maxTokensField: "max_tokens" as const } } };
+  const env = { DITTO_SHARED_PROVIDERS: "deepseek", DITTO_SHARED_PROVIDER_DEEPSEEK_MODEL: "fixture" };
+  const settings = { shared: { providers: { deepseek: { options: { thinking: { type: "enabled" } }, maxTokensField: "max_tokens" as const } } } };
   const provider = loadRuntimeConfig(env, settings).providers.deepseek!;
   assert.equal(provider.model, "fixture"); assert.equal(provider.maxTokensField, "max_tokens"); assert.deepEqual(provider.providerOptions, { thinking: { type: "enabled" } });
-  assert.throws(() => loadRuntimeConfig({ ...env, DITTO_PROVIDER_DEEPSEEK_OPTIONS: "private-value" }), error => error instanceof Error && !error.message.includes("private-value"));
-  assert.throws(() => loadRuntimeConfig({ ...env, DITTO_PROVIDER_DEEPSEEK_KIND: "gemini" }, settings), /Invalid max tokens field/);
+  assert.throws(() => loadRuntimeConfig({ ...env, DITTO_SHARED_PROVIDER_DEEPSEEK_OPTIONS: "private-value" }), error => error instanceof Error && !error.message.includes("private-value"));
+  assert.throws(() => loadRuntimeConfig({ ...env, DITTO_SHARED_PROVIDER_DEEPSEEK_KIND: "gemini" }, settings), /Invalid max tokens field/);
 });

@@ -1,9 +1,16 @@
 import { createNodeScaffold } from "../../../node-scaffold.js";
 import type { InferExecution } from "../../execution.js";
-import { InferError, parseOutput, modelOutput } from "../../validation.js";
+import { InferError, parseOutput, modelOutput, common } from "../../validation.js";
 import type { DeliberateInput, DeliberateOutput } from "./types.js";
 import { validateDeliberate, validateDeliberateOutput } from "./schema.js";
 export async function deliberateNode(input: DeliberateInput, ctx: InferExecution): Promise<DeliberateOutput> {
+  common(input); // Validate supplied fields before merging defaults (including null/invalid generation).
+  const defaults = ctx.defaults?.deliberate;
+  const mode = input.mode === undefined ? defaults?.mode ?? "select" : input.mode;
+  input = { ...input, mode,
+    generation: { ...ctx.defaults?.generation, ...defaults?.generation, ...input.generation },
+    ...(mode === "select" && input.selectCount === undefined ? { selectCount: defaults?.selectCount ?? 1 } : {}),
+  };
   validateDeliberate(input);
   const response = await ctx.sample({ model: input.model,
     ...(input.generation ? { generation: input.generation } : {}), ...(input.metadata ? { metadata: input.metadata } : {}),

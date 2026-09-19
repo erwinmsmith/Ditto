@@ -96,18 +96,18 @@ usage 来自供应商，缺少计数不会补成完整计数。Anthropic 的输�
 import { createDitto, createInferWorker, loadRuntimeConfigFile } from "@ditto/core";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 const runtime = createDitto({ config, workers: [createInferWorker()] });
-if (!config.model) throw new Error("Configure DITTO_MODEL_PROVIDER and DITTO_MODEL");
+if (!config.model) throw new Error("Configure DITTO_WORKER_INFER_MODEL_PROVIDER and DITTO_WORKER_INFER_MODEL");
 const response = await runtime.invoke("INFER.REASONING.SAMPLE", {
   model: config.model, messages: [{ role: "user", content: "Hello" }],
 });
 await runtime.close();
 ```
 
-显式加载 `.env.example` 中的配置：`DITTO_PROVIDERS=deepseek,openai,glm,claude,gemini,local`，每个名称使用 `DITTO_PROVIDER_<NAME>_KIND/BASE_URL/API_KEY/MODEL`。名称匹配 `[a-z][a-z0-9_]*` 且不可重复。省略 BASE_URL 时，各 kind 默认分别为 `https://api.openai.com/v1`、`https://api.anthropic.com/v1`、`https://generativelanguage.googleapis.com/v1beta`。还需在 `DITTO_ALLOW_NETWORK` 配置请求 origin。
+显式加载 `.env.example` 中的配置：`DITTO_SHARED_PROVIDERS=deepseek,openai,glm,claude,gemini,local`，每个名称使用 `DITTO_SHARED_PROVIDER_<NAME>_KIND/BASE_URL/API_KEY/MODEL`。名称匹配 `[a-z][a-z0-9_]*` 且不可重复。省略 BASE_URL 时，各 kind 默认分别为 `https://api.openai.com/v1`、`https://api.anthropic.com/v1`、`https://generativelanguage.googleapis.com/v1beta`。还需在 `DITTO_SHARED_SANDBOX_ALLOW_NETWORK` 配置请求 origin。
 
-`DITTO_MODEL_PROVIDER` 和 `DITTO_MODEL` 必须一起配置；模型 ID 由调用方传入 model 字段。Runtime 不会隐式读取环境或文件；`loadRuntimeConfigFile` 由应用显式调用。传入自定义 `createDitto({ providers })` 时，不再从 config.providers 额外创建 Provider。
+`DITTO_WORKER_INFER_MODEL_PROVIDER` 和 `DITTO_WORKER_INFER_MODEL` 必须一起配置；模型 ID 由调用方传入 model 字段。Runtime 不会隐式读取环境或文件；`loadRuntimeConfigFile` 由应用显式调用。传入自定义 `createDitto({ providers })` 时，不再从 config.providers 额外创建 Provider。
 
-供应商行为改为 YAML 的 `providers.<name>.options` 和 `maxTokensField`（仅 OpenAI 兼容协议）；默认值、覆盖顺序及迁移见 [统一配置 API](configuration.zh-CN.md)。真实配置放在根目录 .env 并由 Git 忽略，所有 Worker 通过 ctx.services.config/providers/sandbox 共享；未实现的存储后端不预设空配置项。推理模型的 maxTokens 可能同时限制隐藏推理与可见答案；预算不足会返回 length/partial，不能视为完整成功。OpenAI 兼容协议的工具消息也保留原始 reasoning_content（若存在），只作下一轮回放，不输出成 text_delta。
+供应商行为改为 YAML 的 `shared.providers.<name>.options` 和 `maxTokensField`（仅 OpenAI 兼容协议）；默认值、覆盖顺序及迁移见 [统一配置 API](configuration.zh-CN.md)。真实配置放在根目录 .env 并由 Git 忽略，所有 Worker 通过 ctx.services.config/providers/sandbox 共享；未实现的存储后端不预设空配置项。推理模型的 maxTokens 可能同时限制隐藏推理与可见答案；预算不足会返回 length/partial，不能视为完整成功。OpenAI 兼容协议的工具消息也保留原始 reasoning_content（若存在），只作下一轮回放，不输出成 text_delta。
 
 真实校验：`npm run check:infer:live -- --provider deepseek`。可选 `--strategies cot,tot,got`、`--cases sample,tot`、`--max-tokens 4096` 和 `--report path`。脚本对配置中的实际模型做内容断言，任何失败均非零退出；报告追加历史，包含失败，不包含凭证。详见 [真实验证报告](infer-live-report.md)。
 

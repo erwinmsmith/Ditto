@@ -8,7 +8,7 @@ export interface StrategyContext {
   readonly messages: Message[];
   readonly signal: AbortSignal;
   sample(messages: Message[], trace?: StepTrace): Promise<SampleOutput & { stepId: string }>;
-  deliberate(candidates: DeliberateInput["candidates"], mode: DeliberateInput["mode"], options?: StepTrace & { selectCount?: number }): Promise<DeliberateOutput & { stepId: string }>;
+  deliberate(candidates: DeliberateInput["candidates"], mode: NonNullable<DeliberateInput["mode"]>, options?: StepTrace & { selectCount?: number }): Promise<DeliberateOutput & { stepId: string }>;
   step(step: Omit<ReasoningStep, "id" | "index">): ReasoningStep;
 }
 export type TrajectoryStrategy = (context: StrategyContext) => Promise<Message>;

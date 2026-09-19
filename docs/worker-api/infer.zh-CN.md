@@ -296,7 +296,7 @@ export interface DeliberateInput {
   selectCount?: number;
   objective?: string;
   candidates: Array<{ id: string; result: Message; trajectory?: ReasoningStep[]; score?: number }>;
-  mode: "select" | "merge" | "consensus" | "debate";
+  mode?: "select" | "merge" | "consensus" | "debate";
   context?: ContextItem[];
   model: ModelConfig;
   generation?: GenerationConfig;
@@ -323,6 +323,8 @@ const decision = await infer.reasoning.deliberate({
 ```
 
 模型返回 JSON，`selectedCandidateIds` / `assessments.candidateId` 只能引用输入 ID，不能重复。`select` 必须恰好选择 selectCount（默认 1）个有序 ID，实际返回排名第一候选的原始 Message，防止模型改写所选结果。其余模式使用模型合成的 Message。输出格式与完整性校验同 REFLECT。当前实现没有额外调用 REFLECT。
+
+根目录 `ditto.yaml` 的 `workers.infer.deliberate` 提供 `mode: select`、`selectCount: 1`、`generation.maxTokens: 4096`。请求可省略 mode 并继承配置，也可显式覆盖。采样按请求 > DELIBERATE 配置 > INFER 通用配置生效。配置中的 selectCount 只应用于 select 模式；超过候选数会在模型调用前失败。ToT/GoT 内部审议保留各自显式模式与轨迹预算。详见 [统一配置 API](configuration.zh-CN.md)。
 
 ## 7. CACHE
 
