@@ -1,5 +1,8 @@
 import type { ExternalResult, InteractionError, JsonValue, OutputReceipt } from "../../contracts/common.js";
 
+const absolutePathInError = /(?:^|\s|\(|"|')(?:[A-Za-z]:[\\/]|\\\\[^\\/\s]+[\\/]|\/[^/\s])/;
+const stackFrameInError = /(?:^|\s)at\s+(?:async\s+)?(?:[^()\s]+\s+\()?[^()\s]+\.[cm]?[jt]sx?:\d+(?::\d+)?\)?(?:\s|$)/i;
+
 export function nonempty(value: unknown, name: string): asserts value is string {
   if (typeof value !== "string" || !value.trim()) throw new Error(`${name} must be a nonempty string`);
 }
@@ -19,7 +22,10 @@ export function interactionError(value: unknown): asserts value is InteractionEr
   const error = value as Record<string, unknown>;
   nonempty(error.code, "error.code"); nonempty(error.message, "error.message");
   if (error.code.length > 64 || !/^[A-Za-z0-9_.-]+$/.test(error.code)) throw new Error("Invalid error code");
-  if (error.message.length > 512 || /[\r\n\x00-\x1f]|Bearer\s|sk-[A-Za-z0-9]/i.test(error.message)) throw new Error("Unsafe interaction error message");
+  if (error.message.length > 512
+    || /[\r\n\x00-\x1f]|Bearer\s|sk-[A-Za-z0-9]/i.test(error.message)
+    || absolutePathInError.test(error.message)
+    || stackFrameInError.test(error.message)) throw new Error("Unsafe interaction error message");
   if (error.retryable !== undefined && typeof error.retryable !== "boolean") throw new Error("error.retryable must be boolean");
 }
 

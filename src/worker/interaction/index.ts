@@ -15,7 +15,7 @@ export interface InteractionNodeOptions {
   readonly output?: OutputSink;
 }
 
-/** Optional concrete ACT handlers; the other Interaction leaves remain application-defined. */
+/** Concrete TOOL/OBSERVE handlers plus resource-backed MCP and OUTPUT handlers. */
 export function createInteractionNodes<R = undefined, C = undefined>(
   options: InteractionNodeOptions = {},
 ): WorkerNodes<R, C> {

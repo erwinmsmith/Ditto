@@ -44,7 +44,7 @@ test("ReAct uses caller-owned MCP binding and ignores model-supplied routing fie
 });
 
 test("ReAct returns business failures to SAMPLE but stops on unknown external outcomes", async () => {
-  for (const status of ["failed", "unknown"] as const) {
+  for (const status of ["failed", "cancelled", "timeout", "unknown"] as const) {
     let samples = 0;
     const runtime = createDitto({ providers: new ProviderRegistry({ fixture: { async invoke() { samples++; return samples === 1 ? action() : answer; } } }), workers: [createInferWorker(), defineWorker({ type: "INTERACTION", nodes: {
       "INTERACTION.ACT.TOOL": async ({ call }) => ({ callId: call.id, source: call.name, status, error: { code: "REMOTE_ERROR", message: "Remote failed" } }),
@@ -55,8 +55,38 @@ test("ReAct returns business failures to SAMPLE but stops on unknown external ou
       assert.equal(result.observations[0]?.status, status);
       assert.equal(samples, status === "failed" ? 2 : 1);
       assert.equal(result.status, status === "failed" ? "completed" : "partial");
+      if (status !== "failed") assert.equal(result.stopReason, "dependency_failed");
     } finally { await runtime.close(); }
   }
+});
+test("ReAct continues after business failure and preserves actions not yet executed", async () => {
+  const actions = [
+    { id: "first", name: "lookup", arguments: { order: 1 } },
+    { id: "second", name: "lookup", arguments: { order: 2 } },
+  ];
+  const multi: SampleOutput = { ...action(), actionRequests: actions };
+  let samples = 0; const calls: string[] = [];
+  const continuing = createDitto({ providers: new ProviderRegistry({ fixture: { async invoke() { samples++; return samples === 1 ? multi : answer; } } }), workers: [createInferWorker(), defineWorker({ type: "INTERACTION", nodes: {
+    "INTERACTION.ACT.TOOL": async ({ call }) => { calls.push(call.id); return call.id === "first"
+      ? { callId: call.id, source: call.name, status: "failed", error: { code: "REJECTED", message: "Request rejected" } }
+      : { callId: call.id, source: call.name, status: "success", content: "done" }; },
+    "INTERACTION.OBSERVE": async value => observeExternalResult(value),
+  } })] });
+  try {
+    const result = await runReactFlow(continuing, input);
+    assert.equal(result.status, "completed"); assert.deepEqual(calls, ["first", "second"]);
+    assert.deepEqual(result.observations.map(item => item.status), ["failed", "success"]);
+  } finally { await continuing.close(); }
+
+  const interrupted = createDitto({ providers: new ProviderRegistry({ fixture: { invoke: async () => multi } }), workers: [createInferWorker(), defineWorker({ type: "INTERACTION", nodes: {
+    "INTERACTION.ACT.TOOL": async () => { throw new Error("transport failed"); },
+    "INTERACTION.OBSERVE": async value => observeExternalResult(value),
+  } })] });
+  try {
+    const result = await runReactFlow(interrupted, input);
+    assert.equal(result.stopReason, "dependency_failed");
+    assert.deepEqual(result.actionRequests.map(item => item.id), ["second"]);
+  } finally { await interrupted.close(); }
 });
 test("ReAct budgets preserve pending actions and do not perform unobservable external work", async () => {
   for (const [constraints, reason] of [[{ maxSteps: 1 }, "max_steps"], [{ maxActionCalls: 0 }, "max_action_calls"], [{ maxTotalTokens: 3 }, "max_tokens"]] as const) {
@@ -65,6 +95,11 @@ test("ReAct budgets preserve pending actions and do not perform unobservable ext
       assert.equal(result.stopReason, reason); assert.equal(result.actionRequests.length, 1); assert.equal(result.status, "partial"); assert.equal(f.scopes.length, 0);
     } finally { await f.runtime.close(); }
   }
+  const duplicate = fixture([{ ...action(), actionRequests: [{ id: "same", name: "lookup", arguments: {} }, { id: "same", name: "lookup", arguments: {} }] }]);
+  try {
+    const result = await runReactFlow(duplicate.runtime, input);
+    assert.equal(result.error?.code, "INVALID_MODEL_OUTPUT"); assert.equal(duplicate.scopes.length, 0);
+  } finally { await duplicate.runtime.close(); }
   const f = fixture([{ ...answer, usage: undefined } as unknown as SampleOutput]);
   try { assert.equal((await runReactFlow(f.runtime, { ...input, constraints: { maxTotalTokens: 10 } })).error?.code, "USAGE_UNAVAILABLE"); }
   finally { await f.runtime.close(); }
