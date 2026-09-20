@@ -12,8 +12,7 @@ export interface OutputSink {
 export function createOutputHandler<R = undefined, C = undefined>(sink: OutputSink): import("../node.js").NodeHandler<"INTERACTION.OUTPUT", R, C> {
   return async (input, context) => {
     nonempty(input.deliveryId, "deliveryId");
-    const receipt = await sink.deliver(input, context);
-    outputReceipt(receipt);
+    const receipt = outputReceipt(await sink.deliver(input, context));
     if (receipt.deliveryId !== input.deliveryId) throw new Error("Output receipt deliveryId mismatch");
     return receipt;
   };

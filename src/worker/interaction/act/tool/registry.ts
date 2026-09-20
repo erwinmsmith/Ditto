@@ -41,8 +41,6 @@ export class ToolRegistry {
     if (!tool) throw new Error(`Unknown tool: ${call.name}`);
     tool.validate(call.arguments);
     const outcome = await tool.execute(call.arguments, context);
-    const result = { ...outcome, callId: call.id, source: call.name };
-    externalResult(result);
-    return result;
+    return externalResult({ ...outcome, callId: call.id, source: call.name });
   }
 }

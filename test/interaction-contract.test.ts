@@ -145,6 +145,39 @@ test("OUTPUT rejects mismatched receipts and requires an error on uncertain deli
   finally { await throwing.close(); }
 });
 
+test("Interaction projects safe errors and rejects unsafe optional errors", async () => {
+  const safe = { code: "REMOTE_ERROR", message: "Safe summary", retryable: false,
+    stack: "at handler (/srv/private/worker.ts:42:7)", token: "synthetic-secret-marker" };
+  const projected = { code: "REMOTE_ERROR", message: "Safe summary", retryable: false };
+  const unsafe = { code: "REMOTE_ERROR", message: "Bearer synthetic-secret-marker" };
+  const tools = new ToolRegistry();
+  tools.register({ name: "failed", inputSchema: {}, validate() {}, async execute() { return { status: "failed", error: safe }; } });
+  tools.register({ name: "success", inputSchema: {}, validate() {}, async execute() { return { status: "success", content: "ok", error: unsafe }; } });
+  const mcp = new McpRegistry();
+  mcp.register("failed", { listTools: async () => ({ tools: [] }), callTool: async () => ({ isError: true, error: safe }) });
+  mcp.register("success", { listTools: async () => ({ tools: [] }), callTool: async () => ({ content: "ok", error: unsafe }) });
+  const output: OutputSink = { async deliver(input) { return { deliveryId: input.deliveryId,
+    status: input.deliveryId === "safe" ? "rejected" : "accepted", error: input.deliveryId === "unsafe" ? unsafe : safe }; } };
+  const runtime = createDitto({ sandbox: { tools: ["failed", "success"], mcp: ["failed", "success"] },
+    workers: [defineWorker({ type: "INTERACTION", nodes: createInteractionNodes({ tools, mcp, output }) })] });
+  try {
+    const tool = await runtime.invoke("INTERACTION.ACT.TOOL", { call: { id: "tool", name: "failed", arguments: {} } });
+    assert.deepEqual(tool.error, projected);
+    await assert.rejects(runtime.invoke("INTERACTION.ACT.TOOL", { call: { id: "unsafe", name: "success", arguments: {} } }), /Unsafe interaction error message/);
+    const mcpResult = await runtime.invoke("INTERACTION.ACT.MCP", { operation: "invoke", server: "failed", call: { id: "mcp", name: "x", arguments: {} } });
+    if (mcpResult.operation === "invoke") assert.deepEqual(mcpResult.result.error, projected);
+    await assert.rejects(runtime.invoke("INTERACTION.ACT.MCP", { operation: "invoke", server: "success", call: { id: "unsafe", name: "x", arguments: {} } }), /Unsafe interaction error message/);
+    const observation = await runtime.invoke("INTERACTION.OBSERVE", { result: { callId: "obs", source: "tool", status: "failed", error: safe } });
+    assert.deepEqual(observation.error, projected);
+    await assert.rejects(runtime.invoke("INTERACTION.OBSERVE", { result: { callId: "unsafe", source: "tool", status: "success", content: "ok", error: unsafe } }), /Unsafe interaction error message/);
+    const receipt = await runtime.invoke("INTERACTION.OUTPUT", { deliveryId: "safe", message: { role: "assistant", content: "done" } });
+    assert.deepEqual(receipt.error, projected);
+    const accepted = await runtime.invoke("INTERACTION.OUTPUT", { deliveryId: "safe-accepted", message: { role: "assistant", content: "done" } });
+    assert.deepEqual(accepted.error, projected);
+    await assert.rejects(runtime.invoke("INTERACTION.OUTPUT", { deliveryId: "unsafe", message: { role: "assistant", content: "done" } }), /Unsafe interaction error message/);
+  } finally { await runtime.close(); }
+});
+
 test("Interaction result contracts preserve correlation and references over HTTP", async () => {
   const tools = new ToolRegistry();
   tools.register({ name: "remote", inputSchema: {}, validate() {}, async execute() { return { status: "success", structuredContent: { value: 7 }, references: [{ uri: "urn:result:7" }] }; } });

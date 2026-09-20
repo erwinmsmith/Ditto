@@ -33,9 +33,9 @@ export interface Context { items: readonly ContextItem[]; }
 export type ContextSource = Message | Reference | ContextItem;
 
 export type ContextIngressSource =
-  | "MEMORY.SKILL"
+  | "CONTEXT.SKILL"
   | "CONTEXT.RAG.RANK"
-  | "MEMORY.RAG.RANK"
+  | "MEMORY.SEARCH"
   | "INTERACTION.OBSERVE";
 export interface ContextIngress {
   id: string;
@@ -43,19 +43,6 @@ export interface ContextIngress {
   content: MessageContent;
   reference?: Reference;
   metadata?: JsonObject;
-}
-
-export interface MemoryDraft {
-  key?: string;
-  message: Message;
-  metadata?: JsonObject;
-}
-export interface MemoryItem extends MemoryDraft { id: string; }
-export interface MemoryReference { id: string; }
-export interface MemorySelector {
-  ids?: readonly string[];
-  keys?: readonly string[];
-  filter?: JsonObject;
 }
 
 export interface ToolCall {
@@ -79,7 +66,6 @@ export interface KnowledgeItem {
 }
 export interface EmbeddingRecord { itemId: string; vector: readonly number[]; }
 export interface RagCandidate { item: KnowledgeItem; score?: number; }
-export interface MemoryRagCandidate { memory: MemoryItem; score?: number; }
 export interface Skill {
   name: string;
   version?: string;

@@ -1,55 +1,29 @@
-import type {
-  EmbeddingRecord, MemoryDraft, MemoryItem, MemoryRagCandidate,
-  MemoryReference, MemorySelector, Message, MessageContent, Reference, Skill,
-} from "../../contracts/common.js";
+import type { NodeResult } from "../../contracts/node-result.js";
+import type { MemoryGetInput, MemoryGetOutput } from "./get/types.js";
+import type { MemoryQueryInput, MemoryQueryOutput } from "./query/types.js";
+import type { MemorySearchInput, MemorySearchOutput } from "./search/types.js";
+import type { MemoryWriteInput, MemoryWriteOutput } from "./write/types.js";
+import type { MemoryUpdateInput, MemoryUpdateOutput } from "./update/types.js";
+import type { MemoryDeleteInput, MemoryDeleteOutput } from "./delete/types.js";
 
-export type {
-  EmbeddingRecord, MemoryDraft, MemoryItem, MemoryRagCandidate,
-  MemoryReference, MemorySelector, Skill,
-} from "../../contracts/common.js";
+export type * from "./get/types.js";
+export type * from "./query/types.js";
+export type * from "./search/types.js";
+export type * from "./write/types.js";
+export type * from "./update/types.js";
+export type * from "./delete/types.js";
+export type * from "./types.js";
 
-export interface MemoryRetrieveInput { selector: MemorySelector; limit?: number; }
-export type MemoryRetrieveOutput = readonly MemoryItem[];
-export interface MemoryWriteInput { memories: readonly MemoryDraft[]; }
-export type MemoryWriteOutput = readonly MemoryItem[];
-export interface MemoryUpdateEntry { id: string; message: Message; metadata?: import("../../contracts/common.js").JsonObject; }
-export interface MemoryUpdateInput { memories: readonly MemoryUpdateEntry[]; }
-export type MemoryUpdateOutput = readonly MemoryItem[];
-export interface MemoryConsolidateInput { memories: readonly MemoryReference[]; strategy?: string; }
-export type MemoryConsolidateOutput = readonly MemoryItem[];
-export type MemoryEvictMode = "delete" | "invalidate" | "deprioritize";
-export interface MemoryEvictInput { memories: readonly MemoryReference[]; mode: MemoryEvictMode; }
-export type MemoryEvictOutput = readonly MemoryReference[];
-
-export interface MemoryRagEmbedInput { memories: readonly MemoryItem[]; }
-export type MemoryRagEmbedOutput = readonly EmbeddingRecord[];
-export interface MemoryRagRetrieveInput {
-  query: MessageContent;
-  corpus?: Reference;
-  limit?: number;
-  strategy?: string;
+export interface MemoryContractMap {
+  "MEMORY.GET": { input: MemoryGetInput; output: MemoryGetOutput };
+  "MEMORY.QUERY": { input: MemoryQueryInput; output: MemoryQueryOutput };
+  "MEMORY.SEARCH": { input: MemorySearchInput; output: MemorySearchOutput };
+  "MEMORY.WRITE": { input: MemoryWriteInput; output: MemoryWriteOutput };
+  "MEMORY.UPDATE": { input: MemoryUpdateInput; output: MemoryUpdateOutput };
+  "MEMORY.DELETE": { input: MemoryDeleteInput; output: MemoryDeleteOutput };
 }
-export type MemoryRagRetrieveOutput = readonly MemoryRagCandidate[];
-export interface MemoryRagRankInput {
-  query: MessageContent;
-  candidates: readonly MemoryRagCandidate[];
-  limit?: number;
-  strategy?: string;
-}
-export type MemoryRagRankOutput = readonly MemoryRagCandidate[];
-export interface MemorySkillInput { name: string; version?: string; }
-export type MemorySkillOutput = Skill;
-
-declare module "../../contracts/node-contract-map.js" {
-  interface NodeContractMap {
-    "MEMORY.RETRIEVE": NodeContract<MemoryRetrieveInput, MemoryRetrieveOutput>;
-    "MEMORY.WRITE": NodeContract<MemoryWriteInput, MemoryWriteOutput>;
-    "MEMORY.UPDATE": NodeContract<MemoryUpdateInput, MemoryUpdateOutput>;
-    "MEMORY.CONSOLIDATE": NodeContract<MemoryConsolidateInput, MemoryConsolidateOutput>;
-    "MEMORY.EVICT": NodeContract<MemoryEvictInput, MemoryEvictOutput>;
-    "MEMORY.RAG.EMBED": NodeContract<MemoryRagEmbedInput, MemoryRagEmbedOutput>;
-    "MEMORY.RAG.RETRIEVE": NodeContract<MemoryRagRetrieveInput, MemoryRagRetrieveOutput>;
-    "MEMORY.RAG.RANK": NodeContract<MemoryRagRankInput, MemoryRagRankOutput>;
-    "MEMORY.SKILL": NodeContract<MemorySkillInput, MemorySkillOutput>;
-  }
-}
+export type MemoryNode = keyof MemoryContractMap;
+export type MemoryInput<N extends MemoryNode> = MemoryContractMap[N]["input"];
+export type MemoryOutput<N extends MemoryNode> = MemoryContractMap[N]["output"];
+type RuntimeContracts = { [N in MemoryNode]: { input: MemoryInput<N>; output: NodeResult<MemoryOutput<N>> } };
+declare module "../../contracts/node-contract-map.js" { interface NodeContractMap extends RuntimeContracts {} }

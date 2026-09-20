@@ -5,8 +5,9 @@
 | Worker | Reference | Implemented capabilities |
 | --- | --- | --- |
 | INFER | [API](infer.md) · [中文](infer.zh-CN.md) | SAMPLE, TRAJECTORY, REFLECT, DELIBERATE, CACHE LOOKUP / WRITE / INVALIDATE |
+| MEMORY | [API](memory.md) · [中文](memory.zh-CN.md) | GET / QUERY / SEARCH / WRITE / UPDATE / DELETE; external storage/search plugins |
 
-These references describe executable APIs. Earlier node taxonomy proposals remain available as historical design documents; use this directory for the implemented INFER contract.
+These references describe executable APIs. Earlier node taxonomy proposals remain available as historical design documents; use this directory for the implemented INFER and MEMORY contracts.
 
 - [Provider API](providers.md): shared registry, vendor protocols, streaming and tool messages.
 - [ReAct graph flow](../interaction-runtime.md#react-predefined-graph-flow): Runtime sampling/action orchestration.

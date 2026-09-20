@@ -17,7 +17,7 @@ export function jsonValue(value: unknown, name: string, seen = new Set<object>()
   seen.delete(value);
 }
 
-export function interactionError(value: unknown): asserts value is InteractionError {
+export function interactionError(value: unknown): InteractionError {
   if (!value || typeof value !== "object") throw new Error("Interaction error is required");
   const error = value as Record<string, unknown>;
   nonempty(error.code, "error.code"); nonempty(error.message, "error.message");
@@ -27,16 +27,23 @@ export function interactionError(value: unknown): asserts value is InteractionEr
     || absolutePathInError.test(error.message)
     || stackFrameInError.test(error.message)) throw new Error("Unsafe interaction error message");
   if (error.retryable !== undefined && typeof error.retryable !== "boolean") throw new Error("error.retryable must be boolean");
+  return { code: error.code, message: error.message,
+    ...(error.retryable === undefined ? {} : { retryable: error.retryable }) };
 }
 
-export function externalResult(value: unknown): asserts value is ExternalResult {
+export function externalResult(value: unknown, errorFallback?: InteractionError): ExternalResult {
   if (!value || typeof value !== "object") throw new Error("External result is required");
   const result = value as Record<string, unknown>;
   nonempty(result.callId, "callId"); nonempty(result.source, "source");
   if (!["success", "failed", "cancelled", "timeout", "unknown"].includes(String(result.status))) throw new Error("Invalid external result status");
   if (result.status === "success") {
     if (result.content === undefined && result.structuredContent === undefined && result.references === undefined) throw new Error("Successful external result has no content");
-  } else interactionError(result.error);
+  } else if (result.error === undefined && errorFallback === undefined) interactionError(result.error);
+  let error: InteractionError | undefined;
+  if (result.error !== undefined) {
+    try { error = interactionError(result.error); }
+    catch (cause) { if (errorFallback === undefined) throw cause; error = errorFallback; }
+  } else if (result.status !== "success") error = errorFallback;
   for (const field of ["content", "structuredContent", "metadata"] as const) {
     if (result[field] !== undefined) jsonValue(result[field], field);
   }
@@ -47,13 +54,16 @@ export function externalResult(value: unknown): asserts value is ExternalResult 
       nonempty((reference as Record<string, unknown>).uri, "reference.uri");
     }
   }
+  return error === undefined ? value as ExternalResult : { ...result, error } as unknown as ExternalResult;
 }
 
-export function outputReceipt(value: unknown): asserts value is OutputReceipt {
+export function outputReceipt(value: unknown): OutputReceipt {
   if (!value || typeof value !== "object") throw new Error("Output receipt is required");
   const receipt = value as Record<string, unknown>;
   nonempty(receipt.deliveryId, "deliveryId");
   if (!["accepted", "rejected", "unknown"].includes(String(receipt.status))) throw new Error("Invalid output status");
-  if (receipt.status !== "accepted") interactionError(receipt.error);
+  if (receipt.status !== "accepted" && receipt.error === undefined) interactionError(receipt.error);
+  const error = receipt.error === undefined ? undefined : interactionError(receipt.error);
   if (receipt.metadata !== undefined) jsonValue(receipt.metadata, "metadata");
+  return error === undefined ? value as OutputReceipt : { ...receipt, error } as unknown as OutputReceipt;
 }

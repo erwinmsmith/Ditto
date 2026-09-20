@@ -28,10 +28,13 @@ const token = process.env.DITTO_TRANSPORT_HTTP_WORKER_TOKEN;
 if (!token) throw new Error("Set DITTO_TRANSPORT_HTTP_WORKER_TOKEN");
 const runtime = createDitto({ hostId: "server-a", processId: "agent-service", config: loadRuntimeConfig() });
 const worker = runtime.register(defineWorker({
-  type: "memory", concurrency: 8, expose: ["MEMORY.RETRIEVE"],
+  type: "memory", concurrency: 8, expose: ["MEMORY.GET"],
   nodes: {
-    "MEMORY.RETRIEVE": async ({ selector }) =>
-      selector.ids?.map((id) => ({ id, message: { role: "assistant", content: `memory:${id}` } })) ?? [],
+    // Transport-only fixture; use createMemoryWorker with real plugins in production.
+    "MEMORY.GET": async ({ ids }) => ({
+      executionId: crypto.randomUUID(), node: "MEMORY.GET", status: "success",
+      output: ids?.map(id => ({ id, content: `memory:${id}` })) ?? [],
+    }),
   },
 }), "memory-a");
 const server = createServer(createWorkerHttpHandler(runtime, { token }));
@@ -52,10 +55,10 @@ const transport = createHttpTransport({
 const runtime = createDitto({ hostId: "client", transports: [transport] });
 runtime.registerRemote({
   address: { workerId: "memory-a", workerType: "memory", hostId: "server-a", processId: "agent-service" },
-  capabilities: ["MEMORY.RETRIEVE"], transportId: transport.id,
+  capabilities: ["MEMORY.GET"], transportId: transport.id,
 });
 try {
-  console.log(await runtime.invoke("MEMORY.RETRIEVE", { selector: { ids: ["example"] } }));
+  console.log(await runtime.invoke("MEMORY.GET", { ids: ["example"] }));
 } finally { await runtime.close(); }
 ```
 
@@ -71,7 +74,7 @@ The receiving handler validates the Envelope shape. The Runtime then checks targ
 
 The token is a service-level credential that authorizes all public capabilities in that service's Runtime; it is not a tenant or per-Node ACL. External requests should pass through the application's authentication/tenant gateway. Use `expose` to limit public entry points. The execution host uses its own Provider keys, model, and Sandbox settings; callers cannot override those through an Envelope. Business inputs may still contain sensitive content, so applications must manage logging and storage accordingly.
 
-Calls are not retried automatically. A timeout or disconnect leaves the result unknown: the remote side may still be executing or may already have performed effects. An HTTP client timeout ends only the wait; it does not provide remote cancellation, deduplication, transactions, or exactly-once execution. Retrying effects requires application-level idempotency keys and persistent result records. Remote overload currently returns a generic failure; the caller has no automatic failover or health probing.
+Calls are not retried automatically. A timeout or disconnect leaves the result unknown: the remote side may still be executing or may already have changed external state. An HTTP client timeout ends only the wait; it does not provide remote cancellation, deduplication, transactions, or exactly-once execution. Retrying operations that may affect external state requires application-level idempotency keys and persistent result records. Remote overload currently returns a generic failure; the caller has no automatic failover or health probing.
 
 During shutdown, first stop accepting new HTTP requests and await application-level work, then close the Runtime and Server. Owners close external MCP and Provider connections. `registerRemote` only adds a local directory entry; it does not start a server or copy Worker code to another machine.
 

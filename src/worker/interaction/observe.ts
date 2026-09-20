@@ -5,7 +5,7 @@ import { externalResult } from "./validation.js";
 export const interactionObserveNode = createNodeScaffold("INTERACTION.OBSERVE");
 
 export function observeExternalResult({ result }: InteractionObserveInput): Observation {
-  externalResult(result);
+  result = externalResult(result);
   const parts: MessagePart[] = [];
   if (result.status !== "success") parts.push({ type: "text", text: `${result.status}: ${result.error!.code}: ${result.error!.message}` });
   if (result.content !== undefined) {

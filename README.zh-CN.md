@@ -31,7 +31,7 @@ Ditto 将系统拆分为四个概念：
 - `INFER.REASONING.*`：显式推理组织能力，包括 `TRAJECTORY`、`REFLECT`、`DELIBERATE`、`SAMPLE`；
 - `INFER.CACHE.*`：推理缓存的 `LOOKUP`、`WRITE`、`INVALIDATE`；
 - `CONTEXT.*`：当前 invocation/turn 的 working set，包括任务知识 RAG 与本轮激活的 Skill；
-- `MEMORY.*`：跨 invocation 持久存在的语义状态，包括 Memory RAG 与持久化 Skill；
+- `MEMORY.*`：长期记忆存储与搜索，提供 GET / QUERY / SEARCH / WRITE / UPDATE / DELETE；
 - `INTERACTION.ACT.TOOL` / `INTERACTION.ACT.MCP`：对外动作；
 - `INTERACTION.OBSERVE` / `INTERACTION.OUTPUT`：标准化观察与最终输出。
 
@@ -43,8 +43,8 @@ Ditto 将系统拆分为四个概念：
 
 ```text
 runRagFlow(context)  CONTEXT.RAG.RETRIEVE -> CONTEXT.RAG.RANK -> CONTEXT.UPDATE
-runRagFlow(memory)   MEMORY.RAG.RETRIEVE  -> MEMORY.RAG.RANK  -> CONTEXT.UPDATE
-runSkillFlow         MEMORY.SKILL          -> CONTEXT.UPDATE
+runRagFlow(memory)   MEMORY.SEARCH -> mapMemory -> CONTEXT.UPDATE
+runSkillFlow         CONTEXT.SKILL (application supplies the Skill)
 runToolCallFlow      INTERACTION.ACT.TOOL   -> CONTEXT.UPDATE
 runMcpFlow           INTERACTION.ACT.MCP    -> CONTEXT.UPDATE
 ```
@@ -75,12 +75,15 @@ Graph 只包含语义 Node Type 与数据绑定，不包含 Worker ID 或网络�
 import { graph, type Message } from "@ditto/core";
 
 const review = graph<Message>("review")
-  .node("memories", "MEMORY.RETRIEVE", [], () => ({
-    selector: { keys: ["review-policy"] },
+  .node("memories", "MEMORY.GET", [], () => ({
+    keys: ["review-policy"],
   }))
-  .node("context", "CONTEXT.LOAD", ["memories"], (query, { memories }) => ({
-    sources: [query, ...memories.map((memory) => memory.message)],
-  }))
+  .node("context", "CONTEXT.LOAD", ["memories"], (query, { memories }) => {
+    if (memories.status !== "success" || !memories.output) throw new Error("Memory read failed");
+    return { sources: [query, ...memories.output.map(memory => ({
+      id: memory.id, content: typeof memory.content === "string" ? memory.content : JSON.stringify(memory.content),
+    }))] };
+  })
   .node("reason", "INFER.REASONING.TRAJECTORY", ["context"], (_query, { context }) => ({
     messages: [{ role: _query.role, content: typeof _query.content === "string"
       ? _query.content : JSON.stringify(_query.content) }],
@@ -146,3 +149,5 @@ npm run check
 具体使用案例、缺陷与架构讨论请提交至 [GitHub Issues](https://github.com/erwinmsmith/Ditto/issues)。
 
 行为参数统一放根目录 [`ditto.yaml`](ditto.yaml)，凭证与部署配置使用 [`.env.example`](.env.example)，所有 Worker 共用 Runtime services。详见 [统一配置 API](docs/worker-api/configuration.zh-CN.md)。显式运行 `npm run check:infer:live -- --provider deepseek`，查看 [INFER 真实验证报告](docs/worker-api/infer-live-report.md)。
+
+MEMORY 的接入、插件边界、六个节点和配置详见 [MEMORY API](docs/worker-api/memory.zh-CN.md)。

@@ -27,6 +27,9 @@ runtime:               # 超时与 Graph 编排
 shared:
   providers: {}        # 共享供应商请求行为
 workers:
+  memory:
+    queryLimit: 100
+    searchLimit: 10
   infer:               # INFER 专属参数
     generation: {}
     constraints: {}
@@ -44,14 +47,14 @@ workers:
 | INFER Worker | `DITTO_WORKER_INFER_*` |
 | HTTP 通信 | `DITTO_TRANSPORT_HTTP_*` |
 
-目前只有 INFER 消费专属配置，其他 Worker 不预建空字段。`.env` 中的 HTTP token 由通信启动代码读取，不进入推理请求，也不放入 YAML。旧的 YAML 顶层 infer/providers/react 和旧 env 前缀会报错，需要按上述结构迁移。
+INFER 与 MEMORY 消费各自的专属配置；数据库连接配置由外部插件负责。`.env` 中的 HTTP token 由通信启动代码读取，不进入推理请求，也不放入 YAML。旧的 YAML 顶层 infer/providers/react 和旧 env 前缀会报错，需要按上述结构迁移。
 
 ## 配置边界
 
 | 文件 | 配置内容 |
 | --- | --- |
 | `.env` | `DITTO_RUNTIME_ENV`、`DITTO_RUNTIME_WORKSPACE`；启用供应商的 `DITTO_SHARED_PROVIDERS`；默认模型 `DITTO_WORKER_INFER_MODEL_PROVIDER` + `DITTO_WORKER_INFER_MODEL`；每家供应商 `DITTO_SHARED_PROVIDER_<NAME>_KIND/BASE_URL/API_KEY/MODEL`；`DITTO_SHARED_SANDBOX_ALLOW_NETWORK/TOOLS/MCP/SKILLS/READ/WRITE/EXECUTE` 部署权限；应用显式读取的 HTTP Worker token |
-| `ditto.yaml` | Runtime 超时与循环次数、INFER 采样参数与轨迹预算、各推理策略的轮数/宽度/深度、ReAct 动作预算、供应商请求行为 |
+| `ditto.yaml` | Runtime 超时与循环次数、INFER 采样参数与轨迹预算、各推理策略的轮数/宽度/深度、ReAct 动作预算、供应商请求行为、MEMORY 查询/搜索条数 |
 | 单次 Node 输入 | 本次消息、模型、候选、反思标准等业务内容，以及可选的参数覆盖 |
 
 旧的 `DITTO_TIMEOUT_MS`、`DITTO_MAX_TURNS`、`DITTO_SHARED_PROVIDER_*_OPTIONS/MAX_TOKENS_FIELD` 已迁移到 YAML；仍在 env 中设置会抛出迁移提示，避免两份配置互相覆盖。YAML 不做 `${ENV}` 插值，不允许 `apiKey` / `baseUrl` 等部署字段。供应商 options 是透传参数对象，不要放任何凭证。
@@ -63,7 +66,7 @@ loadRuntimeConfigFile(path = "ditto.yaml", env = process.env): RuntimeConfig
 loadRuntimeConfig(env = process.env, settings: RuntimeSettings = {}): RuntimeConfig
 ```
 
-第一个接口读取 UTF-8 YAML；相对路径基于当前工作目录。第二个是纯配置解析，供测试、嵌入式应用传对象使用，不访问文件。这次分组调整作用于输入文件和 RuntimeSettings；加载后仍返回原有的不可变配置快照，包含 `environment/workspace/model/providers/timeoutMs/maxTurns/infer/react/sandbox`。配置只读取一次；修改 YAML 后需重新加载并创建 Runtime。Worker 通过 `ctx.services.config` 访问同一快照。
+第一个接口读取 UTF-8 YAML；相对路径基于当前工作目录。第二个是纯配置解析，供测试、嵌入式应用传对象使用，不访问文件。这次分组调整作用于输入文件和 RuntimeSettings；加载后仍返回原有的不可变配置快照，包含 `environment/workspace/model/providers/timeoutMs/maxTurns/infer/memory/react/sandbox`。配置只读取一次；修改 YAML 后需重新加载并创建 Runtime。Worker 通过 `ctx.services.config` 访问同一快照。
 
 缺失文件、空文件、非对象、未知字段、重复键、YAML alias、非法数字在启动时抛错，不静默退回默认值。只使用标准 YAML 数据结构，不使用自定义 tag 或 merge key。显式自定义 `providers` Registry 时，Runtime 不再从配置构建 HTTP Provider。
 
@@ -106,3 +109,7 @@ YAML 中的供应商名称只设置行为，不自动启用供应商；由 `.env
 运行 `npm run check:infer:live -- --provider deepseek` 使用同一 YAML；`--max-tokens` 仅覆盖该次实验的生成上限。报告记录有效默认配置与真实结果，见 [实测报告](infer-live-report.md)。
 
 DELIBERATE 的 mode/selectCount 优先使用请求字段，再使用 workers.infer.deliberate，最后回退为 select / 1。配置中的 selectCount 仅在实际模式为 select 时生效；请求显式为其他模式传入 selectCount 会报错。数量超过实际候选数时，在调用供应商之前返回 INVALID_INPUT，不会静默裁剪。采样优先级为：请求 generation > deliberate.generation > infer.generation > 供应商默认值。ToT 显式指定选择模式与保留数量，GoT 显式指定 merge；内部评估继承 DELIBERATE 采样配置，但始终受轨迹剩余 Token 预算限制，轨迹请求显式 generation 仍优先。
+
+## MEMORY
+
+`workers.memory.queryLimit` / `searchLimit` 必须为 1–10000 整数，内置和根 YAML 默认分别为 100 / 10，加载后位于 `config.memory`。逐字段优先级为请求 limit > MemoryOptions.defaults > Runtime YAML > 内置默认。独立 SDK 通过 `defaults: config.memory` 接入。数据库 env 由外部插件读取，Core 不解析数据库连接或凭据。见 [MEMORY API](memory.zh-CN.md)。

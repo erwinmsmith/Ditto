@@ -2,7 +2,7 @@ import type { ExternalResult, InteractionError, JsonObject, McpCapability, Messa
 import type { Sandbox } from "../../../runtime/sandbox/index.js";
 import { createNodeScaffold } from "../../node-scaffold.js";
 import type { InteractionMcpInput, InteractionMcpOutput } from "../contracts.js";
-import { externalResult, interactionError, jsonValue, nonempty } from "../validation.js";
+import { externalResult, jsonValue, nonempty } from "../validation.js";
 
 export const interactionMcpNode = createNodeScaffold("INTERACTION.ACT.MCP");
 
@@ -26,12 +26,6 @@ export interface McpToolResult {
 export interface McpRegistryOptions { maxDiscoveryPages?: number; maxCapabilities?: number; }
 
 const defaultMcpError: InteractionError = { code: "MCP_TOOL_ERROR", message: "MCP tool reported an execution error" };
-function normalizedMcpError(value: unknown): InteractionError {
-  try {
-    interactionError(value);
-    return value;
-  } catch { return defaultMcpError; }
-}
 
 export class McpRegistry {
   readonly #clients = new Map<string, McpClient>();
@@ -56,16 +50,15 @@ export class McpRegistry {
       const response = await client.callTool({ name: input.call.name, arguments: { ...input.call.arguments } });
       if (!response || typeof response !== "object") throw new Error("Invalid MCP tool result");
       if (response.isError !== undefined && typeof response.isError !== "boolean") throw new Error("Invalid MCP isError");
-      const result: ExternalResult = {
+      const result: ExternalResult = externalResult({
         callId: input.call.id,
         source: `${input.server}:${input.call.name}`,
         status: response.isError ? "failed" : "success",
         ...(response.content === undefined ? {} : { content: response.content }),
         ...(response.structuredContent === undefined ? {} : { structuredContent: response.structuredContent }),
         ...(response.references === undefined ? {} : { references: response.references }),
-        ...(response.isError ? { error: normalizedMcpError(response.error) } : {}),
-      };
-      externalResult(result);
+        ...(response.error === undefined ? {} : { error: response.error }),
+      }, response.isError ? defaultMcpError : undefined);
       return { operation: "invoke", result };
     }
     const servers = input.server ? [input.server] : [...this.#clients.keys()];

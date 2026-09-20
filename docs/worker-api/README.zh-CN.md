@@ -5,8 +5,9 @@
 | Worker | 详细接口 | 已实现能力 |
 | --- | --- | --- |
 | INFER | [中文 API](infer.zh-CN.md) · [English](infer.md) | SAMPLE、TRAJECTORY、REFLECT、DELIBERATE、CACHE LOOKUP / WRITE / INVALIDATE |
+| MEMORY | [API](memory.md) · [中文](memory.zh-CN.md) | GET / QUERY / SEARCH / WRITE / UPDATE / DELETE；外部存储/搜索插件 |
 
-本目录描述实际可执行的 API。早期节点体系文档保留为设计记录；INFER 的输入、输出、调用及执行语义以这里的接口文档为准。
+本目录描述实际可执行的 API。早期节点体系文档保留为设计记录；INFER 与 MEMORY 的输入、输出、调用及执行语义以这里的接口文档为准。
 
 - [Provider API](providers.zh-CN.md)：统一注册、多供应商协议、流式与工具消息。
 - [ReAct Graph 流程](../interaction-runtime.zh-CN.md#react-预定义-graph-流程)：Runtime 层的采样和动作循环。

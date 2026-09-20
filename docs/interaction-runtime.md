@@ -55,8 +55,8 @@ The public functions live directly in `src/runtime/graph.ts` and are exported fr
 | Function | Fixed flow |
 | --- | --- |
 | `runRagFlow({ scope: "context" })` | `CONTEXT.RAG.RETRIEVE -> CONTEXT.RAG.RANK -> CONTEXT.UPDATE` |
-| `runRagFlow({ scope: "memory" })` | `MEMORY.RAG.RETRIEVE -> MEMORY.RAG.RANK -> CONTEXT.UPDATE` |
-| `runSkillFlow()` | `MEMORY.SKILL -> CONTEXT.UPDATE` |
+| `runRagFlow({ scope: "memory" })` | `MEMORY.SEARCH -> mapMemory -> CONTEXT.UPDATE` |
+| `runSkillFlow()` | `CONTEXT.SKILL` |
 | `runToolCallFlow()` | `INTERACTION.ACT.TOOL -> INTERACTION.OBSERVE -> CONTEXT.UPDATE` |
 | `runMcpFlow()` | `discover`: MCP only; `invoke`: MCP -> OBSERVE -> CONTEXT.UPDATE |
 
@@ -67,7 +67,7 @@ import { runSkillFlow, runToolCallFlow } from "@ditto/core/runtime";
 
 const skill = await runSkillFlow(runtime, {
   context,
-  name: "code-review",
+  skill: { name: "code-review", instructions: "Review correctness and tests." },
 });
 
 const tool = await runToolCallFlow(runtime, {
@@ -80,9 +80,9 @@ Applications may compose the same leaf Nodes differently with `ExecutionGraph`; 
 
 ## Skill Lifecycle
 
-`MEMORY.SKILL` stores/retrieves durable procedural knowledge. `CONTEXT.SKILL` represents a Skill activated in the current working set. The predefined Skill flow retrieves `MEMORY.SKILL` and writes its instructions through `CONTEXT.UPDATE`; it does not invent another Skill Node.
+Applications resolve a Skill before passing it to runSkillFlow, which invokes CONTEXT.SKILL. MEMORY does not manage Skills.
 
-`SkillRegistry` is the lightweight process-local reference implementation. Durable stores can implement the same Node Contract independently.
+`SkillRegistry` lives in the context directory and provides process-local registration/loading with Sandbox checks. Applications own durable Skill management.
 
 ## Sandbox and Deployment
 
@@ -149,10 +149,12 @@ ReactFlowInput inherits SAMPLE model/messages/generation/actions/metadata. Upstr
 | timeoutMs | Minimum of constraints and options/Runtime config.timeoutMs; library fallback 30 seconds, root YAML 120 seconds |
 | signal | Stops waiting/scheduling; already dispatched remote work may continue |
 
-Caller-owned `ActionDescriptor.target` selects a direct tool, an MCP server/tool pair, or a public Node. Missing targets default to direct TOOL. Runtime fixes MCP operation to `invoke`; model arguments cannot select a server or route. TOOL/MCP results pass through OBSERVE before SAMPLE feedback. Actions execute sequentially. A structured `failed` result reaches the next SAMPLE; `cancelled`, `timeout`, and `unknown` stop new actions. Infrastructure exceptions stop the flow without inventing an observation. Core never retries an external effect automatically.
+Caller-owned `ActionDescriptor.target` selects a direct tool, an MCP server/tool pair, or a public Node. Missing targets default to direct TOOL. Runtime fixes MCP operation to `invoke`; model arguments cannot select a server or route. TOOL/MCP results pass through OBSERVE before SAMPLE feedback. Actions execute sequentially. A structured `failed` result reaches the next SAMPLE; `cancelled`, `timeout`, and `unknown` stop new actions. Infrastructure exceptions stop the flow without inventing an observation. Core never automatically retries an operation that may affect an external system.
 
-Completion returns completed. Budget/timeout/error stops return partial when a SAMPLE exists, otherwise failed. actionRequests contains unresolved requests. A timed-out action remains pending because its outcome is unknown; this does not mean its side effects did not occur. Successful observations feed the next tool message, preserving vendor metadata. No new actions start if the model step budget cannot consume their observations.
+Completion returns completed. Budget/timeout/error stops return partial when a SAMPLE exists, otherwise failed. actionRequests contains unresolved requests. A timed-out action remains pending because its outcome is unknown; this does not mean the action had no external impact. Successful observations feed the next tool message, preserving vendor metadata. No new actions start if the model step budget cannot consume their observations.
 
 Missing usage produces USAGE_UNAVAILABLE. Duplicate action IDs, undeclared actions and invalid model outputs stop the flow. Runtime has no cross-Worker cancellation protocol; deadlines stop local waiting and scheduling only. Planning belongs in an upstream SAMPLE Graph step, with its plan supplied to this flow; there is no duplicate plan-and-act strategy.
 
 Shared generation and budget defaults: [configuration API](worker-api/configuration.md).
+
+Memory RAG requires an explicit mapMemory callback; see the [MEMORY API](worker-api/memory.md). Failed SEARCH results do not update Context.

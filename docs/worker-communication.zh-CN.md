@@ -28,10 +28,13 @@ const token = process.env.DITTO_TRANSPORT_HTTP_WORKER_TOKEN;
 if (!token) throw new Error("Set DITTO_TRANSPORT_HTTP_WORKER_TOKEN");
 const runtime = createDitto({ hostId: "server-a", processId: "agent-service", config: loadRuntimeConfig() });
 const worker = runtime.register(defineWorker({
-  type: "memory", concurrency: 8, expose: ["MEMORY.RETRIEVE"],
+  type: "memory", concurrency: 8, expose: ["MEMORY.GET"],
   nodes: {
-    "MEMORY.RETRIEVE": async ({ selector }) =>
-      selector.ids?.map((id) => ({ id, message: { role: "assistant", content: `memory:${id}` } })) ?? [],
+    // Transport-only fixture; use createMemoryWorker with real plugins in production.
+    "MEMORY.GET": async ({ ids }) => ({
+      executionId: crypto.randomUUID(), node: "MEMORY.GET", status: "success",
+      output: ids?.map(id => ({ id, content: `memory:${id}` })) ?? [],
+    }),
   },
 }), "memory-a");
 const server = createServer(createWorkerHttpHandler(runtime, { token }));
@@ -52,10 +55,10 @@ const transport = createHttpTransport({
 const runtime = createDitto({ hostId: "client", transports: [transport] });
 runtime.registerRemote({
   address: { workerId: "memory-a", workerType: "memory", hostId: "server-a", processId: "agent-service" },
-  capabilities: ["MEMORY.RETRIEVE"], transportId: transport.id,
+  capabilities: ["MEMORY.GET"], transportId: transport.id,
 });
 try {
-  console.log(await runtime.invoke("MEMORY.RETRIEVE", { selector: { ids: ["example"] } }));
+  console.log(await runtime.invoke("MEMORY.GET", { ids: ["example"] }));
 } finally { await runtime.close(); }
 ```
 
@@ -71,7 +74,7 @@ try {
 
 Token 是服务级凭证，可调用该服务 Runtime 内所有公开能力，不是租户或单 Node ACL。外部请求应通过应用自己的认证/租户网关；限制公开入口用 `expose`。执行端使用自己的 Provider Key、模型与 Sandbox 配置，调用端不能通过 Envelope 覆盖这些设置。业务输入本身仍可能包含敏感内容，应按应用需要管理日志和存储。
 
-不自动重试：超时/断线意味着调用结果未知，远端可能仍在执行或已经完成副作用。HTTP 客户端超时只结束等待，不提供远端取消、去重、事务或 exactly-once。上层如要重试副作用，须提供业务幂等键和持久化结果表。远端满载目前返回通用失败，调用端没有自动故障转移或健康探测。
+不自动重试：超时/断线意味着调用结果未知，远端可能仍在执行，或已经改变外部状态。HTTP 客户端超时只结束等待，不提供远端取消、去重、事务或 exactly-once。上层如要重试可能影响外部状态的操作，须提供业务幂等键和持久化结果表。远端满载目前返回通用失败，调用端没有自动故障转移或健康探测。
 
 服务停止时先停止接收新 HTTP 请求，等待应用顶层任务，再关闭 Runtime 和 Server；MCP、Provider 外部连接由拥有者关闭。`registerRemote` 只是本地目录登记，不会启动服务器或把 Worker 代码复制到另一台机器。
 

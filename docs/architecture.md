@@ -29,7 +29,7 @@ flowchart TB
 | `contracts/` | Shared Message/Reference/JSON types, the generic NodeContractMap interface, and type exports |
 | `worker/node.ts`, `worker/execution-context.ts` | Shared typed handlers, `defineNode`, and execution context; no domain operations |
 | `worker/define-worker.ts` | `defineWorker` / `extendWorker`, public capabilities, and replica resources |
-| `worker/memory/` | `contracts.ts`: Memory entities and RETRIEVE / WRITE / UPDATE / CONSOLIDATE / EVICT contracts |
+| `worker/memory/` | `contracts.ts`: Memory entities and GET / QUERY / SEARCH / WRITE / UPDATE / DELETE contracts |
 | `worker/context/` | Context contracts and leaf scaffolds, including current-task RAG and Skill activation |
 | `worker/infer/` | `reasoning/`: reasoning Contracts/scaffolds; `providers/`: flat vendor-neutral adapters; `cache/`: reserved namespace skeleton |
 | `worker/interaction/` | ACT.TOOL directory, ACT.MCP, OBSERVE, OUTPUT, and leaf handler composition |
@@ -51,13 +51,13 @@ Memory and Context expose typed contracts while applications supply storage and 
 - `node-contract-map.ts`: generic NodeContract<Input, Output>, the open NodeContractMap interface, and InputOf / OutputOf type inference.
 - `index.ts`: type-only exports forming the package's unified type entry, including each Worker's contract declarations.
 
-Concrete data types and Node-name mappings belong to the relevant Worker. For example, MemoryItem, MemoryRetrieveInput, and MEMORY.RETRIEVE are all declared in `worker/memory/contracts.ts`. Adding a Memory operation means adding its contract and handler within Memory, without modifying the Runtime or a central operation enum. These TypeScript types are erased during compilation; they do not participate in runtime routing or validate network input.
+Concrete data types and Node-name mappings belong to the relevant Worker. For example, MemoryItem, MemoryGetInput, and MEMORY.GET are all declared in `worker/memory/contracts.ts`. Adding a Memory operation means adding its contract and handler within Memory, without modifying the Runtime or a central operation enum. These TypeScript types are erased during compilation; they do not participate in runtime routing or validate network input.
 
-A Node is an operation inside a Worker. For example, an actual memory retrieval implementation would live in `worker/memory/retrieve.ts`, with its handler attached to the Memory Worker's nodes. Create that file only when an implementation needs it. `worker/node.ts` shares handler/defineNode types and definition helpers; it does not own Memory capabilities. Memory and Context currently have contracts, without database, retrieval, or compression implementations.
+MEMORY implements six validated nodes in `worker/memory/<operation>/node.ts` and injects external storage/search plugins through `createMemoryWorker`. Core supplies no database drivers. Context retains its contracts and leaf scaffolds.
 
 ## Workers Contain Nodes
 
-Built-in capabilities are organized as `MEMORY`, `CONTEXT`, `REASONING`, and `INTERACTION`; Workers with matching names are the recommended deployment boundaries. These names are not first-level Nodes. A custom Worker.type can still be any string, and explicit composition across domains remains supported: an Interaction Worker can include reasoning's GENERATE. Directory ownership does not restrict execution placement.
+Built-in capabilities are organized as `MEMORY`, `CONTEXT`, `INFER`, and `INTERACTION`; Workers with matching names are the recommended deployment boundaries. These names are not first-level Nodes. A custom Worker.type can still be any string, and explicit composition across domains remains supported: an Interaction Worker can include reasoning's GENERATE. Directory ownership does not restrict execution placement.
 
 In `defineWorker({ nodes, expose })`, `nodes` is the internal implementation set, while `expose` lists entry points available to Runtime routing and remote calls. Omitting `expose` exposes all implemented Nodes. Expose the capabilities that application Graphs invoke; internal Graphs may still use private Nodes. Repetition is invoked through `runtime.loop()`, not a RUN Node.
 
@@ -77,7 +77,7 @@ Data shared across replicas belongs in explicitly shared storage. Objects captur
 
 Before an internal Graph executes, the current Worker is checked for every required task. Missing internal Nodes do not silently route to another replica. This lets one internal Graph share its replica's resources and configuration. `ctx.invoke` does not guarantee the current replica; use `ctx.run` for internal execution.
 
-Graphs are immutable DAGs. `node(id, nodeType, dependencies, bind)` defines a task, dependencies, and input mapping. The same semantic Node may appear more than once with distinct logical IDs. Dependencies can refer only to previously declared tasks. Independent branches run concurrently; descendants of a failed task do not run, and the scheduler waits for started branches before settling. Execution does not roll back completed external effects.
+Graphs are immutable DAGs. `node(id, nodeType, dependencies, bind)` defines a task, dependencies, and input mapping. The same semantic Node may appear more than once with distinct logical IDs. Dependencies can refer only to previously declared tasks. Independent branches run concurrently; descendants of a failed task do not run, and the scheduler waits for started branches before settling. Execution does not roll back completed changes in external systems.
 
 Graphs contain no Provider keys, physical addresses, or replica counts. Because `bind` is a TypeScript function, a Graph cannot be serialized directly as JSON. Public Node invocations cross the transport boundary; remote Workers execute their already-deployed handlers and internal Graphs.
 
@@ -104,7 +104,7 @@ Handlers must await work they start. Closing a Runtime may reject Graph descenda
 
 ## Contracts and the Final Node Taxonomy
 
-`NodeContractMap` contains the 25 approved executable leaf Contracts. Reasoning lives under `INFER.REASONING.*`; current-task and durable retrieval remain separate under `CONTEXT.RAG.*` and `MEMORY.RAG.*`; Skills use `CONTEXT.SKILL` and `MEMORY.SKILL`; external calls use `INTERACTION.ACT.TOOL` and `INTERACTION.ACT.MCP`. Reset/session lifecycle and repeated execution belong to Runtime rather than Node Contracts. Task input enters at the application/Runtime boundary, while `INTERACTION.OUTPUT` submits the final result.
+`NodeContractMap` contains the 25 approved executable leaf Contracts. Reasoning lives under `INFER.REASONING.*`; current-task and durable retrieval remain separate under `CONTEXT.RAG.*` and `MEMORY.SEARCH`; Skills are application-resolved and activated through `CONTEXT.SKILL`; external calls use `INTERACTION.ACT.TOOL` and `INTERACTION.ACT.MCP`. Reset/session lifecycle and repeated execution belong to Runtime rather than Node Contracts. Task input enters at the application/Runtime boundary, while `INTERACTION.OUTPUT` submits the final result.
 
 Custom capabilities still use declaration merging without hard-coding a Node enum into the Router or Scheduler. The fixed TypeScript inputs and outputs are defined by the [Node Taxonomy and API Contract](13-node-api-contract.md).
 

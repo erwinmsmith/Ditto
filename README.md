@@ -13,7 +13,7 @@
   <strong>English</strong> | <a href="./README.zh-CN.md">简体中文</a>
 </p>
 
-> The authoritative definition is [Node System and API Contract](docs/13-node-api-contract.md). It contains the final Node tree, semantic boundaries, fixed shared types, and every public Node input/output contract.
+> The definition is [Node System and API Contract](docs/13-node-api-contract.md). It contains the final Node tree, semantic boundaries, fixed shared types, and every public Node input/output contract.
 
 ## Architecture
 
@@ -31,7 +31,7 @@ Changing a model, database, tool Provider, deployment location, or replica count
 - `INFER.REASONING.*`: explicit reasoning organization (`TRAJECTORY`, `REFLECT`, `DELIBERATE`, `SAMPLE`);
 - `INFER.CACHE.*`: inference cache `LOOKUP`, `WRITE`, and `INVALIDATE`;
 - `CONTEXT.*`: the current invocation/turn working set, including task-local RAG and activated Skills;
-- `MEMORY.*`: durable cross-invocation semantic state, including Memory RAG and stored Skills;
+- `MEMORY.*`: durable storage and search through GET / QUERY / SEARCH / WRITE / UPDATE / DELETE;
 - `INTERACTION.ACT.TOOL` / `INTERACTION.ACT.MCP`: external actions;
 - `INTERACTION.OBSERVE` / `INTERACTION.OUTPUT`: normalized observations and final output.
 
@@ -43,13 +43,13 @@ Four public compositions live directly in `src/runtime/graph.ts` and are exporte
 
 ```text
 runRagFlow(context)  CONTEXT.RAG.RETRIEVE -> CONTEXT.RAG.RANK -> CONTEXT.UPDATE
-runRagFlow(memory)   MEMORY.RAG.RETRIEVE  -> MEMORY.RAG.RANK  -> CONTEXT.UPDATE
-runSkillFlow         MEMORY.SKILL          -> CONTEXT.UPDATE
+runRagFlow(memory)   MEMORY.SEARCH -> mapMemory -> CONTEXT.UPDATE
+runSkillFlow         CONTEXT.SKILL (application supplies the Skill)
 runToolCallFlow      INTERACTION.ACT.TOOL   -> CONTEXT.UPDATE
 runMcpFlow           INTERACTION.ACT.MCP    -> CONTEXT.UPDATE
 ```
 
-These are functions, not Nodes. They provide standard ingress into `CONTEXT.UPDATE`; applications remain free to compose the same leaf Nodes differently. RAG `EMBED` is index preparation and is intentionally outside the query-time flow.
+These are functions, not Nodes. They provide standard Context ingress; Skill activation uses `CONTEXT.SKILL`; applications remain free to compose the same leaf Nodes differently. RAG `EMBED` is index preparation and is intentionally outside the query-time flow.
 
 ```ts
 import { runRagFlow, runToolCallFlow } from "@ditto/core/runtime";
@@ -75,12 +75,15 @@ Graphs contain semantic Node Types and data bindings, never Worker IDs or networ
 import { graph, type Message } from "@ditto/core";
 
 const review = graph<Message>("review")
-  .node("memories", "MEMORY.RETRIEVE", [], () => ({
-    selector: { keys: ["review-policy"] },
+  .node("memories", "MEMORY.GET", [], () => ({
+    keys: ["review-policy"],
   }))
-  .node("context", "CONTEXT.LOAD", ["memories"], (query, { memories }) => ({
-    sources: [query, ...memories.map((memory) => memory.message)],
-  }))
+  .node("context", "CONTEXT.LOAD", ["memories"], (query, { memories }) => {
+    if (memories.status !== "success" || !memories.output) throw new Error("Memory read failed");
+    return { sources: [query, ...memories.output.map(memory => ({
+      id: memory.id, content: typeof memory.content === "string" ? memory.content : JSON.stringify(memory.content),
+    }))] };
+  })
   .node("reason", "INFER.REASONING.TRAJECTORY", ["context"], (_query, { context }) => ({
     messages: [{ role: _query.role, content: typeof _query.content === "string"
       ? _query.content : JSON.stringify(_query.content) }],
@@ -145,3 +148,5 @@ The package is currently private and is not published to npm. Other experiment r
 Use [GitHub Issues](https://github.com/erwinmsmith/Ditto/issues) for concrete use cases, bugs, and architecture discussions.
 
 Behavior defaults live in root [`ditto.yaml`](ditto.yaml); credentials and deployment bindings use [`.env.example`](.env.example). All Workers share Runtime services; see the [configuration API](docs/worker-api/configuration.md). Run `npm run check:infer:live -- --provider deepseek` explicitly; see the [INFER live verification report](docs/worker-api/infer-live-report.md).
+
+See the [MEMORY API](docs/worker-api/memory.md) for plugin wiring, six node contracts and configuration.

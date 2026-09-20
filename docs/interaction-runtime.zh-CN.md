@@ -55,8 +55,8 @@ tools.register({
 | 函数 | 固定流程 |
 | --- | --- |
 | `runRagFlow({ scope: "context" })` | `CONTEXT.RAG.RETRIEVE -> CONTEXT.RAG.RANK -> CONTEXT.UPDATE` |
-| `runRagFlow({ scope: "memory" })` | `MEMORY.RAG.RETRIEVE -> MEMORY.RAG.RANK -> CONTEXT.UPDATE` |
-| `runSkillFlow()` | `MEMORY.SKILL -> CONTEXT.UPDATE` |
+| `runRagFlow({ scope: "memory" })` | `MEMORY.SEARCH -> mapMemory -> CONTEXT.UPDATE` |
+| `runSkillFlow()` | `CONTEXT.SKILL` |
 | `runToolCallFlow()` | `INTERACTION.ACT.TOOL -> INTERACTION.OBSERVE -> CONTEXT.UPDATE` |
 | `runMcpFlow()` | `discover` 只调用 MCP；`invoke` 执行 MCP -> OBSERVE -> CONTEXT.UPDATE |
 
@@ -67,7 +67,7 @@ import { runSkillFlow, runToolCallFlow } from "@ditto/core/runtime";
 
 const skill = await runSkillFlow(runtime, {
   context,
-  name: "code-review",
+  skill: { name: "code-review", instructions: "Review correctness and tests." },
 });
 
 const tool = await runToolCallFlow(runtime, {
@@ -80,9 +80,9 @@ const tool = await runToolCallFlow(runtime, {
 
 ## Skill 生命周期
 
-`MEMORY.SKILL` 保存或读取可持久化的程序性知识；`CONTEXT.SKILL` 表示本轮 working set 中已激活的 Skill。预定义 Skill 流程读取 `MEMORY.SKILL`，再通过 `CONTEXT.UPDATE` 写入指令，不额外创造 Skill Node。
+应用解析 Skill 后传入 runSkillFlow；流程调用 CONTEXT.SKILL 激活它。MEMORY 不负责 Skill 管理。
 
-`SkillRegistry` 是轻量的进程内参考实现。持久化存储可以独立实现相同的 Node Contract。
+`SkillRegistry` 位于 context 目录，提供带 Sandbox 检查的进程内注册/读取。长期 Skill 管理由应用实现。
 
 ## Sandbox 与部署
 
@@ -149,10 +149,12 @@ export interface ReactFlowResult {
 | `timeoutMs` | constraints 与 options/Runtime config.timeoutMs 的较小值；库回退值为 30 秒，根目录 YAML 为 120 秒 |
 | `signal` | 取消等待与后续调度；已派发的远程请求/动作可能继续执行 |
 
-调用方在 `ActionDescriptor.target` 中绑定直接工具、MCP 服务端及工具，或公开 Node。未指定目标时使用 TOOL。MCP 的 `operation` 固定为 `invoke`；模型参数不能决定服务端或路由。TOOL/MCP 结果经过 OBSERVE 后才反馈给 SAMPLE。多个动作顺序执行；结构化的 `failed` 结果进入下一轮 SAMPLE，`cancelled`、`timeout`、`unknown` 则停止后续动作。基础设施异常不伪造成观察结果。Core 不自动重试外部副作用。
+调用方在 `ActionDescriptor.target` 中绑定直接工具、MCP 服务端及工具，或公开 Node。未指定目标时使用 TOOL。MCP 的 `operation` 固定为 `invoke`；模型参数不能决定服务端或路由。TOOL/MCP 结果经过 OBSERVE 后才反馈给 SAMPLE。多个动作顺序执行；结构化的 `failed` 结果进入下一轮 SAMPLE，`cancelled`、`timeout`、`unknown` 则停止后续动作。基础设施异常不伪造成观察结果。Core 不自动重试可能影响外部系统的操作。
 
 成功返回 completed；预算/超时/错误中止且已有 SAMPLE 时返回 partial，否则 failed。actionRequests 仅保留尚未处理的请求；超时中的动作结果未知，仍保留 pending，调用者不能据此认定动作未发生。成功观察回填到下一轮工具消息，原始供应商 metadata 保持完整。步数耗尽且没有下一轮可消费观察时，不再执行新动作。
 
 Token 计数缺失返回 USAGE_UNAVAILABLE；重复 action ID、未声明动作和非法模型输出均停止流程。与其他 Runtime Graph 一致，没有跨 Worker 取消协议；deadline 只停止本流程等待和后续调度。需要先规划时，在上游 Graph 调用 SAMPLE，再将计划传给此流程；不保留一个重复的 plan-and-act 策略。
 
 采样与预算默认参数见 [统一配置 API](worker-api/configuration.zh-CN.md)。
+
+Memory RAG 需要显式 mapMemory 回调；参见 [MEMORY API](worker-api/memory.zh-CN.md)。SEARCH 失败时不会调用 CONTEXT.UPDATE。
