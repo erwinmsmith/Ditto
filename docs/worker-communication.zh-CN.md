@@ -28,10 +28,13 @@ const token = process.env.DITTO_TRANSPORT_HTTP_WORKER_TOKEN;
 if (!token) throw new Error("Set DITTO_TRANSPORT_HTTP_WORKER_TOKEN");
 const runtime = createDitto({ hostId: "server-a", processId: "agent-service", config: loadRuntimeConfig() });
 const worker = runtime.register(defineWorker({
-  type: "memory", concurrency: 8, expose: ["MEMORY.RETRIEVE"],
+  type: "memory", concurrency: 8, expose: ["MEMORY.GET"],
   nodes: {
-    "MEMORY.RETRIEVE": async ({ selector }) =>
-      selector.ids?.map((id) => ({ id, message: { role: "assistant", content: `memory:${id}` } })) ?? [],
+    // Transport-only fixture; use createMemoryWorker with real plugins in production.
+    "MEMORY.GET": async ({ ids }) => ({
+      executionId: crypto.randomUUID(), node: "MEMORY.GET", status: "success",
+      output: ids?.map(id => ({ id, content: `memory:${id}` })) ?? [],
+    }),
   },
 }), "memory-a");
 const server = createServer(createWorkerHttpHandler(runtime, { token }));
@@ -52,10 +55,10 @@ const transport = createHttpTransport({
 const runtime = createDitto({ hostId: "client", transports: [transport] });
 runtime.registerRemote({
   address: { workerId: "memory-a", workerType: "memory", hostId: "server-a", processId: "agent-service" },
-  capabilities: ["MEMORY.RETRIEVE"], transportId: transport.id,
+  capabilities: ["MEMORY.GET"], transportId: transport.id,
 });
 try {
-  console.log(await runtime.invoke("MEMORY.RETRIEVE", { selector: { ids: ["example"] } }));
+  console.log(await runtime.invoke("MEMORY.GET", { ids: ["example"] }));
 } finally { await runtime.close(); }
 ```
 

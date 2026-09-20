@@ -30,6 +30,9 @@ shared:
 
 # Worker-specific behavior; add sections only when a Worker consumes them.
 workers:
+  memory:
+    queryLimit: 100
+    searchLimit: 10
   infer:
     generation:
       maxTokens: 4096

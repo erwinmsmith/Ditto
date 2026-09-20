@@ -1,12 +1,12 @@
 # Ditto Node Taxonomy and API Contract
 
-> The implemented [INFER API](worker-api/infer.md), including CACHE leaves, supersedes the initial INFER scaffold signatures below. Other Worker contracts remain as documented here.
+> Executable Worker APIs: [INFER](worker-api/infer.md) · [MEMORY](worker-api/memory.md).
 
 **English** | [简体中文](13-node-api-contract.zh-CN.md)
 
-> Status: final Node taxonomy; API Contract `2.0-rc.1`; TypeScript source skeleton initialized on `dev`.
+> Status: final Node taxonomy; API Contract `2.0-rc.1`; INFER and MEMORY have executable Workers.
 
-This document and the linked INFER API define the Node tree, semantic boundaries, common public types, and Node input/output contracts. A Node is a composable, independently executable semantic operation. A Worker is the implementation, resource, deployment, and scaling boundary. Graphs compose Nodes; Runtime schedules, routes, communicates, and executes them.
+This document and the linked INFER/MEMORY APIs define the Node tree, semantic boundaries, common public types, and Node input/output contracts. A Node is a composable, independently executable semantic operation. A Worker is the implementation, resource, deployment, and scaling boundary. Graphs compose Nodes; Runtime schedules, routes, communicates, and executes them.
 
 ## Runtime predefined flows
 
@@ -14,12 +14,12 @@ Ditto exposes four directly callable Runtime functions from `src/runtime/graph.t
 
 | Function | Standard flow |
 | --- | --- |
-| `runRagFlow()` | `CONTEXT.RAG.RETRIEVE → CONTEXT.RAG.RANK → CONTEXT.UPDATE`, or `MEMORY.RAG.RETRIEVE → MEMORY.RAG.RANK → CONTEXT.UPDATE` according to `scope` |
-| `runSkillFlow()` | `MEMORY.SKILL → CONTEXT.UPDATE` |
+| `runRagFlow()` | `CONTEXT.RAG.RETRIEVE → CONTEXT.RAG.RANK → CONTEXT.UPDATE`, or `MEMORY.SEARCH → mapMemory → CONTEXT.UPDATE` according to `scope` |
+| `runSkillFlow()` | `CONTEXT.SKILL` |
 | `runMcpFlow()` | `INTERACTION.ACT.MCP → CONTEXT.UPDATE` |
 | `runToolCallFlow()` | `INTERACTION.ACT.TOOL → CONTEXT.UPDATE` |
 
-Each function receives a `RuntimeClient` and current `Context`, invokes the source Nodes, maps provenance into `ContextIngress`, calls `CONTEXT.UPDATE`, and returns `{ output, context }`. `runRagFlow()` requires `scope: "context" | "memory"` so the two corpora remain distinguishable. `EMBED` is an index-preparation operation and is not repeated automatically for each query. Stable ingress IDs, source identity, references, and metadata are preserved internally.
+Flows return `{ output, context }`. Memory RAG requires `mapMemory` to map arbitrary content into Context and checks NodeResult before updating Context. Skill flow receives an already-resolved `skill` and invokes CONTEXT.SKILL. See [MEMORY API](worker-api/memory.md).
 
 ## 1. Final Node tree
 
@@ -49,16 +49,12 @@ CONTEXT
 └── SKILL
 
 MEMORY
-├── RETRIEVE
+├── GET
+├── QUERY
+├── SEARCH
 ├── WRITE
 ├── UPDATE
-├── CONSOLIDATE
-├── EVICT
-├── RAG/
-│   ├── EMBED
-│   ├── RETRIEVE
-│   └── RANK
-└── SKILL
+└── DELETE
 
 INTERACTION
 ├── ACT/
@@ -75,16 +71,16 @@ INTERACTION
 └── OUTPUT
 ```
 
-There are 28 routable leaf contracts. INFER.REASONING, INFER.CACHE, INFER.PROVIDERS, RAG branches and INTERACTION.ACT are namespaces; CACHE executes through LOOKUP, WRITE and INVALIDATE. Tool names and reasoning strategies are not Nodes.
+There are 25 routable leaf contracts. INFER.REASONING, INFER.CACHE, INFER.PROVIDERS, RAG branches and INTERACTION.ACT are namespaces; CACHE executes through LOOKUP, WRITE and INVALIDATE. Tool names and reasoning strategies are not Nodes.
 
 ## 2. Semantic boundaries
 
 - **INFER** owns model computation. `REASONING` organizes explicit reasoning; it is not hidden model thought. `TRAJECTORY` accepts CoT/ToT/GoT through `strategy`; `REFLECT` revisits a result; `DELIBERATE` compares/combines candidates; `SAMPLE` generates one candidate. There is no separate Generate Node. Providers are implementation adapters, not Nodes. `CACHE` reuses computation results and is not Memory.
 - **CONTEXT** owns the working set of the current invocation or turn. `LOAD`, `SELECT`, `UPDATE`, and `COMPRESS` alter that working set. Reset/session lifecycle belongs to Runtime. Context-to-model assembly is an internal `ModelInput` boundary, not a Node.
 - **CONTEXT.RAG** retrieves current-task knowledge from documents, repositories, web sources, knowledge bases, or temporary corpora. Its results are not durable by default.
-- **MEMORY** owns semantic state across invocations or sessions. Direct `RETRIEVE` uses id/key/filter. `MEMORY.RAG` performs semantic recall over the durable Memory corpus.
-- **RAG** uses `EMBED → RETRIEVE → RANK`. Algorithms may be shared, while corpus ownership, permissions, lifecycle, and trace identity remain different. Ranking/search algorithms are strategies. There is no `RAG.GENERATE` or `RAG.PACK` Node.
-- **SKILL** has two lifecycles: `MEMORY.SKILL` resolves durable procedural knowledge; `CONTEXT.SKILL` activates a Skill in the current working context.
+- **MEMORY** exposes GET / QUERY / SEARCH / WRITE / UPDATE / DELETE through injected MemoryStore / MemorySearchProvider ports; external plugins own databases.
+- **RAG** is a Runtime/application Graph. Long-term retrieval uses SEARCH without prescribing its internal pipeline; CONTEXT.RAG.EMBED prepares current-corpus indexes.
+- **SKILL** is resolved by the application and activated by CONTEXT.SKILL; MEMORY does not manage Skills.
 - **INTERACTION** owns semantic interaction with the outside world. `ACT.TOOL` calls registered native tools; `ACT.MCP` discovers or invokes MCP capabilities; `OBSERVE` standardizes external results; `OUTPUT` submits the final result.
 
 Task and user input enter through the application/Runtime boundary, not through a dedicated communication Node. A live external messaging system may be invoked through a registered Tool or MCP capability. Worker-to-Worker `invoke` and `emit` remain Runtime communication primitives. Location and transport never appear in Node Contracts.
@@ -109,24 +105,22 @@ export interface ContextItem { id: string; content: MessageContent; source?: Ref
 export interface Context { items: readonly ContextItem[]; }
 export type ContextSource = Message | Reference | ContextItem;
 export type ContextIngressSource =
-  | "MEMORY.SKILL" | "CONTEXT.RAG.RANK" | "MEMORY.RAG.RANK"
+  | "CONTEXT.SKILL" | "CONTEXT.RAG.RANK" | "MEMORY.SEARCH"
   | "INTERACTION.ACT.TOOL" | "INTERACTION.ACT.MCP";
 export interface ContextIngress {
   id: string; sourceNode: ContextIngressSource; content: MessageContent;
   reference?: Reference; metadata?: JsonObject;
 }
 
-export interface MemoryDraft { key?: string; message: Message; metadata?: JsonObject; }
+export interface MemoryDraft { key?: string; content: unknown; metadata?: Record<string, unknown>; }
 export interface MemoryItem extends MemoryDraft { id: string; }
-export interface MemoryReference { id: string; }
-export interface MemorySelector { ids?: readonly string[]; keys?: readonly string[]; filter?: JsonObject; }
+export interface MemorySearchResult { memory: MemoryItem; score?: number; metadata?: Record<string, unknown>; }
 
 export interface ToolCall { id?: string; name: string; arguments: JsonObject; }
 export interface ToolDefinition { name: string; description?: string; inputSchema: JsonObject; }
 export interface KnowledgeItem { id: string; content: MessageContent; source?: Reference; metadata?: JsonObject; }
 export interface EmbeddingRecord { itemId: string; vector: readonly number[]; }
 export interface RagCandidate { item: KnowledgeItem; score?: number; }
-export interface MemoryRagCandidate { memory: MemoryItem; score?: number; }
 export interface Skill {
   name: string; version?: string; description?: string;
   instructions: MessageContent; metadata?: JsonObject;
@@ -144,8 +138,9 @@ export interface McpCapability { server: string; name: string; description?: str
 ## 4. Fixed Node inputs and outputs
 
 ```ts
+import type { NodeResult } from "@ditto/core/contracts";
 import type {
-  NodeResult, TrajectoryInput, TrajectoryOutput, ReflectInput, ReflectOutput,
+  TrajectoryInput, TrajectoryOutput, ReflectInput, ReflectOutput,
   DeliberateInput, DeliberateOutput, SampleInput, SampleOutput,
   CacheLookupInput, CacheLookupOutput, CacheWriteInput, CacheWriteOutput,
   CacheInvalidateInput, CacheInvalidateOutput,
@@ -176,30 +171,24 @@ export type ContextRagRankOutput = readonly RagCandidate[];
 export interface ContextSkillInput { context: Context; skill: Skill; }
 export type ContextSkillOutput = Context;
 
-export interface MemoryRetrieveInput { selector: MemorySelector; limit?: number; }
-export type MemoryRetrieveOutput = readonly MemoryItem[];
+export interface MemoryGetInput { ids?: readonly string[]; keys?: readonly string[]; }
+export type MemoryGetOutput = readonly MemoryItem[];
+export interface MemoryQueryInput {
+  filter?: Record<string, unknown>;
+  limit?: number;
+  cursor?: string;
+  orderBy?: readonly { field: string; direction?: "asc" | "desc" }[];
+}
+export interface MemoryQueryOutput { items: readonly MemoryItem[]; nextCursor?: string; }
+export interface MemorySearchInput { query: unknown; strategy?: string; filter?: Record<string, unknown>; limit?: number; options?: Record<string, unknown>; }
+export type MemorySearchOutput = readonly MemorySearchResult[];
 export interface MemoryWriteInput { memories: readonly MemoryDraft[]; }
 export type MemoryWriteOutput = readonly MemoryItem[];
-export interface MemoryUpdateEntry { id: string; message: Message; metadata?: JsonObject; }
+export interface MemoryUpdateEntry { id: string; content?: unknown; metadata?: Record<string, unknown>; }
 export interface MemoryUpdateInput { memories: readonly MemoryUpdateEntry[]; }
 export type MemoryUpdateOutput = readonly MemoryItem[];
-export interface MemoryConsolidateInput { memories: readonly MemoryReference[]; strategy?: string; }
-export type MemoryConsolidateOutput = readonly MemoryItem[];
-export type MemoryEvictMode = "delete" | "invalidate" | "deprioritize";
-export interface MemoryEvictInput { memories: readonly MemoryReference[]; mode: MemoryEvictMode; }
-export type MemoryEvictOutput = readonly MemoryReference[];
-export interface MemoryRagEmbedInput { memories: readonly MemoryItem[]; }
-export type MemoryRagEmbedOutput = readonly EmbeddingRecord[];
-export interface MemoryRagRetrieveInput {
-  query: MessageContent; corpus?: Reference; limit?: number; strategy?: string;
-}
-export type MemoryRagRetrieveOutput = readonly MemoryRagCandidate[];
-export interface MemoryRagRankInput {
-  query: MessageContent; candidates: readonly MemoryRagCandidate[]; limit?: number; strategy?: string;
-}
-export type MemoryRagRankOutput = readonly MemoryRagCandidate[];
-export interface MemorySkillInput { name: string; version?: string; }
-export type MemorySkillOutput = Skill;
+export interface MemoryDeleteInput { ids: readonly string[]; }
+export interface MemoryDeleteOutput { deleted: readonly string[]; }
 
 export interface InteractionToolInput { call: ToolCall; }
 export type InteractionToolOutput = ExternalResult;
@@ -233,15 +222,12 @@ export interface NodeContractMap {
   "CONTEXT.RAG.RETRIEVE": NodeContract<ContextRagRetrieveInput, ContextRagRetrieveOutput>;
   "CONTEXT.RAG.RANK": NodeContract<ContextRagRankInput, ContextRagRankOutput>;
   "CONTEXT.SKILL": NodeContract<ContextSkillInput, ContextSkillOutput>;
-  "MEMORY.RETRIEVE": NodeContract<MemoryRetrieveInput, MemoryRetrieveOutput>;
-  "MEMORY.WRITE": NodeContract<MemoryWriteInput, MemoryWriteOutput>;
-  "MEMORY.UPDATE": NodeContract<MemoryUpdateInput, MemoryUpdateOutput>;
-  "MEMORY.CONSOLIDATE": NodeContract<MemoryConsolidateInput, MemoryConsolidateOutput>;
-  "MEMORY.EVICT": NodeContract<MemoryEvictInput, MemoryEvictOutput>;
-  "MEMORY.RAG.EMBED": NodeContract<MemoryRagEmbedInput, MemoryRagEmbedOutput>;
-  "MEMORY.RAG.RETRIEVE": NodeContract<MemoryRagRetrieveInput, MemoryRagRetrieveOutput>;
-  "MEMORY.RAG.RANK": NodeContract<MemoryRagRankInput, MemoryRagRankOutput>;
-  "MEMORY.SKILL": NodeContract<MemorySkillInput, MemorySkillOutput>;
+  "MEMORY.GET": NodeContract<MemoryGetInput, NodeResult<MemoryGetOutput>>;
+  "MEMORY.QUERY": NodeContract<MemoryQueryInput, NodeResult<MemoryQueryOutput>>;
+  "MEMORY.SEARCH": NodeContract<MemorySearchInput, NodeResult<MemorySearchOutput>>;
+  "MEMORY.WRITE": NodeContract<MemoryWriteInput, NodeResult<MemoryWriteOutput>>;
+  "MEMORY.UPDATE": NodeContract<MemoryUpdateInput, NodeResult<MemoryUpdateOutput>>;
+  "MEMORY.DELETE": NodeContract<MemoryDeleteInput, NodeResult<MemoryDeleteOutput>>;
   "INTERACTION.ACT.TOOL": NodeContract<InteractionToolInput, InteractionToolOutput>;
   "INTERACTION.ACT.MCP": NodeContract<InteractionMcpInput, InteractionMcpOutput>;
   "INTERACTION.OBSERVE": NodeContract<InteractionObserveInput, InteractionObserveOutput>;

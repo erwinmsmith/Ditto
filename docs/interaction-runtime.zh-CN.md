@@ -53,8 +53,8 @@ tools.register({
 | 函数 | 固定流程 |
 | --- | --- |
 | `runRagFlow({ scope: "context" })` | `CONTEXT.RAG.RETRIEVE -> CONTEXT.RAG.RANK -> CONTEXT.UPDATE` |
-| `runRagFlow({ scope: "memory" })` | `MEMORY.RAG.RETRIEVE -> MEMORY.RAG.RANK -> CONTEXT.UPDATE` |
-| `runSkillFlow()` | `MEMORY.SKILL -> CONTEXT.UPDATE` |
+| `runRagFlow({ scope: "memory" })` | `MEMORY.SEARCH -> mapMemory -> CONTEXT.UPDATE` |
+| `runSkillFlow()` | `CONTEXT.SKILL` |
 | `runToolCallFlow()` | `INTERACTION.ACT.TOOL -> CONTEXT.UPDATE` |
 | `runMcpFlow()` | `INTERACTION.ACT.MCP -> CONTEXT.UPDATE` |
 
@@ -65,7 +65,7 @@ import { runSkillFlow, runToolCallFlow } from "@ditto/core/runtime";
 
 const skill = await runSkillFlow(runtime, {
   context,
-  name: "code-review",
+  skill: { name: "code-review", instructions: "Review correctness and tests." },
 });
 
 const tool = await runToolCallFlow(runtime, {
@@ -78,9 +78,9 @@ const tool = await runToolCallFlow(runtime, {
 
 ## Skill 生命周期
 
-`MEMORY.SKILL` 保存或读取可持久化的程序性知识；`CONTEXT.SKILL` 表示本轮 working set 中已激活的 Skill。预定义 Skill 流程读取 `MEMORY.SKILL`，再通过 `CONTEXT.UPDATE` 写入指令，不额外创造 Skill Node。
+应用解析 Skill 后传入 runSkillFlow；流程调用 CONTEXT.SKILL 激活它。MEMORY 不负责 Skill 管理。
 
-`SkillRegistry` 是轻量的进程内参考实现。持久化存储可以独立实现相同的 Node Contract。
+`SkillRegistry` 位于 context 目录，提供带 Sandbox 检查的进程内注册/读取。长期 Skill 管理由应用实现。
 
 ## Sandbox 与部署
 
@@ -153,3 +153,5 @@ export interface ReactFlowResult {
 Token 计数缺失返回 USAGE_UNAVAILABLE；重复 action ID、未声明动作和非法模型输出均停止流程。与其他 Runtime Graph 一致，没有跨 Worker 取消协议；deadline 只停止本流程等待和后续调度。需要先规划时，在上游 Graph 调用 SAMPLE，再将计划传给此流程；不保留一个重复的 plan-and-act 策略。
 
 采样与预算默认参数见 [统一配置 API](worker-api/configuration.zh-CN.md)。
+
+Memory RAG 需要显式 mapMemory 回调；参见 [MEMORY API](worker-api/memory.zh-CN.md)。SEARCH 失败时不会调用 CONTEXT.UPDATE。

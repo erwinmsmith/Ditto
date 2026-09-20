@@ -10,12 +10,12 @@ Tasks and delivery constraints follow the supplied Node Coverage document. Every
 
 | Original label or behavior | Current ownership | Mapping requirement |
 | --- | --- | --- |
-| CONTEXT.PROMPT | Graph bind or application input assembly | Use CONTEXT.LOAD/UPDATE only when loading or changing actual context; use CONTEXT.SKILL only to fetch a registered Skill. |
+| CONTEXT.PROMPT | Graph bind or application input assembly | Use CONTEXT.LOAD/UPDATE only when loading or changing actual context; use CONTEXT.SKILL to activate an application-resolved Skill. |
 | CONTEXT.SCHEDULE | Application composition and existing context/memory operations | MEMORY.WRITE/UPDATE persist knowledge; CONTEXT.SELECT/COMPRESS select or compress working context. There is no same-name Node. |
 | INTERACTION.MCP | INTERACTION.ACT.MCP | MCP discovery or invocation is a distinct semantic Node; client connection, authentication, and session lifecycle remain in the application/Runtime. |
 | Receiving a task or question | Application/Runtime input boundary | Task parameters enter before Graph execution. This is not a Node; an actual external messaging service may be called through ACT.TOOL or ACT.MCP. |
 | Choosing a retrieval route labeled CONTEXT.SELECT | INFER.REASONING.DELIBERATE | Comparing candidate plans is deliberation; SELECT filters supplied Context items using query. |
-| Any history file or business database labeled MEMORY.RETRIEVE | Classify by addressing and lifecycle | Use MEMORY.RETRIEVE for known id/key/filter reads, MEMORY.RAG.RETRIEVE for semantic recall, and ACT.TOOL/MCP for temporary files or live business state. |
+| Any history file or business database labeled MEMORY.GET | Classify by addressing and lifecycle | Use MEMORY.GET for known id/key reads and MEMORY.QUERY for structured filters, MEMORY.SEARCH for semantic recall, and ACT.TOOL/MCP for temporary files or live business state. |
 | ACT and TOOL shown at the same level | `ACT` is a namespace | Use `INTERACTION.ACT.TOOL` for directly registered tools and `INTERACTION.ACT.MCP` for MCP capabilities; ACT is not an executable leaf. |
 | Evaluation, approval, retry, and cost accounting | Test-side or application policy | No new Nodes. Actual verifier-tool calls may use TOOL/ACT; reasoning and prompts do not replace authorization checks. |
 
@@ -27,9 +27,9 @@ Cases must not insert behavior merely to cover all 25 target Node Types. The for
 | --- | --- | --- |
 | Acquire web, file, or third-party material | `INTERACTION.ACT.TOOL` / `INTERACTION.ACT.MCP` | External capability call; acquired data may become a current-task corpus. |
 | Retrieve current-task knowledge | `CONTEXT.RAG.EMBED/RETRIEVE/RANK` | Search current documents, repositories, web sources, knowledge bases, or temporary corpora and feed working context. |
-| Directly read a durable item | `MEMORY.RETRIEVE` | Address by id, key, filter, or another structured selector. |
-| Semantically retrieve durable memory | `MEMORY.RAG.EMBED/RETRIEVE/RANK` | Search a Memory Corpus that survives invocations or sessions. |
-| Manage durable-state lifecycle | `MEMORY.WRITE/UPDATE/CONSOLIDATE/EVICT` | Create, modify, organize, and evict persistent semantic state. |
+| Directly read a durable item | `MEMORY.GET` | GET addresses IDs/keys; QUERY handles structured filters. |
+| Semantically retrieve durable memory | `MEMORY.SEARCH` | Search a Memory Corpus that survives invocations or sessions. |
+| Manage durable-state lifecycle | `MEMORY.WRITE/UPDATE/DELETE + Graph/Policy` | Create, modify, organize, and evict persistent semantic state. |
 | Reason over evidence and deliver an answer | `INFER.REASONING.*`; `INTERACTION.OUTPUT` | RAG does not own generation; the selected reasoning Node performs the model call. |
 
 Exact inputs and outputs are defined by the API Contract. These cases establish semantic ownership and do not invent CACHE leaves or extra RAG stages.
@@ -46,7 +46,7 @@ All changes occur in a disposable container or temporary worktree and are not pu
 | --- | --- | --- |
 | 1 | APPLICATION/RUNTIME INPUT | Receive the Issue description, repository version, and delivery requirements before Graph execution; this boundary is not a Node. |
 | 2 | CONTEXT.LOAD | Load the Issue, repository tree, baseline commit, and test commands. |
-| 3 | MEMORY.RAG.RETRIEVE | Semantically retrieve repository conventions, known build problems, and prior repair experience from the long-term Memory Corpus. |
+| 3 | MEMORY.SEARCH | Semantically retrieve repository conventions, known build problems, and prior repair experience from the long-term Memory Corpus. |
 | 4 | CONTEXT.SELECT | Select loaded evidence related to the stack trace, symbols, and modules. |
 | 5 | CONTEXT.SKILL | Retrieve registered repair constraints such as minimal edits and no test bypass; use Graph bind when no Skill is registered. |
 | 6 | INFER.REASONING.TRAJECTORY | Form the first defect hypothesis. |
@@ -63,9 +63,9 @@ All changes occur in a disposable container or temporary worktree and are not pu
 | 17 | INTERACTION.ACT.TOOL | Modify again, then run target and regression tests. |
 | 18 | INTERACTION.OBSERVE | Receive final test results and Git diff. |
 | 19 | MEMORY.WRITE | Persist a task memory containing problem, root cause, repair, and test evidence. |
-| 20 | MEMORY.CONSOLIDATE | Merge repeated failure experience into one repository-level memory. |
+| 20 | GRAPH: QUERY/SEARCH → INFER → UPDATE | Merge repeated failure experience into one repository-level memory. |
 | 21 | MEMORY.WRITE | Persist full logs or a log Reference; the final diff and summary remain in context from steps 15–16. |
-| 22 | MEMORY.EVICT | Evict low-value temporary search results and expired hypotheses. |
+| 22 | POLICY → MEMORY.DELETE | Evict low-value temporary search results and expired hypotheses. |
 | 23 | INTERACTION.OUTPUT | Deliver the patch, change explanation, test results, and remaining risks. |
 
 Delivery and validation: the edits and tests required by the task prose execute through registered TOOL handlers; OUTPUT delivers results. The patch, baseline commit, commands, and actual test outputs provide evidence. An INFER message claiming success is not a test result.
@@ -103,7 +103,7 @@ The case distinguishes authority to propose an operation from authority to execu
 | --- | --- | --- |
 | 1 | APPLICATION/RUNTIME INPUT | Receive the cancellation, rebooking, refund, or exchange request before Graph execution; this boundary is not a Node. |
 | 2 | CONTEXT.LOAD | Load the dialogue, domain, and available-tool descriptions. |
-| 3 | MEMORY.RAG.RETRIEVE | Semantically retrieve customer-interaction experience from the long-term Memory Corpus; live customer records still use ACT.TOOL. |
+| 3 | MEMORY.SEARCH | Semantically retrieve customer-interaction experience from the long-term Memory Corpus; live customer records still use ACT.TOOL. |
 | 4 | INTERACTION.ACT.TOOL | Query customer, order, flight, or product state. |
 | 5 | INTERACTION.OBSERVE | Receive real sandbox business records. |
 | 6 | CONTEXT.UPDATE | Add order state, amounts, times, and identity information to context. |
@@ -130,7 +130,7 @@ Use the officially published task and verifier rather than a simplified substitu
 | 4 | INTERACTION.OBSERVE | Feed capabilities, parameter schemas, and resource descriptions into the Agent observation stream. |
 | 5 | CONTEXT.SELECT | Select the minimum loaded capability descriptions; ToolRegistry and Sandbox enforce actual access. |
 | 6 | CONTEXT.UPDATE | Add forbidden scope, idempotency, and deletion approval rules to context. |
-| 7 | MEMORY.RAG.RETRIEVE | Retrieve historical service failures and parameter limits from the long-term Memory Corpus; an actual experience store is required. |
+| 7 | MEMORY.SEARCH | Retrieve historical service failures and parameter limits from the long-term Memory Corpus; an actual experience store is required. |
 | 8 | INFER.REASONING.SAMPLE | Form multiple cross-tool plans. |
 | 9 | INFER.REASONING.DELIBERATE | Compare side effects, call count, and rollback difficulty. |
 | 10 | INTERACTION.ACT.MCP | Invoke the read-only MCP capability; exact protocol fields are fixed by the later Contract. |
@@ -156,9 +156,9 @@ The case targets the complete Memory lifecycle.
 | 7 | CONTEXT.LOAD | Load subsequent traces. |
 | 8 | INTERACTION.OBSERVE | Feed traces into the environment-history observation stream. |
 | 9 | INFER.REASONING.DELIBERATE | Decide whether new information supplements, replaces, conflicts, or is noise. |
-| 10 | MEMORY.UPDATE | Update old state using existing IDs and retain time/source data in Message.content. |
+| 10 | MEMORY.UPDATE | Update old state using existing IDs and retain time/source data in MemoryItem.content. |
 
-Delivery and validation: the full-lifecycle goal also requires retrieval, consolidation, and eviction records, mapped to RETRIEVE, CONSOLIDATE, and EVICT. Count coverage only when actual operations have inputs, returned IDs, and subsequent visible-state evidence; the case name or goal does not establish 5/5 validation. Record official QA scores separately from additional lifecycle assertions. INFER and OUTPUT generate and deliver answers.
+Delivery and validation: the full-lifecycle goal also requires retrieval, consolidation, and eviction records, mapped to GET/QUERY/SEARCH and application Graph/policy compositions. Count coverage only when actual operations have inputs, returned IDs, and subsequent visible-state evidence; the case name or goal does not establish 5/5 validation. Record official QA scores separately from additional lifecycle assertions. INFER and OUTPUT generate and deliver answers.
 
 ## Case Six AFlow MATH Audit and Smoke Test
 
@@ -171,7 +171,7 @@ If code is faulty, modify the local project and retest. Retain actual results, c
 | Order | Node | Operation |
 | --- | --- | --- |
 | 1 | CONTEXT.LOAD | Load goals, repository boundaries, and work constraints. |
-| 2 | MEMORY.RETRIEVE | Recover persisted preparation progress; TOOL still reads workspace files and logs. |
+| 2 | MEMORY.GET | Recover persisted preparation progress; TOOL still reads workspace files and logs. |
 | 3 | CONTEXT.SELECT | Select historical information for current working context. |
 | 4 | INFER.REASONING.TRAJECTORY | Identify entry points and code to inspect. |
 | 5 | INTERACTION.ACT.TOOL | Read repository state through registered tools; MCP resources require an application adapter. |

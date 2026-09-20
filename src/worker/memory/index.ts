@@ -1,8 +1,10 @@
 export type * from "./contracts.js";
-export * from "./retrieve.js";
-export * from "./write.js";
-export * from "./update.js";
-export * from "./consolidate.js";
-export * from "./evict.js";
-export * from "./rag/index.js";
-export * from "./skill.js";
+export type * from "./providers/store.js";
+export * from "./worker.js";
+export { memoryGetNode } from "./get/node.js";
+export { memoryQueryNode } from "./query/node.js";
+export { memorySearchNode } from "./search/node.js";
+export { memoryWriteNode } from "./write/node.js";
+export { memoryUpdateNode } from "./update/node.js";
+export { memoryDeleteNode } from "./delete/node.js";
+export { MemoryError } from "./validation.js";

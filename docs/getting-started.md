@@ -35,7 +35,7 @@ The empty result here illustrates only the contract. The Memory Worker's resourc
 
 ## Creating Nodes and Worker Instances
 
-`defineNode(workerType, nodeType, handler)` creates an immutable `{ workerType, type, execute }` definition. The first argument is mandatory. For example, `defineNode("MEMORY", "MEMORY.RETRIEVE", handler)` declares a Node owned by the MEMORY Worker type. Mounting it in a Worker with a different type fails during definition, before any resources are created. The previous two-argument form is no longer supported.
+`defineNode(workerType, nodeType, handler)` creates an immutable `{ workerType, type, execute }` definition. The first argument is mandatory. For example, `defineNode("MEMORY", "MEMORY.GET", handler)` declares a Node owned by the MEMORY Worker type. Mounting it in a Worker with a different type fails during definition, before any resources are created. The previous two-argument form is no longer supported.
 
 A function supplied directly in `Worker.nodes` is automatically bound to that Worker. A Node's semantic name remains independent of its owning Worker's deployment role: a custom `assistant` Worker can explicitly own a REASONING Node. The owner must match the Worker that actually mounts the definition, not necessarily the Node name's prefix.
 
