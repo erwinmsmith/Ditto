@@ -1,3 +1,4 @@
+import type { MemoryDefaults } from "../worker/memory/types.js";
 import type { GenerationConfig } from "../worker/infer/types.js";
 import type { DeliberationMode } from "../worker/infer/reasoning/deliberate/types.js";
 import type { TrajectoryInput } from "../worker/infer/reasoning/trajectory/types.js";
@@ -22,7 +23,7 @@ export interface RuntimeSettings {
     readonly maxTurns?: number;
     readonly react?: { readonly maxActionCalls?: number; readonly maxTotalTokens?: number };
   };
-  readonly workers?: { readonly infer?: InferSettings };
+  readonly workers?: { readonly infer?: InferSettings; readonly memory?: MemoryDefaults };
   readonly shared?: {
     readonly providers?: Readonly<Record<string, {
       readonly maxTokensField?: "max_tokens" | "max_completion_tokens";
@@ -61,7 +62,8 @@ export function validateRuntimeSettings(value: unknown): RuntimeSettings {
     integers(runtime, "runtime", { timeoutMs: timeout, maxTurns: positive });
     if (react !== undefined) integers(react, "runtime.react", { maxActionCalls: [0, Number.MAX_SAFE_INTEGER], maxTotalTokens: positive });
   }
-  const workers = v.workers === undefined ? {} : record(v.workers, "workers", ["infer"]);
+  const workers = v.workers === undefined ? {} : record(v.workers, "workers", ["infer", "memory"]);
+  if (workers.memory !== undefined) integers(workers.memory, "workers.memory", { queryLimit: [1, 10000], searchLimit: [1, 10000] });
   if (workers.infer !== undefined) {
     const infer = record(workers.infer, "workers.infer", ["generation", "constraints", "strategies", "deliberate"]);
     if (infer.generation !== undefined) generation(infer.generation, "workers.infer.generation");

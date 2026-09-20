@@ -35,7 +35,7 @@ const memory = extendWorker("MEMORY", {
 
 ## 创建 Node 与 Worker 副本
 
-`defineNode(workerType, nodeType, handler)` 创建不可变的 `{ workerType, type, execute }` 定义，第一个参数必填。例如 `defineNode("MEMORY", "MEMORY.RETRIEVE", handler)` 声明该 Node 归属 MEMORY Worker 类型。将它挂到其他类型的 Worker，会在定义阶段、创建资源之前报错。原有两个参数的写法不再支持。
+`defineNode(workerType, nodeType, handler)` 创建不可变的 `{ workerType, type, execute }` 定义，第一个参数必填。例如 `defineNode("MEMORY", "MEMORY.GET", handler)` 声明该 Node 归属 MEMORY Worker 类型。将它挂到其他类型的 Worker，会在定义阶段、创建资源之前报错。原有两个参数的写法不再支持。
 
 直接写在 `Worker.nodes` 中的函数会自动绑定当前 Worker。Node 的语义名称与所属 Worker 的部署角色仍然独立：自定义的 `assistant` Worker 可以显式拥有一个 REASONING Node。归属必须匹配实际挂载它的 Worker，不要求匹配 Node 名称的前缀。
 

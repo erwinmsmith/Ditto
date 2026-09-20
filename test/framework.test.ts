@@ -7,15 +7,15 @@ const user: Message = { role: "user", content: "hello" };
 test("Runtime routes final Node contracts and executes a location-free Graph", async () => {
   const runtime = createDitto({ workers: [
     defineWorker({ type: "MEMORY", nodes: {
-      "MEMORY.RETRIEVE": async ({ selector }) => selector.ids?.map((id) => ({ id, message: user })) ?? [],
+      "MEMORY.GET": async ({ ids }) => ({ executionId: "test", node: "MEMORY.GET", status: "success", output: ids?.map(id => ({ id, content: user.content })) ?? [] }),
     } }),
     defineWorker({ type: "CONTEXT", nodes: { "CONTEXT.UPDATE": mergeContextUpdate } }),
   ] });
   const plan = graph<{ id: string }>("restore-memory")
-    .node("memory", "MEMORY.RETRIEVE", [], ({ id }) => ({ selector: { ids: [id] } }))
+    .node("memory", "MEMORY.GET", [], ({ id }) => ({ ids: [id] }))
     .node("context", "CONTEXT.UPDATE", ["memory"], (_input, output) => ({
       context: { items: [] },
-      add: output.memory.map((memory) => ({ id: memory.id, content: memory.message.content })),
+      add: output.memory.output!.map((memory) => ({ id: memory.id, content: String(memory.content) })),
     }));
   const output = await runtime.run(plan, { id: "m1" });
   assert.deepEqual(output.context.items, [{ id: "m1", content: "hello" }]);
@@ -23,9 +23,9 @@ test("Runtime routes final Node contracts and executes a location-free Graph", a
 
 test("Runtime owns repeated execution while Nodes remain single-step", async () => {
   const runtime = createDitto({ workers: [defineWorker({ type: "MEMORY", nodes: {
-    "MEMORY.RETRIEVE": async ({ selector }) => selector.ids?.map((id) => ({ id, message: user })) ?? [],
+    "MEMORY.GET": async ({ ids }) => ({ executionId: "test", node: "MEMORY.GET", status: "success", output: ids?.map(id => ({ id, content: user.content })) ?? [] }),
   } })] });
-  const plan = graph<number>("count").node("memory", "MEMORY.RETRIEVE", [], (value) => ({ selector: { ids: [String(value)] } }));
+  const plan = graph<number>("count").node("memory", "MEMORY.GET", [], (value) => ({ ids: [String(value)] }));
   const result = await runtime.loop(loop({
     graph: plan,
     maxIterations: 3,

@@ -3,12 +3,12 @@ import type { ExecutionScope } from "./communication/transport.js";
 import type { InputOf, NodeType, OutputOf } from "../contracts/index.js";
 import type {
   Context, ContextIngress, JsonObject, JsonValue, KnowledgeItem,
-  MessageContent, Reference, ToolCall,
+  MessageContent, Reference, ToolCall, Skill,
 } from "../contracts/common.js";
 import type { RuntimeClient } from "../worker/execution-context.js";
 import type { ContextRagRankOutput } from "../worker/context/contracts.js";
 import type { InteractionMcpInput, InteractionMcpOutput, InteractionToolOutput } from "../worker/interaction/contracts.js";
-import type { MemoryRagRankOutput, MemorySkillOutput } from "../worker/memory/contracts.js";
+import type { MemorySearchInput, MemorySearchOutput, MemorySearchResult } from "../worker/memory/contracts.js";
 
 export interface GraphTask {
   readonly id: string;
@@ -101,21 +101,18 @@ export interface ContextRagFlowInput {
   readonly strategy?: string;
 }
 
-export interface MemoryRagFlowInput {
+export interface MemoryRagFlowInput extends MemorySearchInput {
   readonly scope: "memory";
   readonly context: Context;
-  readonly query: MessageContent;
-  readonly corpus?: Reference;
-  readonly limit?: number;
-  readonly strategy?: string;
+  /** The application maps its arbitrary memory content into Context explicitly. */
+  readonly mapMemory: (hit: MemorySearchResult) => ContextIngress;
 }
 
 export type RagFlowInput = ContextRagFlowInput | MemoryRagFlowInput;
 
 export interface SkillFlowInput {
   readonly context: Context;
-  readonly name: string;
-  readonly version?: string;
+  readonly skill: Skill;
 }
 
 export interface McpFlowInput {
@@ -148,33 +145,6 @@ function contextRagIngress(candidates: ContextRagRankOutput): readonly ContextIn
     ...(item.source ? { reference: item.source } : {}),
     metadata: { ...(item.metadata ?? {}), itemId: item.id, ...(score === undefined ? {} : { score }) },
   }));
-}
-
-function memoryRagIngress(candidates: MemoryRagRankOutput): readonly ContextIngress[] {
-  return candidates.map(({ memory, score }) => ({
-    id: stableIngressId("memory-rag", memory.id),
-    sourceNode: "MEMORY.RAG.RANK",
-    content: memory.message.content,
-    metadata: {
-      ...(memory.metadata ?? {}),
-      memoryId: memory.id,
-      ...(memory.key === undefined ? {} : { memoryKey: memory.key }),
-      ...(score === undefined ? {} : { score }),
-    },
-  }));
-}
-
-function skillIngress(skill: MemorySkillOutput): readonly ContextIngress[] {
-  return [{
-    id: stableIngressId("skill", [skill.name, skill.version ?? null]),
-    sourceNode: "MEMORY.SKILL",
-    content: skill.instructions,
-    metadata: {
-      ...(skill.metadata ?? {}),
-      name: skill.name,
-      ...(skill.version === undefined ? {} : { version: skill.version }),
-    },
-  }];
 }
 
 function toolCallIngress(result: InteractionToolOutput): readonly ContextIngress[] {
@@ -220,11 +190,11 @@ export function runRagFlow(
 export function runRagFlow(
   runtime: RuntimeClient,
   input: MemoryRagFlowInput,
-): Promise<RuntimeFlowResult<MemoryRagRankOutput>>;
+): Promise<RuntimeFlowResult<MemorySearchOutput>>;
 export async function runRagFlow(
   runtime: RuntimeClient,
   input: RagFlowInput,
-): Promise<RuntimeFlowResult<ContextRagRankOutput | MemoryRagRankOutput>> {
+): Promise<RuntimeFlowResult<ContextRagRankOutput | MemorySearchOutput>> {
   const options = {
     ...(input.limit === undefined ? {} : { limit: input.limit }),
     ...(input.strategy === undefined ? {} : { strategy: input.strategy }),
@@ -242,28 +212,23 @@ export async function runRagFlow(
     });
     return { output, context: await updateContext(runtime, input.context, contextRagIngress(output)) };
   }
-  const candidates = await runtime.invoke("MEMORY.RAG.RETRIEVE", {
+  const result = await runtime.invoke("MEMORY.SEARCH", {
     query: input.query,
-    ...(input.corpus === undefined ? {} : { corpus: input.corpus }),
+    ...(input.filter === undefined ? {} : { filter: input.filter }),
+    ...(input.options === undefined ? {} : { options: input.options }),
     ...options,
   });
-  const output = await runtime.invoke("MEMORY.RAG.RANK", {
-    query: input.query,
-    candidates,
-    ...options,
-  });
-  return { output, context: await updateContext(runtime, input.context, memoryRagIngress(output)) };
+  if (result.status !== "success" || !result.output) {
+    throw new Error(`MEMORY.SEARCH failed: ${result.error?.code ?? result.status}`);
+  }
+  return { output: result.output, context: await updateContext(runtime, input.context, result.output.map(input.mapMemory)) };
 }
 
 export async function runSkillFlow(
   runtime: RuntimeClient,
   input: SkillFlowInput,
-): Promise<RuntimeFlowResult<MemorySkillOutput>> {
-  const output = await runtime.invoke("MEMORY.SKILL", {
-    name: input.name,
-    ...(input.version === undefined ? {} : { version: input.version }),
-  });
-  return { output, context: await updateContext(runtime, input.context, skillIngress(output)) };
+): Promise<RuntimeFlowResult<Skill>> {
+  return { output: input.skill, context: await runtime.invoke("CONTEXT.SKILL", input) };
 }
 
 export async function runMcpFlow(

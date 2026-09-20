@@ -53,8 +53,8 @@ The public functions live directly in `src/runtime/graph.ts` and are exported fr
 | Function | Fixed flow |
 | --- | --- |
 | `runRagFlow({ scope: "context" })` | `CONTEXT.RAG.RETRIEVE -> CONTEXT.RAG.RANK -> CONTEXT.UPDATE` |
-| `runRagFlow({ scope: "memory" })` | `MEMORY.RAG.RETRIEVE -> MEMORY.RAG.RANK -> CONTEXT.UPDATE` |
-| `runSkillFlow()` | `MEMORY.SKILL -> CONTEXT.UPDATE` |
+| `runRagFlow({ scope: "memory" })` | `MEMORY.SEARCH -> mapMemory -> CONTEXT.UPDATE` |
+| `runSkillFlow()` | `CONTEXT.SKILL` |
 | `runToolCallFlow()` | `INTERACTION.ACT.TOOL -> CONTEXT.UPDATE` |
 | `runMcpFlow()` | `INTERACTION.ACT.MCP -> CONTEXT.UPDATE` |
 
@@ -65,7 +65,7 @@ import { runSkillFlow, runToolCallFlow } from "@ditto/core/runtime";
 
 const skill = await runSkillFlow(runtime, {
   context,
-  name: "code-review",
+  skill: { name: "code-review", instructions: "Review correctness and tests." },
 });
 
 const tool = await runToolCallFlow(runtime, {
@@ -78,9 +78,9 @@ Applications may compose the same leaf Nodes differently with `ExecutionGraph`; 
 
 ## Skill Lifecycle
 
-`MEMORY.SKILL` stores/retrieves durable procedural knowledge. `CONTEXT.SKILL` represents a Skill activated in the current working set. The predefined Skill flow retrieves `MEMORY.SKILL` and writes its instructions through `CONTEXT.UPDATE`; it does not invent another Skill Node.
+Applications resolve a Skill before passing it to runSkillFlow, which invokes CONTEXT.SKILL. MEMORY does not manage Skills.
 
-`SkillRegistry` is the lightweight process-local reference implementation. Durable stores can implement the same Node Contract independently.
+`SkillRegistry` lives in the context directory and provides process-local registration/loading with Sandbox checks. Applications own durable Skill management.
 
 ## Sandbox and Deployment
 
@@ -153,3 +153,5 @@ Completion returns completed. Budget/timeout/error stops return partial when a S
 Missing usage produces USAGE_UNAVAILABLE. Duplicate action IDs, undeclared actions and invalid model outputs stop the flow. Runtime has no cross-Worker cancellation protocol; deadlines stop local waiting and scheduling only. Planning belongs in an upstream SAMPLE Graph step, with its plan supplied to this flow; there is no duplicate plan-and-act strategy.
 
 Shared generation and budget defaults: [configuration API](worker-api/configuration.md).
+
+Memory RAG requires an explicit mapMemory callback; see the [MEMORY API](worker-api/memory.md). Failed SEARCH results do not update Context.

@@ -29,7 +29,7 @@ flowchart TB
 | `contracts/` | 仅共享 Message/Reference/JSON、通用 NodeContractMap 接口与类型导出 |
 | `worker/node.ts`、`worker/execution-context.ts` | 共享 typed handler、`defineNode` 与执行上下文，不放领域操作 |
 | `worker/define-worker.ts` | `defineWorker` / `extendWorker`、公开能力与副本资源 |
-| `worker/memory/` | `contracts.ts`：Memory 实体与 RETRIEVE / WRITE / UPDATE / CONSOLIDATE / EVICT 契约 |
+| `worker/memory/` | `contracts.ts`：Memory 实体与 GET / QUERY / SEARCH / WRITE / UPDATE / DELETE 契约 |
 | `worker/context/` | Context Contract 与叶子骨架，包括当前任务 RAG 和 Skill 激活 |
 | `worker/infer/` | `reasoning/`：推理 Contract/骨架；`providers/`：扁平的供应商中立适配器；`cache/`：预留命名空间骨架 |
 | `worker/interaction/` | ACT.TOOL 目录、ACT.MCP、OBSERVE、OUTPUT 与叶子 handler 组合 |
@@ -51,13 +51,13 @@ Memory 与 Context 提供类型化 Contract，存储和检索策略由应用实�
 - `node-contract-map.ts`：通用 NodeContract<Input, Output>、开放的 NodeContractMap 接口，以及 InputOf / OutputOf 类型推导。
 - `index.ts`：仅用 type 导出，作为 npm 包的统一类型入口；包含各 Worker 的契约声明。
 
-具体类型和 Node 名称的映射一起归属对应 Worker。例如 MemoryItem、MemoryRetrieveInput 和 MEMORY.RETRIEVE 的声明都在 `worker/memory/contracts.ts`。增加 Memory 的操作时，在 Memory 内补充契约及 handler；不需要修改 Runtime 或中央操作枚举。这些 TypeScript 类型在编译后擦除，不参与运行路由，也不提供网络输入校验。
+具体类型和 Node 名称的映射一起归属对应 Worker。例如 MemoryItem、MemoryGetInput 和 MEMORY.GET 的声明都在 `worker/memory/contracts.ts`。增加 Memory 的操作时，在 Memory 内补充契约及 handler；不需要修改 Runtime 或中央操作枚举。这些 TypeScript 类型在编译后擦除，不参与运行路由，也不提供网络输入校验。
 
-Node 是 Worker 内的操作。例如真实记忆检索实现应放 `worker/memory/retrieve.ts`，其 handler 挂到 Memory Worker 的 nodes 中；只有实现确实需要时才建文件。`worker/node.ts` 只共享 handler/defineNode 的类型和定义工具，不拥有 Memory 的能力。目前 Memory / Context 初始化到契约，尚未提供数据库、检索、压缩实现。
+MEMORY 已在 `worker/memory/<operation>/node.ts` 实现六个节点的校验与执行，通过 createMemoryWorker 注入外部存储和搜索插件。Core 不集成数据库驱动。Context 保留契约与叶子 scaffold。
 
 ## Worker 是 Node 的容器
 
-内置能力按 `MEMORY`、`CONTEXT`、`REASONING`、`INTERACTION` 组织，推荐同名 Worker 作为部署边界。这些名称不是一级 Node。自定义 Worker.type 仍可为任意字符串；保留显式组合不同领域 Node 的能力，例如 Interaction Worker 组合 reasoning 的 GENERATE，不将目录归属误当作运行位置限制。
+内置能力按 `MEMORY`、`CONTEXT`、`INFER`、`INTERACTION` 组织，推荐同名 Worker 作为部署边界。这些名称不是一级 Node。自定义 Worker.type 仍可为任意字符串；保留显式组合不同领域 Node 的能力，例如 Interaction Worker 组合 reasoning 的 GENERATE，不将目录归属误当作运行位置限制。
 
 `defineWorker({ nodes, expose })` 中，`nodes` 是内部实现集合；`expose` 是参与 Runtime 路由、允许远端调用的入口集合。省略 `expose` 时公开全部实现。公开应用 Graph 调用的能力；内部 Graph 仍可使用私有 Node。重复执行通过 `runtime.loop()` 发起，不再使用 RUN Node。
 
@@ -104,7 +104,7 @@ Handler 必须 await 自己启动的工作。关闭 Runtime 时未开始的 Grap
 
 ## Contract 与最终节点体系
 
-`NodeContractMap` 包含 25 个已确定的可执行叶子 Contract。推理位于 `INFER.REASONING.*`；当前任务检索与长期检索分别位于 `CONTEXT.RAG.*` 和 `MEMORY.RAG.*`；Skill 使用 `CONTEXT.SKILL` 与 `MEMORY.SKILL`；外部调用使用 `INTERACTION.ACT.TOOL` 与 `INTERACTION.ACT.MCP`。Reset/session 生命周期和重复执行属于 Runtime，不属于 Node Contract。任务输入从应用/Runtime 边界进入，最终结果由 `INTERACTION.OUTPUT` 提交。
+`NodeContractMap` 包含 25 个已确定的可执行叶子 Contract。推理位于 `INFER.REASONING.*`；当前任务检索与长期检索分别位于 `CONTEXT.RAG.*` 和 `MEMORY.SEARCH`；Skill 由应用解析并通过 `CONTEXT.SKILL` 激活；外部调用使用 `INTERACTION.ACT.TOOL` 与 `INTERACTION.ACT.MCP`。Reset/session 生命周期和重复执行属于 Runtime，不属于 Node Contract。任务输入从应用/Runtime 边界进入，最终结果由 `INTERACTION.OUTPUT` 提交。
 
 自定义能力仍通过 declaration merging 扩展，不在 Router 或 Scheduler 中硬编码 Node enum。固定 TypeScript 输入输出以[节点体系与 API Contract](13-node-api-contract.zh-CN.md)为准。
 

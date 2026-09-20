@@ -20,25 +20,22 @@ test("the four Runtime flows execute source Nodes and update Context", async () 
   const memory: MemoryItem = {
     id: "memory-1",
     key: "known-fix",
-    message: { role: "assistant", content: "past evidence" },
+    content: "past evidence",
   };
   const runtime = createDitto({ sandbox: { tools: ["echo"], mcp: ["docs"] }, workers: [
     defineWorker({ type: "INTERACTION", nodes: createInteractionNodes({ tools, mcp }) }),
     defineWorker({ type: "CONTEXT", nodes: {
       "CONTEXT.UPDATE": mergeContextUpdate,
+      "CONTEXT.SKILL": async ({ context, skill }, ctx) => mergeContextUpdate({ context, ingress: [{
+        id: skill.name, sourceNode: "CONTEXT.SKILL", content: skill.instructions,
+      }] }, ctx),
       "CONTEXT.RAG.RETRIEVE": async ({ corpus }) => Array.isArray(corpus)
         ? corpus.map((item: KnowledgeItem) => ({ item }))
         : [],
       "CONTEXT.RAG.RANK": async ({ candidates }) => candidates,
     } }),
     defineWorker({ type: "MEMORY", nodes: {
-      "MEMORY.SKILL": async ({ name, version }) => ({
-        name,
-        ...(version === undefined ? {} : { version }),
-        instructions: "follow the review checklist",
-      }),
-      "MEMORY.RAG.RETRIEVE": async () => [{ memory }],
-      "MEMORY.RAG.RANK": async ({ candidates }) => candidates,
+      "MEMORY.SEARCH": async () => ({ executionId: "test", node: "MEMORY.SEARCH", status: "success", output: [{ memory }] }),
     } }),
   ] });
 
@@ -50,7 +47,7 @@ test("the four Runtime flows execute source Nodes and update Context", async () 
     context: tool.context,
     request: { operation: "invoke", server: "docs", call: { name: "lookup", arguments: { q: "ditto" } } },
   });
-  const skill = await runSkillFlow(runtime, { context: mcpResult.context, name: "review" });
+  const skill = await runSkillFlow(runtime, { context: mcpResult.context, skill: { name: "review", instructions: "review checklist" } });
   const contextRag = await runRagFlow(runtime, {
     scope: "context",
     context: skill.context,
@@ -61,6 +58,7 @@ test("the four Runtime flows execute source Nodes and update Context", async () 
     scope: "memory",
     context: contextRag.context,
     query: "past task",
+    mapMemory: ({ memory }) => ({ id: memory.id, sourceNode: "MEMORY.SEARCH", content: String(memory.content) }),
   });
 
   assert.equal(tool.output.source, "echo");
@@ -69,7 +67,7 @@ test("the four Runtime flows execute source Nodes and update Context", async () 
   assert.equal(contextRag.output[0]?.item.id, "doc-1");
   assert.equal(memoryRag.output[0]?.memory.id, "memory-1");
   assert.deepEqual(memoryRag.context.items.map((item) => item.metadata?.sourceNode), [
-    "INTERACTION.ACT.TOOL", "INTERACTION.ACT.MCP", "MEMORY.SKILL",
-    "CONTEXT.RAG.RANK", "MEMORY.RAG.RANK",
+    "INTERACTION.ACT.TOOL", "INTERACTION.ACT.MCP", "CONTEXT.SKILL",
+    "CONTEXT.RAG.RANK", "MEMORY.SEARCH",
   ]);
 });

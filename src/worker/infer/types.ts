@@ -1,3 +1,5 @@
+import type { NodeResult } from "../../contracts/node-result.js";
+export type { NodeResult } from "../../contracts/node-result.js";
 export interface Message {
   role: "system" | "user" | "assistant" | "tool";
   content: string | unknown[];
@@ -23,13 +25,6 @@ export interface Usage {
   totalTokens?: number;
   reasoningTokens?: number;
   cachedInputTokens?: number;
-}
-export interface NodeResult<T> {
-  executionId: string;
-  node: string;
-  status: "success" | "failed" | "cancelled" | "timeout";
-  output?: T;
-  error?: { code: string; message: string };
 }
 export interface ActionDescriptor {
   name: string;
