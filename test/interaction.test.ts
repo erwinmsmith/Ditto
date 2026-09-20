@@ -10,12 +10,12 @@ test("the four Runtime flows execute source Nodes and update Context", async () 
   const tools = new ToolRegistry();
   tools.register({
     name: "echo", inputSchema: {}, validate: () => undefined,
-    execute: async (args) => args,
+    execute: async (args) => ({ status: "success", content: args }),
   });
   const mcp = new McpRegistry();
   mcp.register("docs", {
     listTools: async () => ({ tools: [{ name: "lookup", inputSchema: {} }] }),
-    callTool: async ({ arguments: arguments_ }) => arguments_,
+    callTool: async ({ arguments: arguments_ }) => ({ content: arguments_ }),
   });
   const memory: MemoryItem = {
     id: "memory-1",
@@ -44,11 +44,11 @@ test("the four Runtime flows execute source Nodes and update Context", async () 
 
   const tool = await runToolCallFlow(runtime, {
     context: { items: [] },
-    call: { name: "echo", arguments: { value: 1 } },
+    call: { id: "tool-1", name: "echo", arguments: { value: 1 } },
   });
   const mcpResult = await runMcpFlow(runtime, {
     context: tool.context,
-    request: { operation: "invoke", server: "docs", call: { name: "lookup", arguments: { q: "ditto" } } },
+    request: { operation: "invoke", server: "docs", call: { id: "mcp-1", name: "lookup", arguments: { q: "ditto" } } },
   });
   const skill = await runSkillFlow(runtime, { context: mcpResult.context, name: "review" });
   const contextRag = await runRagFlow(runtime, {
@@ -69,7 +69,7 @@ test("the four Runtime flows execute source Nodes and update Context", async () 
   assert.equal(contextRag.output[0]?.item.id, "doc-1");
   assert.equal(memoryRag.output[0]?.memory.id, "memory-1");
   assert.deepEqual(memoryRag.context.items.map((item) => item.metadata?.sourceNode), [
-    "INTERACTION.ACT.TOOL", "INTERACTION.ACT.MCP", "MEMORY.SKILL",
+    "INTERACTION.OBSERVE", "INTERACTION.OBSERVE", "MEMORY.SKILL",
     "CONTEXT.RAG.RANK", "MEMORY.RAG.RANK",
   ]);
 });

@@ -40,11 +40,13 @@ tools.register({
   validate: (args) => {
     if (typeof args.path !== "string") throw new Error("path must be a string");
   },
-  execute: async (args, context) => context.services.sandbox.readText(args.path as string),
+  execute: async (args, context) => ({ status: "success", content: await context.services.sandbox.readText(args.path as string) }),
 });
 ```
 
 `McpRegistry` accepts a structural `McpClient`; the application owns SDK selection, authentication, connection lifecycle, and transport. Core does not depend on an MCP SDK.
+
+The client adapter returns a neutral `McpToolResult` with optional content, structured content, references, `isError`, and a sanitized structured error. MCP discovery defaults to 100 pages and 1000 capabilities in total; applications may configure different positive limits. If `isError` is true and no valid safe error is provided, Core uses the fixed `MCP_TOOL_ERROR` instead of copying untrusted tool content into diagnostics. `createInteractionNodes()` always installs OBSERVE, and installs MCP or OUTPUT only when a registry or an application-owned `OutputSink` is supplied. OUTPUT acceptance is a sink receipt, not proof of final delivery or user reading.
 
 ## Four Predefined Flows
 
@@ -55,10 +57,10 @@ The public functions live directly in `src/runtime/graph.ts` and are exported fr
 | `runRagFlow({ scope: "context" })` | `CONTEXT.RAG.RETRIEVE -> CONTEXT.RAG.RANK -> CONTEXT.UPDATE` |
 | `runRagFlow({ scope: "memory" })` | `MEMORY.RAG.RETRIEVE -> MEMORY.RAG.RANK -> CONTEXT.UPDATE` |
 | `runSkillFlow()` | `MEMORY.SKILL -> CONTEXT.UPDATE` |
-| `runToolCallFlow()` | `INTERACTION.ACT.TOOL -> CONTEXT.UPDATE` |
-| `runMcpFlow()` | `INTERACTION.ACT.MCP -> CONTEXT.UPDATE` |
+| `runToolCallFlow()` | `INTERACTION.ACT.TOOL -> INTERACTION.OBSERVE -> CONTEXT.UPDATE` |
+| `runMcpFlow()` | `discover`: MCP only; `invoke`: MCP -> OBSERVE -> CONTEXT.UPDATE |
 
-RAG `EMBED` is deliberately excluded from the query-time flow because it prepares representations/indexes. Every function receives a Runtime client and the current `Context`, then returns both its source result and the updated Context. Source-specific data enters `CONTEXT.UPDATE` through the shared `ContextIngress` boundary.
+RAG `EMBED` prepares representations/indexes and is excluded from query-time flows. Tool and MCP invoke return an Observation and update Context; MCP discovery returns capabilities without changing Context. Observation provenance enters `CONTEXT.UPDATE` through `ContextIngress`.
 
 ```ts
 import { runSkillFlow, runToolCallFlow } from "@ditto/core/runtime";
@@ -93,12 +95,13 @@ Graph definitions and Node Contracts do not contain provider keys, host addresse
 ReAct lives in src/runtime/react.ts as a predefined Graph execution flow: SAMPLE → declared actions → observation feedback → next SAMPLE. It is neither an INFER Node nor a TRAJECTORY strategy. Runtime owns loop state, budgets and cross-Worker scheduling; SAMPLE owns model computation.
 
 ```ts
-import { runReactFlow, createInferWorker, defineWorker } from "@ditto/core";
+import { runReactFlow, createInferWorker, defineWorker, observeExternalResult } from "@ditto/core";
 runtime.register(createInferWorker());
 runtime.register(defineWorker({ type: "INTERACTION", nodes: {
   "INTERACTION.ACT.TOOL": async ({ call }) => ({
-    source: `tool:${call.name}`, content: { found: true },
+    callId: call.id, source: `tool:${call.name}`, status: "success", content: { found: true },
   }),
+  "INTERACTION.OBSERVE": async ({ result }) => observeExternalResult({ result }),
 } }));
 const result = await runReactFlow(runtime, {
   model: { provider: "primary", model: "your-model-id" },
@@ -146,7 +149,7 @@ ReactFlowInput inherits SAMPLE model/messages/generation/actions/metadata. Upstr
 | timeoutMs | Minimum of constraints and options/Runtime config.timeoutMs; library fallback 30 seconds, root YAML 120 seconds |
 | signal | Stops waiting/scheduling; already dispatched remote work may continue |
 
-The default target INTERACTION.ACT.TOOL receives `{ call: { id, name, arguments } }`. Other explicit targets receive arguments directly; schemas must match their public contracts. Targets come only from caller descriptors. Actions execute sequentially. Dependency failure records an observation and stops without retry. MCP targets use INTERACTION.ACT.MCP with operation/server/call in arguments.
+Caller-owned `ActionDescriptor.target` selects a direct tool, an MCP server/tool pair, or a public Node. Missing targets default to direct TOOL. Runtime fixes MCP operation to `invoke`; model arguments cannot select a server or route. TOOL/MCP results pass through OBSERVE before SAMPLE feedback. Actions execute sequentially. A structured `failed` result reaches the next SAMPLE; `cancelled`, `timeout`, and `unknown` stop new actions. Infrastructure exceptions stop the flow without inventing an observation. Core never retries an external effect automatically.
 
 Completion returns completed. Budget/timeout/error stops return partial when a SAMPLE exists, otherwise failed. actionRequests contains unresolved requests. A timed-out action remains pending because its outcome is unknown; this does not mean its side effects did not occur. Successful observations feed the next tool message, preserving vendor metadata. No new actions start if the model step budget cannot consume their observations.
 

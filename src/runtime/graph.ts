@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { ExecutionScope } from "./communication/transport.js";
 import type { InputOf, NodeType, OutputOf } from "../contracts/index.js";
 import type {
-  Context, ContextIngress, JsonObject, JsonValue, KnowledgeItem,
+  Context, ContextIngress, KnowledgeItem, Observation,
   MessageContent, Reference, ToolCall,
 } from "../contracts/common.js";
 import type { RuntimeClient } from "../worker/execution-context.js";
@@ -123,6 +123,10 @@ export interface McpFlowInput {
   readonly request: InteractionMcpInput;
 }
 
+export interface InteractionFlowResult<Output> extends RuntimeFlowResult<Output> {
+  readonly observation: Observation;
+}
+
 export interface ToolCallFlowInput {
   readonly context: Context;
   readonly call: ToolCall;
@@ -177,38 +181,17 @@ function skillIngress(skill: MemorySkillOutput): readonly ContextIngress[] {
   }];
 }
 
-function toolCallIngress(result: InteractionToolOutput): readonly ContextIngress[] {
+function observationIngress(observation: Observation): readonly ContextIngress[] {
   return [{
-    id: stableIngressId("tool", result),
-    sourceNode: "INTERACTION.ACT.TOOL",
-    content: result.content,
-    ...(result.reference ? { reference: result.reference } : {}),
-    metadata: { ...(result.metadata ?? {}), source: result.source },
-  }];
-}
-
-function mcpIngress(output: InteractionMcpOutput): readonly ContextIngress[] {
-  if (output.operation === "invoke") {
-    return [{
-      id: stableIngressId("mcp", output.result),
-      sourceNode: "INTERACTION.ACT.MCP",
-      content: output.result.content,
-      ...(output.result.reference ? { reference: output.result.reference } : {}),
-      metadata: { ...(output.result.metadata ?? {}), source: output.result.source },
-    }];
-  }
-  const capabilities: JsonValue = output.capabilities.map((capability) => ({
-    server: capability.server,
-    name: capability.name,
-    ...(capability.description === undefined ? {} : { description: capability.description }),
-    ...(capability.inputSchema === undefined ? {} : { inputSchema: capability.inputSchema }),
-  }));
-  const metadata: JsonObject = { operation: "discover" };
-  return [{
-    id: stableIngressId("mcp-discover", capabilities),
-    sourceNode: "INTERACTION.ACT.MCP",
-    content: capabilities,
-    metadata,
+    id: stableIngressId("observation", [observation.callId, observation]),
+    sourceNode: "INTERACTION.OBSERVE",
+    content: observation.message.content,
+    metadata: {
+      ...(observation.metadata ?? {}), callId: observation.callId,
+      source: observation.source, status: observation.status,
+      ...(observation.error ? { errorCode: observation.error.code } : {}),
+      ...(observation.references ? { references: observation.references.map(reference => ({ ...reference })) } : {}),
+    },
   }];
 }
 
@@ -266,18 +249,32 @@ export async function runSkillFlow(
   return { output, context: await updateContext(runtime, input.context, skillIngress(output)) };
 }
 
+export function runMcpFlow(
+  runtime: RuntimeClient,
+  input: McpFlowInput & { request: Extract<InteractionMcpInput, { operation: "discover" }> },
+): Promise<RuntimeFlowResult<Extract<InteractionMcpOutput, { operation: "discover" }>>>;
+export function runMcpFlow(
+  runtime: RuntimeClient,
+  input: McpFlowInput & { request: Extract<InteractionMcpInput, { operation: "invoke" }> },
+): Promise<InteractionFlowResult<Extract<InteractionMcpOutput, { operation: "invoke" }>>>;
 export async function runMcpFlow(
   runtime: RuntimeClient,
   input: McpFlowInput,
-): Promise<RuntimeFlowResult<InteractionMcpOutput>> {
+): Promise<RuntimeFlowResult<InteractionMcpOutput> | InteractionFlowResult<InteractionMcpOutput>> {
   const output = await runtime.invoke("INTERACTION.ACT.MCP", input.request);
-  return { output, context: await updateContext(runtime, input.context, mcpIngress(output)) };
+  if (output.operation !== input.request.operation) throw new Error("MCP operation mismatch");
+  if (output.operation === "discover") return { output, context: input.context };
+  if (input.request.operation !== "invoke" || output.result.callId !== input.request.call.id) throw new Error("MCP result callId mismatch");
+  const observation = await runtime.invoke("INTERACTION.OBSERVE", { result: output.result });
+  return { output, observation, context: await updateContext(runtime, input.context, observationIngress(observation)) };
 }
 
 export async function runToolCallFlow(
   runtime: RuntimeClient,
   input: ToolCallFlowInput,
-): Promise<RuntimeFlowResult<InteractionToolOutput>> {
+): Promise<InteractionFlowResult<InteractionToolOutput>> {
   const output = await runtime.invoke("INTERACTION.ACT.TOOL", { call: input.call });
-  return { output, context: await updateContext(runtime, input.context, toolCallIngress(output)) };
+  if (output.callId !== input.call.id) throw new Error("Tool result callId mismatch");
+  const observation = await runtime.invoke("INTERACTION.OBSERVE", { result: output });
+  return { output, observation, context: await updateContext(runtime, input.context, observationIngress(observation)) };
 }

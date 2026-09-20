@@ -5,7 +5,7 @@ export {
 } from "./graph.js";
 export type {
   ContextRagFlowInput, McpFlowInput, MemoryRagFlowInput, RagFlowInput,
-  RuntimeFlowResult, SkillFlowInput, ToolCallFlowInput,
+  InteractionFlowResult, RuntimeFlowResult, SkillFlowInput, ToolCallFlowInput,
 } from "./graph.js";
 export { loop } from "./loop.js";
 export type { LoopDefinition } from "./loop.js";

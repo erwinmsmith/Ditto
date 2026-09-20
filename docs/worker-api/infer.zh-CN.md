@@ -111,26 +111,24 @@ export interface NodeResult<T> {
   output?: T;
   error?: { code: string; message: string };
 }
+export type ActionTarget =
+  | { kind: "tool"; toolName?: string }
+  | { kind: "mcp"; server: string; toolName: string }
+  | { kind: "node"; node: string };
 export interface ActionDescriptor {
   name: string;
   description?: string;
   inputSchema: Record<string, unknown>;
-  targetNode?: string;
+  target?: ActionTarget;
 }
 export interface ActionRequest {
   id: string;
   name: string;
   arguments: Record<string, unknown>;
-  targetNode?: string;
 }
 export interface ContextItem { id?: string; content: unknown; source?: string; score?: number }
 export interface MemoryItem { id: string; content: unknown; score?: number; timestamp?: number }
-export interface Observation {
-  actionRequestId?: string;
-  status: "success" | "failed" | "cancelled" | "timeout";
-  content?: unknown;
-  error?: { code: string; message: string };
-}
+export type Observation = import("@ditto/core").Observation;
 export interface ReasoningStep {
   id: string;
   type: "plan" | "model" | "decision" | "action_request" | "observation" | "reflection" | "final";
@@ -175,7 +173,7 @@ export interface SampleOutput {
 
 - `messages` 必须非空，`model.model` 必填；动作名称不可重复。
 - 返回消息必须是 `assistant`。`finishReason: "action_request"` 必须包含至少一个动作，其他结束原因不能包含动作。
-- 每个动作必须由调用者的 `actions` 声明；`targetNode` 从声明中获取，忽略模型返回的路由目标。SAMPLE 只返回动作，不执行动作。
+- 每个动作必须由调用方的 `actions` 声明；路由目标只由调用方的 `ActionDescriptor.target` 绑定。SAMPLE 删除 Provider 返回的路由字段，只返回动作，不执行动作。Observation 使用公共 Interaction 接口，不另建 INFER 私有结果类型。
 - `length` 作为成功的 SAMPLE 返回，调用者可判断截断；`cancelled` / `error` 转为取消 / 失败的 `NodeResult`。
 - Provider usage 必须是非负安全整数；没有 usage 时不伪造计数。
 

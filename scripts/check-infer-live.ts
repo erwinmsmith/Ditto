@@ -99,7 +99,7 @@ for (const name of selected) {
       assert.equal(terminal, 1); assert.ok(delta.length); assert.equal(String(answer?.content).trim(), "391"); return { answer, usage };
     });
     let calls = 0;
-    runtime.register(defineWorker({ type: "INTERACTION", nodes: { "INTERACTION.ACT.TOOL": async ({ call }) => { calls++; assert.equal(call.name, "lookup_code"); assert.equal(call.arguments.label, "alpha"); return { source: "fixture", content: "ORCHID-731" }; } } }));
+    runtime.register(defineWorker({ type: "INTERACTION", nodes: { "INTERACTION.ACT.TOOL": async ({ call }) => { calls++; assert.equal(call.name, "lookup_code"); assert.equal(call.arguments.label, "alpha"); return { callId: call.id, source: "fixture", status: "success", content: "ORCHID-731" }; }, "INTERACTION.OBSERVE": async ({ result }) => ({ ...result, message: { role: "tool", content: result.content ?? "" } }) } }));
     await runCase("react/tool-roundtrip", async () => {
       const result = await runReactFlow(runtime, { model, messages: [{ role: "user", content: 'Call lookup_code with label="alpha" to retrieve its unknown code. Then reply with only the returned code.' }],
         actions: [{ name: "lookup_code", description: "Look up a code by label", inputSchema: { type: "object", properties: { label: { type: "string" } }, required: ["label"] } }], generation, constraints: { maxSteps: 3, maxActionCalls: 1 } });

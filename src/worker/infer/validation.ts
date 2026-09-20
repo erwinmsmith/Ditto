@@ -61,11 +61,19 @@ export function messagesAndActions(v: Record<string, unknown>): void {
       check(!names.has(a.name), "Duplicate action name"); names.add(a.name);
       object(a.inputSchema, "action.inputSchema");
       if (a.description !== undefined) text(a.description, "action.description", true);
-      if (a.targetNode !== undefined) nodeName(a.targetNode);
+      if (a.target !== undefined) {
+        const target = object(a.target, "action.target");
+        if (target.kind === "tool") {
+          if (target.toolName !== undefined) text(target.toolName, "action.target.toolName");
+        } else if (target.kind === "mcp") {
+          text(target.server, "action.target.server"); text(target.toolName, "action.target.toolName");
+        } else if (target.kind === "node") nodeName(target.node);
+        else check(false, "Invalid action target kind");
+      }
     }
   }
 }
-export function nodeName(value: unknown): asserts value is string { text(value, "targetNode"); check(/^[^.\s]+(?:\.[^.\s]+)+$/.test(value), "Invalid targetNode"); }
+export function nodeName(value: unknown): asserts value is string { text(value, "action.target.node"); check(/^[^.\s]+(?:\.[^.\s]+)+$/.test(value), "Invalid action target node"); }
 export function steps(value: unknown): void {
   list(value, "trajectory");
   for (const raw of value) {

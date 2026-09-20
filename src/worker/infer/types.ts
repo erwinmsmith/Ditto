@@ -31,26 +31,24 @@ export interface NodeResult<T> {
   output?: T;
   error?: { code: string; message: string };
 }
+export type ActionTarget =
+  | { kind: "tool"; toolName?: string }
+  | { kind: "mcp"; server: string; toolName: string }
+  | { kind: "node"; node: string };
 export interface ActionDescriptor {
   name: string;
   description?: string;
   inputSchema: Record<string, unknown>;
-  targetNode?: string;
+  target?: ActionTarget;
 }
 export interface ActionRequest {
   id: string;
   name: string;
   arguments: Record<string, unknown>;
-  targetNode?: string;
 }
 export interface ContextItem { id?: string; content: unknown; source?: string; score?: number }
 export interface MemoryItem { id: string; content: unknown; score?: number; timestamp?: number }
-export interface Observation {
-  actionRequestId?: string;
-  status: "success" | "failed" | "cancelled" | "timeout";
-  content?: unknown;
-  error?: { code: string; message: string };
-}
+export type Observation = import("../../contracts/common.js").Observation;
 export interface ReasoningStep {
   id: string;
   type: "plan" | "model" | "decision" | "action_request" | "observation" | "reflection" | "final";
