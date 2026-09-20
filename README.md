@@ -13,7 +13,7 @@
   <strong>English</strong> | <a href="./README.zh-CN.md">简体中文</a>
 </p>
 
-> The authoritative definition is [Node System and API Contract](docs/13-node-api-contract.md). It contains the final Node tree, semantic boundaries, fixed shared types, and every public Node input/output contract.
+> The definition is [Node System and API Contract](docs/13-node-api-contract.md). It contains the final Node tree, semantic boundaries, fixed shared types, and every public Node input/output contract.
 
 ## Architecture
 
