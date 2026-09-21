@@ -17,3 +17,5 @@
 - [真实调用验证 / Live verification](infer-live-report.md)：内容断言、供应商实际结果和可复现命令。
 
 - [统一配置 / Shared configuration](configuration.zh-CN.md): 根目录 YAML、env 边界、参数与覆盖顺序。
+
+- [INTERACTION 真实执行验证 / Live verification](interaction-live-report.md)：Linux/macOS 命令、普通工具与 MCP 的组合执行。
