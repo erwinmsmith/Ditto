@@ -20,7 +20,7 @@ test("every agreed leaf Node has a module in the existing worker tree", async ()
   assert.equal(INFER_CACHE_NAMESPACE, "INFER.CACHE");
   await access(join(root, "src", "worker", "infer", "cache", "index.ts"));
   await access(join(root, "src", "worker", "infer", "providers", "index.ts"));
-  await access(join(root, "src", "worker", "interaction", "act", "tool", "linux-commands", "index.ts"));
+  await access(join(root, "src", "worker", "interaction", "worker.ts"));
 });
 
 test("the bilingual contract documents describe the final taxonomy", async () => {

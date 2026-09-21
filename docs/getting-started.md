@@ -18,7 +18,7 @@ npm run check
 
 Copy `.env.example` to `.env`, then configure providers, models, keys, and permissions using [Interaction and Runtime Configuration](interaction-runtime.md). The library does not load environment files implicitly; application startup code loads them explicitly and calls `loadRuntimeConfigFile("ditto.yaml", process.env)`.
 
-`examples/` is currently empty and reserved for complete examples that build different Agents using the npm package. The package has not been published; the snippets below explain the API only.
+Run the complete [Graph + Loop + Worker example](../examples/graph-loop-worker.ts) through the package entry point with `npm run example:agent`. It reads local files and delivers observations without model or database setup. The package has not been published.
 
 Public entries are `@ditto/core`, `contracts`, `worker`, `worker/node`, `worker/memory`, `worker/context`, `worker/infer`, `worker/infer/providers`, `worker/interaction`, `runtime`, and `runtime/sandbox`. The former top-level `node` / `agent` / `providers` / `presets` / `sandbox` entries are not retained. The root entry still provides general exports, including the four Runtime flow functions.
 

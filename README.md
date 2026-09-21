@@ -35,7 +35,7 @@ Changing a model, database, tool Provider, deployment location, or replica count
 - `INTERACTION.ACT.TOOL` / `INTERACTION.ACT.MCP`: external actions;
 - `INTERACTION.OBSERVE` / `INTERACTION.OUTPUT`: normalized observations and final output.
 
-`INFER/PROVIDERS` is an implementation directory, not a Node. `INFER/REASONING` is also a source directory rather than a `REASONING` Node. Tool implementations are organized under `interaction/act/tool/`; the `linux-commands/` folder contains registered tool names, not additional Node Types.
+`INFER/PROVIDERS` is an implementation directory, not a Node. `INFER/REASONING` is also a source directory rather than a `REASONING` Node. Inject tools through `createInteractionWorker({ tools, mcp, output })`; individual tools and Linux commands do not create additional Node Types.
 
 RETRIEVAL is an optional independently deployable search Worker exposing only `RETRIEVAL.SEARCH`. Import and register `@ditto/core/worker/retrieval` explicitly; Core does not load it by default. Existing direct MEMORY/CONTEXT providers remain available. See the [RETRIEVAL API](docs/worker-api/retrieval.md).
 
@@ -47,8 +47,8 @@ Four public compositions live directly in `src/runtime/graph.ts` and are exporte
 runRagFlow(context)  CONTEXT.RAG.RETRIEVE -> CONTEXT.RAG.RANK -> CONTEXT.UPDATE
 runRagFlow(memory)   MEMORY.SEARCH -> mapMemory -> CONTEXT.UPDATE
 runSkillFlow         CONTEXT.SKILL (application supplies the Skill)
-runToolCallFlow      INTERACTION.ACT.TOOL   -> CONTEXT.UPDATE
-runMcpFlow           INTERACTION.ACT.MCP    -> CONTEXT.UPDATE
+runToolCallFlow      INTERACTION.ACT.TOOL   -> INTERACTION.OBSERVE -> CONTEXT.UPDATE
+runMcpFlow           INTERACTION.ACT.MCP    -> INTERACTION.OBSERVE -> CONTEXT.UPDATE (invoke)
 ```
 
 These are functions, not Nodes. They provide standard Context ingress; Skill activation uses `CONTEXT.SKILL`; applications remain free to compose the same leaf Nodes differently. RAG `EMBED` is index preparation and is intentionally outside the query-time flow.
@@ -74,6 +74,7 @@ const toolResult = await runToolCallFlow(runtime, {
 Graphs contain semantic Node Types and data bindings, never Worker IDs or network addresses:
 
 ```ts
+import { randomUUID } from "node:crypto";
 import { graph, type Message } from "@ditto/core";
 
 const review = graph<Message>("review")
@@ -97,7 +98,7 @@ const review = graph<Message>("review")
     if (reason.status !== "success" || reason.output?.status !== "completed") {
       throw new Error(reason.error?.message ?? "Trajectory incomplete");
     }
-    return { message: { role: reason.output.result.role,
+    return { deliveryId: randomUUID(), message: { role: reason.output.result.role,
       content: typeof reason.output.result.content === "string"
         ? reason.output.result.content : JSON.stringify(reason.output.result.content) } };
   });
@@ -106,6 +107,8 @@ const review = graph<Message>("review")
 Registering more Worker replicas adds capacity without changing this Graph. The same contracts support local execution, multiple Workers, multiple processes, or custom remote transports.
 
 See the [INFER Worker API](docs/worker-api/infer.md) for setup and all seven leaf contracts.
+
+Define an Agent with Graph → Loop → Worker; run the complete [graph-loop-worker.ts](examples/graph-loop-worker.ts) example using `npm run example:agent`. See [Interaction setup](docs/interaction-runtime.md#graph-loop-and-worker-setup) for Tool and MCP wiring.
 
 ## Repository Structure
 

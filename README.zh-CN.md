@@ -35,7 +35,7 @@ Ditto 将系统拆分为四个概念：
 - `INTERACTION.ACT.TOOL` / `INTERACTION.ACT.MCP`：对外动作；
 - `INTERACTION.OBSERVE` / `INTERACTION.OUTPUT`：标准化观察与最终输出。
 
-`INFER/PROVIDERS` 是实现目录，不是 Node。`INFER/REASONING` 同样是源码目录，不存在 `REASONING` Node。工具实现位于 `interaction/act/tool/` 下，`linux-commands/` 文件夹存放注册工具名，不产生额外 Node Type。
+`INFER/PROVIDERS` 是实现目录，不是 Node。`INFER/REASONING` 同样是源码目录，不存在 `REASONING` Node。工具通过 `createInteractionWorker({ tools, mcp, output })` 注入；具体工具名与 Linux 命令不产生额外 Node Type。
 
 RETRIEVAL 是可选的独立检索执行 Worker，仅提供 `RETRIEVAL.SEARCH`。按需从 `@ditto/core/worker/retrieval` 导入并注册；Core 默认不加载它。普通 MEMORY/CONTEXT 的直接 Provider 接入不变。见 [RETRIEVAL API](docs/worker-api/retrieval.zh-CN.md)。
 
@@ -47,8 +47,8 @@ RETRIEVAL 是可选的独立检索执行 Worker，仅提供 `RETRIEVAL.SEARCH`�
 runRagFlow(context)  CONTEXT.RAG.RETRIEVE -> CONTEXT.RAG.RANK -> CONTEXT.UPDATE
 runRagFlow(memory)   MEMORY.SEARCH -> mapMemory -> CONTEXT.UPDATE
 runSkillFlow         CONTEXT.SKILL (application supplies the Skill)
-runToolCallFlow      INTERACTION.ACT.TOOL   -> CONTEXT.UPDATE
-runMcpFlow           INTERACTION.ACT.MCP    -> CONTEXT.UPDATE
+runToolCallFlow      INTERACTION.ACT.TOOL   -> INTERACTION.OBSERVE -> CONTEXT.UPDATE
+runMcpFlow           INTERACTION.ACT.MCP    -> INTERACTION.OBSERVE -> CONTEXT.UPDATE (invoke)
 ```
 
 它们是函数，不是 Node。它们为 `CONTEXT.UPDATE` 提供统一入口，应用仍可自由组合相同的叶子 Node。RAG 的 `EMBED` 属于索引准备，因此不进入查询时流程。
@@ -74,6 +74,7 @@ const toolResult = await runToolCallFlow(runtime, {
 Graph 只包含语义 Node Type 与数据绑定，不包含 Worker ID 或网络地址：
 
 ```ts
+import { randomUUID } from "node:crypto";
 import { graph, type Message } from "@ditto/core";
 
 const review = graph<Message>("review")
@@ -97,7 +98,7 @@ const review = graph<Message>("review")
     if (reason.status !== "success" || reason.output?.status !== "completed") {
       throw new Error(reason.error?.message ?? "Trajectory incomplete");
     }
-    return { message: { role: reason.output.result.role,
+    return { deliveryId: randomUUID(), message: { role: reason.output.result.role,
       content: typeof reason.output.result.content === "string"
         ? reason.output.result.content : JSON.stringify(reason.output.result.content) } };
   });
@@ -105,8 +106,9 @@ const review = graph<Message>("review")
 
 注册更多 Worker 副本即可扩容，不需要改变 Graph。同一套契约可用于单进程、多 Worker、多进程或自定义远程传输。
 
-
 详细 INFER 接入与七个叶子接口见 [Worker API](docs/worker-api/infer.zh-CN.md)。
+
+按 Graph → Loop → Worker 定义 Agent，完整示例见 [graph-loop-worker.ts](examples/graph-loop-worker.ts)，运行 `npm run example:agent`。工具与 MCP 接入见 [Interaction API](docs/interaction-runtime.zh-CN.md#graphloop-与-worker-使用入口)。
 
 ## 仓库结构
 

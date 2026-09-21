@@ -25,8 +25,7 @@ There is no `INTERACTION.COMMUNICATE`. Application input is supplied at the appl
 src/worker/interaction/act/tool/
 ├── node.ts
 ├── registry.ts
-├── index.ts
-└── linux-commands/     # registered tool implementations, not Node Types
+└── index.ts
 ```
 
 ```ts
@@ -51,6 +50,40 @@ The client adapter returns a neutral `McpToolResult` with optional content, stru
 MCP validates requests before accessing the client: operation must be discover/invoke, an explicit server must be nonempty, invoke requires nonempty call.id/name and a JSON object for arguments. Missing arguments, strings, arrays and non-JSON values are rejected instead of being coerced into an empty object. Application adapters still own business-schema validation.
 
 OUTPUT validates deliveryId, message.role/content/name and artifact names/references before calling the sink. Content retains the shared MessageContent JSON semantics, including null, numbers, objects and arrays. Receipts also validate artifacts and metadata; an invalid receipt throws without retrying or implying that delivery did not occur. The same validation applies over HTTP Worker transport.
+
+## Graph, Loop and Worker setup
+
+An application Agent consists of a Graph defining Nodes and data dependencies, a Loop defining iteration state and termination, and Workers supplying implementations and SDK adapters. Use `runtime.run(graph, input)` for one execution or `runtime.loop(loopDefinition, state)` for a loop. No additional Agent manager is required.
+
+The complete [runnable example](../examples/graph-loop-worker.ts) follows Graph → Loop → Worker → Runtime. Run `npm run example:agent` to read README and package.json through TOOL, normalize results with OBSERVE, and print two OUTPUT deliveries. No model or database credentials are needed.
+
+```ts
+import { createInteractionWorker } from "@ditto/core/worker/interaction";
+
+// readTextTool, connectedMcpClient and outputSink are application implementations.
+const interaction = createInteractionWorker({
+  tools: [readTextTool],
+  mcp: { files: connectedMcpClient },
+  output: outputSink,
+  concurrency: 8,
+});
+// createDitto({ workers: [interaction, infer, memory], sandbox: ... })
+```
+
+`createInteractionWorker(options?: InteractionOptions): WorkerDefinition` can be added directly to Runtime's `workers` or passed to `runtime.register()`.
+
+| Option | Type and behavior |
+| --- | --- |
+| `tools` | `readonly RegisteredTool[]` or `ToolRegistry`; defaults to empty; TOOL and OBSERVE are always exposed |
+| `mcp` | Readonly map of server names to `McpClient`, or `McpRegistry`; MCP is not exposed when omitted |
+| `output` | `OutputSink`; OUTPUT is not exposed when omitted |
+| `concurrency` | Optional positive integer limiting concurrent calls per replica; unlimited by default |
+
+`index.ts` files only export modules. Execution lives in `worker.ts`, `act/tool/node.ts`, `act/tool/registry.ts`, `act/mcp.ts`, `observe.ts`, and `output.ts`. The empty `linux-commands/` placeholder has been removed; no command toolset is bundled. To add a command, call `context.services.sandbox.run({ command, args })` inside a Worker's `RegisteredTool.execute()`, inject `sandboxExecutor` into Runtime, and grant the corresponding execute and tools permissions.
+
+Arrays and maps are registered once at construction. For dynamic changes, pass registries and use the unregister callback returned by `register()`. Tools still require Sandbox permission. Database adapters belong in MEMORY Workers in the same way: `createMemoryWorker({ store: databaseAdapter })`. Graphs keep calling MEMORY Nodes; search may run in the database itself or explicitly delegate to optional RETRIEVAL.
+
+The application owns connections, authentication, and SDK cleanup. This factory never opens or closes MCP/database connections; reusing one Worker definition shares supplied instances. For separate resources and cleanup per replica, use existing `defineWorker({ resources, dispose, nodes })` with `createInteractionNodes()`. No plugin loader is required. Keep credentials and connection settings in env, and behavior parameters in YAML; tool functions and SDK instances are injected through code, not automatically loaded from arbitrary YAML plugin names.
 
 ## Four Predefined Flows
 
