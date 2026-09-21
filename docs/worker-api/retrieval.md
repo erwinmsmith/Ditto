@@ -205,3 +205,95 @@ Providers can throw `new RetrievalError(code, safeMessage)`; its message is publ
 RAG is an application composition: RETRIEVAL.SEARCH → explicit candidate mapping → CONTEXT.UPDATE → INFER. SEARCH does not write Context/Memory, call INFER/Tools or rewrite the query. Candidate-to-Context mapping belongs to the caller; content is not assumed to be a Document or Message.
 
 `npm run check` covers optional loading, type exports, target/strategy resolution, passthrough, defaults, sanitized errors, output validation, two-replica capacity/draining and a MEMORY bridge over actual local HTTP. Provider tests additionally cover real SQLite FTS5/BM25, HTTP embedding protocol, vector validation, RRF/cosine calculations and SQL/Milvus adapter mapping. Live MySQL/PostgreSQL/Milvus services, external model relevance and GPU throughput are not verified by these tests.
+
+## Examples for each API
+
+Complete source: [examples/retrieval.ts](examples/retrieval.ts). The functions below share its imports and are checked by `npm run typecheck`; importing the file executes no examples. Applications supply database, model, or MCP resources. Choose the function you need; writes, deletes, and model calls perform real operations when invoked.
+
+```ts
+import { createDitto, createMemoryWorker, loadRuntimeConfigFile } from "@ditto/core";
+import type { MemorySearchProvider, MemoryStore, MemoryItem } from "@ditto/core/worker/memory";
+import {
+  createRetrieval, createRetrievalWorker, RetrievalTargetRegistry, RetrievalError, retrievalSearchNode,
+  embedContents, validateVector, createVectorSearchProvider, createTextSearchProvider,
+  createHybridSearchProvider, createCosineReranker, rerankCandidates, createRerankSearchProvider,
+  createHttpEmbeddingProvider, embeddingConfigFromEnv, createSqlSearchProvider, createMilvusSearchProvider,
+  type RetrievalSearchProvider, type RetrievalSearchInput, type RetrievalSearchOutput,
+  type EmbeddingProvider, type RerankProvider, type SqlSearchOptions, type MilvusSearchOptions,
+} from "@ditto/core/worker/retrieval";
+import {
+  createMemoryRetrievalProvider, createRetrievalMemorySearchProvider,
+  RemoteRetrievalSearchProvider, mapMemoryCandidates,
+} from "@ditto/core/worker/retrieval/adapters/memory";
+
+export const request: RetrievalSearchInput = { query: { content: "agent memory" }, target: { name: "kb" }, limit: 5 };
+```
+
+The shared request uses query.content="agent memory", target.name="kb", and limit=5. Supply a provider supporting that query contract.
+
+### createRetrieval / createRetrievalWorker: opt-in setup
+
+providers is required. createRetrieval returns a direct SDK with one search method; createRetrievalWorker exposes only SEARCH. concurrency applies to the Worker only.
+
+```ts
+export function setupRetrieval(provider: RetrievalSearchProvider) {
+  const config = loadRuntimeConfigFile("ditto.yaml", process.env);
+  const providers = new RetrievalTargetRegistry({ kb: { defaultStrategy: "vector", providers: { vector: provider } } });
+  const runtime = createDitto({ config, workers: [createRetrievalWorker({ providers, concurrency: 4 })] });
+  const retrieval = createRetrieval({ providers, defaults: config.retrieval });
+  return { runtime, retrieval };
+}
+```
+
+### retrieval.search / RETRIEVAL.SEARCH: candidates
+
+Compares direct SDK and Runtime calls. No matches means successful output with candidates: [] and target/strategy preserved. Candidate ids remain optional.
+
+```ts
+export async function retrievalSearch(provider: RetrievalSearchProvider) {
+  const { runtime, retrieval } = setupRetrieval(provider);
+  try {
+    const local = await retrieval.search(request);
+    const routed = await runtime.invoke("RETRIEVAL.SEARCH", request);
+    if (routed.status !== "success" || !routed.output) throw new Error(routed.error?.code ?? routed.status);
+    return { local, candidates: routed.output.candidates, target: routed.output.target };
+  } finally { await runtime.close(); }
+}
+```
+
+### RetrievalTargetRegistry.resolve: provider selection
+
+resolve(target, strategy?) uses the target default when strategy is omitted. The selected wrapper forwards and fills strategy. Direct provider calls return raw output and throw errors.
+
+```ts
+export async function registryResolve(provider: RetrievalSearchProvider) {
+  const providers = new RetrievalTargetRegistry({ kb: { defaultStrategy: "keyword", providers: { keyword: provider } } });
+  const selected = providers.resolve({ name: "kb" });
+  return selected.search({ ...request, limit: 5 }); // Raw output, strategy is filled with "keyword".
+}
+```
+
+### search runtimeDefaults / context arguments
+
+Full signature: search(input, runtimeDefaults = {}, context = {}). Signal belongs in the third argument. The second argument supplies fallback defaults; SDK-computed defaults replace context.defaults. There is no automatic timeoutMs option.
+
+```ts
+export async function cancelRetrieval(provider: RetrievalSearchProvider) {
+  const providers = new RetrievalTargetRegistry({ kb: { defaultStrategy: "custom", providers: { custom: provider } } });
+  const retrieval = createRetrieval({ providers, defaults: { searchLimit: 5 } });
+  const controller = new AbortController(); controller.abort();
+  return retrieval.search(request, { searchLimit: 10 }, { signal: controller.signal });
+}
+```
+
+### Node descriptor type / define
+
+`retrievalSearchNode.type` is RETRIEVAL.SEARCH. `.define(workerType, handler)` fixes identity and types without registering a Worker. The example reuses SDK validation and NodeResult; normally use createRetrievalWorker.
+
+```ts
+export function retrievalDescriptor(provider: RetrievalSearchProvider) {
+  const providers = new RetrievalTargetRegistry({ kb: { defaultStrategy: "custom", providers: { custom: provider } } });
+  const retrieval = createRetrieval({ providers });
+  return retrievalSearchNode.define("RETRIEVAL", input => retrieval.search(input));
+}
+```

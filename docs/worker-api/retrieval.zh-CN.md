@@ -223,3 +223,95 @@ Provider 可抛出 `new RetrievalError(code, safeMessage)`；message 是公开�
 RAG 由用户 Graph 组合 `RETRIEVAL.SEARCH → 显式候选映射 → CONTEXT.UPDATE → INFER`。SEARCH 不更新 Context、不写 Memory、不调用 INFER/Tool，也不改写 query。候选到 ContextItem 的映射由调用方决定，不将 content 强制解释成文档或 Message。
 
 `npm run check` 覆盖可选性、类型导出、目标/策略选择、参数透传、配置优先级、错误与候选校验、两副本容量和关闭、MEMORY 经真实本地 HTTP 的转接。新增测试还覆盖真实 SQLite FTS5/BM25、HTTP embedding 协议、向量校验、RRF/cosine 数值以及 SQL/Milvus 协议映射。没有连接真实 MySQL/PostgreSQL/Milvus 服务，也未测量第三方模型检索质量或 GPU 吞吐。
+
+## 逐 API 使用示例
+
+完整代码：[examples/retrieval.ts](examples/retrieval.ts)。下列函数共用该文件的 imports，均参与 `npm run typecheck`；函数不会在导入时自动执行。数据库、模型和 MCP 参数由应用注入，不是 Ditto 内置的模拟后端。选择需要的函数调用；写入、删除、模型调用等会产生对应的真实操作。
+
+```ts
+import { createDitto, createMemoryWorker, loadRuntimeConfigFile } from "@ditto/core";
+import type { MemorySearchProvider, MemoryStore, MemoryItem } from "@ditto/core/worker/memory";
+import {
+  createRetrieval, createRetrievalWorker, RetrievalTargetRegistry, RetrievalError, retrievalSearchNode,
+  embedContents, validateVector, createVectorSearchProvider, createTextSearchProvider,
+  createHybridSearchProvider, createCosineReranker, rerankCandidates, createRerankSearchProvider,
+  createHttpEmbeddingProvider, embeddingConfigFromEnv, createSqlSearchProvider, createMilvusSearchProvider,
+  type RetrievalSearchProvider, type RetrievalSearchInput, type RetrievalSearchOutput,
+  type EmbeddingProvider, type RerankProvider, type SqlSearchOptions, type MilvusSearchOptions,
+} from "@ditto/core/worker/retrieval";
+import {
+  createMemoryRetrievalProvider, createRetrievalMemorySearchProvider,
+  RemoteRetrievalSearchProvider, mapMemoryCandidates,
+} from "@ditto/core/worker/retrieval/adapters/memory";
+
+export const request: RetrievalSearchInput = { query: { content: "agent memory" }, target: { name: "kb" }, limit: 5 };
+```
+
+本节共享 request 使用 `query.content="agent memory"`、`target.name="kb"`、`limit=5`。provider 参数必须支持该 target 的查询语义。
+
+### createRetrieval / createRetrievalWorker：显式启用
+
+providers 必填。createRetrieval 返回仅有 search 方法的直接 SDK；createRetrievalWorker 注册唯一 SEARCH 节点。concurrency 只约束 Worker，不影响直接 SDK。
+
+```ts
+export function setupRetrieval(provider: RetrievalSearchProvider) {
+  const config = loadRuntimeConfigFile("ditto.yaml", process.env);
+  const providers = new RetrievalTargetRegistry({ kb: { defaultStrategy: "vector", providers: { vector: provider } } });
+  const runtime = createDitto({ config, workers: [createRetrievalWorker({ providers, concurrency: 4 })] });
+  const retrieval = createRetrieval({ providers, defaults: config.retrieval });
+  return { runtime, retrieval };
+}
+```
+
+### retrieval.search / RETRIEVAL.SEARCH：返回候选
+
+示例比较本地 SDK 和 Runtime 调用。成功且无匹配时 output.candidates 为 []，仍然保留 target/strategy。Worker/SDK 不强制 candidate.id 存在。
+
+```ts
+export async function retrievalSearch(provider: RetrievalSearchProvider) {
+  const { runtime, retrieval } = setupRetrieval(provider);
+  try {
+    const local = await retrieval.search(request);
+    const routed = await runtime.invoke("RETRIEVAL.SEARCH", request);
+    if (routed.status !== "success" || !routed.output) throw new Error(routed.error?.code ?? routed.status);
+    return { local, candidates: routed.output.candidates, target: routed.output.target };
+  } finally { await runtime.close(); }
+}
+```
+
+### RetrievalTargetRegistry.resolve：选择 Provider
+
+签名 `resolve(target, strategy?)`，省略策略时使用该 target 的 defaultStrategy。返回的包装 Provider 会将所选 strategy 传入后端并补到输出；直接调用它返回原始 Output，异常抛出。
+
+```ts
+export async function registryResolve(provider: RetrievalSearchProvider) {
+  const providers = new RetrievalTargetRegistry({ kb: { defaultStrategy: "keyword", providers: { keyword: provider } } });
+  const selected = providers.resolve({ name: "kb" });
+  return selected.search({ ...request, limit: 5 }); // Raw output, strategy is filled with "keyword".
+}
+```
+
+### search 的 runtimeDefaults / context 参数
+
+完整签名 `search(input, runtimeDefaults = {}, context = {})`；第三参数传 signal，第二参数是默认值后备层，不是调用选项。SDK 会用工厂与 runtimeDefaults 合并结果覆盖 context.defaults，故默认配置不要放第三参数。没有自动 timeoutMs 参数。
+
+```ts
+export async function cancelRetrieval(provider: RetrievalSearchProvider) {
+  const providers = new RetrievalTargetRegistry({ kb: { defaultStrategy: "custom", providers: { custom: provider } } });
+  const retrieval = createRetrieval({ providers, defaults: { searchLimit: 5 } });
+  const controller = new AbortController(); controller.abort();
+  return retrieval.search(request, { searchLimit: 10 }, { signal: controller.signal });
+}
+```
+
+### 节点描述符 type / define
+
+`retrievalSearchNode.type` 为 RETRIEVAL.SEARCH；`.define(workerType, handler)` 固定节点身份与类型，不自动注册 Worker。下面让自定义 handler 复用 SDK 的校验和 NodeResult 包装。通常使用 createRetrievalWorker 更直接。
+
+```ts
+export function retrievalDescriptor(provider: RetrievalSearchProvider) {
+  const providers = new RetrievalTargetRegistry({ kb: { defaultStrategy: "custom", providers: { custom: provider } } });
+  const retrieval = createRetrieval({ providers });
+  return retrievalSearchNode.define("RETRIEVAL", input => retrieval.search(input));
+}
+```

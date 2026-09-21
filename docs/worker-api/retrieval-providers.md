@@ -205,3 +205,225 @@ If candidates contain only IDs or text, supply a batch mapOutput to hydrate/map 
 Tests do not connect to live Milvus/MySQL/PostgreSQL services or measure their index throughput or third-party embedding quality. Autoscaling, discovery, tenant throttling and monitoring remain outside this iteration.
 
 Protocol references: [OpenAI embeddings](https://developers.openai.com/api/reference/resources/embeddings/methods/create), [Milvus Node search](https://milvus.io/api-reference/node/v2.6.x/Vector/search.md), [PostgreSQL text search](https://www.postgresql.org/docs/17/textsearch-controls.html), [RRF](https://www.elastic.co/docs/reference/elasticsearch/rest-apis/reciprocal-rank-fusion).
+
+## Examples for each API
+
+Complete source: [examples/retrieval.ts](examples/retrieval.ts). The functions below share its imports and are checked by `npm run typecheck`; importing the file executes no examples. Applications supply database, model, or MCP resources. Choose the function you need; writes, deletes, and model calls perform real operations when invoked.
+
+```ts
+import { createDitto, createMemoryWorker, loadRuntimeConfigFile } from "@ditto/core";
+import type { MemorySearchProvider, MemoryStore, MemoryItem } from "@ditto/core/worker/memory";
+import {
+  createRetrieval, createRetrievalWorker, RetrievalTargetRegistry, RetrievalError, retrievalSearchNode,
+  embedContents, validateVector, createVectorSearchProvider, createTextSearchProvider,
+  createHybridSearchProvider, createCosineReranker, rerankCandidates, createRerankSearchProvider,
+  createHttpEmbeddingProvider, embeddingConfigFromEnv, createSqlSearchProvider, createMilvusSearchProvider,
+  type RetrievalSearchProvider, type RetrievalSearchInput, type RetrievalSearchOutput,
+  type EmbeddingProvider, type RerankProvider, type SqlSearchOptions, type MilvusSearchOptions,
+} from "@ditto/core/worker/retrieval";
+import {
+  createMemoryRetrievalProvider, createRetrievalMemorySearchProvider,
+  RemoteRetrievalSearchProvider, mapMemoryCandidates,
+} from "@ditto/core/worker/retrieval/adapters/memory";
+
+export const request: RetrievalSearchInput = { query: { content: "agent memory" }, target: { name: "kb" }, limit: 5 };
+```
+
+### EmbeddingProvider.embed / embedContents / validateVector
+
+embed is the raw SDK port. embedContents batches sequentially and validates output. validateVector(value, dimensions?) returns void or throws RETRIEVAL_INVALID_EMBEDDING. Supply the actual model dimension.
+
+```ts
+export async function embeddingApis(embedding: EmbeddingProvider, dimensions: number) {
+  const direct = await embedding.embed({ contents: ["query text"], purpose: "query" });
+  const documents = await embedContents(embedding, { contents: ["document A", "document B"], purpose: "document" }, { batchSize: 32, dimensions });
+  validateVector(documents[0], dimensions); // Returns void; throws on invalid/empty/mismatched vectors.
+  return { direct, documents };
+}
+```
+
+### embeddingConfigFromEnv / createHttpEmbeddingProvider
+
+The env helper returns baseUrl/model/apiKey; the factory creates the HTTP provider. Load .env through Node --env-file or your application first. YAML stores behavior such as batchSize/dimensions.
+
+```ts
+export async function httpEmbedding() {
+  const config = loadRuntimeConfigFile("ditto.yaml", process.env);
+  const runtime = createDitto({ config });
+  try {
+    const embedding = createHttpEmbeddingProvider({ ...embeddingConfigFromEnv(process.env), sandbox: runtime.services.sandbox, timeoutMs: config.timeoutMs });
+    return await embedContents(embedding, { contents: ["query text"], purpose: "query" }, {}, { defaults: config.retrieval });
+  } finally { await runtime.close(); }
+}
+```
+
+### createVectorSearchProvider: three paths
+
+The functions cover external embedding, database-native embedding, and precomputed vectors. Choose the supported path. embedding and nativeEmbedding cannot both be enabled.
+
+```ts
+export async function externalVector(backend: RetrievalSearchProvider, embedding: EmbeddingProvider) {
+  const vector = createVectorSearchProvider({ backend, embedding });
+  return vector.search(request);
+}
+export async function nativeVector(backend: RetrievalSearchProvider) {
+  return createVectorSearchProvider({ backend, nativeEmbedding: true }).search(request);
+}
+export async function precomputedVector(backend: RetrievalSearchProvider, vector: readonly number[]) {
+  return createVectorSearchProvider({ backend, dimensions: vector.length }).search({ ...request, query: { content: vector } });
+}
+```
+
+### createTextSearchProvider: text search
+
+Returns a RetrievalSearchProvider requiring nonempty text. It supplies no embedding or inverted index; the backend owns retrieval, sorting, and filtering.
+
+```ts
+export async function textSearch(backend: RetrievalSearchProvider) {
+  return createTextSearchProvider(backend).search({ ...request, strategy: "keyword" });
+}
+```
+
+### createHybridSearchProvider: fusion
+
+Branches run concurrently with their own strategy and expanded limit. Output contains original candidates ranked by RRF and fusion metadata. Candidate identity must remain meaningful across backends.
+
+```ts
+export async function hybridSearch(vector: RetrievalSearchProvider, text: RetrievalSearchProvider) {
+  const hybrid = createHybridSearchProvider({ candidateLimit: 50, rrfK: 60,
+    branches: [{ provider: vector, strategy: "vector", weight: 1 }, { provider: text, strategy: "keyword", weight: 0.7 }],
+  });
+  return hybrid.search({ ...request, strategy: "hybrid" });
+}
+```
+
+### RerankProvider.rank / rerankCandidates / createCosineReranker / createRerankSearchProvider
+
+rank returns indexes/scores; rerankCandidates maps them back to original candidates. Count must equal min(limit, candidates.length), with valid unique indexes. Cosine embeds candidate content; extract text in the embedding adapter when content is a MemoryItem.
+
+```ts
+export async function rerankApis(embedding: EmbeddingProvider, output: RetrievalSearchOutput) {
+  const reranker = createCosineReranker(embedding);
+  const input = { query: request.query, candidates: output.candidates, limit: Math.max(1, Math.min(3, output.candidates.length)) };
+  const order = await reranker.rank(input); // Raw zero-based indexes and scores.
+  const candidates = await rerankCandidates(reranker, input); // Original candidates in ranked order.
+  return { order, candidates };
+}
+export async function rerankSearch(search: RetrievalSearchProvider, reranker: RerankProvider) {
+  return createRerankSearchProvider({ search, reranker, candidateLimit: 50 }).search(request);
+}
+```
+
+### createSqlSearchProvider: SQL SDK injection
+
+Assumes PostgreSQL memories(id, content, tenant), rejecting unsupported filters/options. Inject the existing pool through query. MySQL uses the same factory with its own placeholders/query, shown earlier. Namespace binds a tenant value but does not replace authorization.
+
+```ts
+interface SqlRow { id: string; content: string; score: number; }
+export function sqlSearch(query: SqlSearchOptions<SqlRow>["query"]) {
+  return createSqlSearchProvider<SqlRow>({
+    prepare(input) {
+      if (typeof input.query.content !== "string" || !input.target.namespace || input.filter || input.options) {
+        throw new RetrievalError("RETRIEVAL_INVALID_INPUT", "Expected text and namespace without additional filters or options");
+      }
+      return {
+        text: "SELECT id, content, ts_rank_cd(to_tsvector('english', content), plainto_tsquery('english', $1)) AS score FROM memories WHERE tenant = $2 AND to_tsvector('english', content) @@ plainto_tsquery('english', $1) ORDER BY score DESC, id ASC LIMIT $3",
+        values: [input.query.content, input.target.namespace, input.limit],
+      };
+    },
+    query, // e.g. async ({ text, values }) => (await pgPool.query(text, [...values])).rows
+    mapRow: row => ({ id: row.id, content: row.content, score: row.score }),
+  });
+}
+```
+
+### createMilvusSearchProvider: Milvus SDK injection
+
+Adapt SDK search to the documented request/response. Status code=0 or error_code=Success indicates success. mapHit keeps a full MemoryItem for default bridging. Database fields, indexes, and embedding functions must already exist.
+
+```ts
+interface MilvusHit { id: string | number; score: number; memory: MemoryItem; }
+export function milvusSearch(search: MilvusSearchOptions<MilvusHit>["search"]) {
+  return createMilvusSearchProvider<MilvusHit>({ collection: "memories", vectorField: "embedding", outputFields: ["memory"],
+    search, // Adapt the application's SDK response to { status, results }.
+    scope(input) {
+      if (!input.target.namespace || input.filter || input.options) throw new RetrievalError("RETRIEVAL_INVALID_INPUT", "Expected a namespace without extra filters or options");
+      return { filter: "tenant == {tenant}", exprValues: { tenant: input.target.namespace } };
+    },
+    mapHit: hit => ({ id: String(hit.id), content: hit.memory, score: hit.score }),
+  });
+}
+```
+
+### createMemoryRetrievalProvider / mapMemoryCandidates
+
+Bridges native Memory search to Retrieval and back. Default mapping requires complete MemoryItems in candidate.content; candidate.id, when present, must equal content.id.
+
+```ts
+export async function nativeMemoryInRetrieval(nativeSearch: MemorySearchProvider) {
+  const provider = createMemoryRetrievalProvider(nativeSearch);
+  const output = await provider.search(request);
+  return mapMemoryCandidates(output); // content must be a complete MemoryItem, not just text.
+}
+```
+
+### createMemoryRetrievalProvider mapInput
+
+Requests with target.namespace require mapInput. This is an application filter DSL; the database plugin must support tenant and authorize the caller independently.
+
+```ts
+export function nativeMemoryWithNamespace(nativeSearch: MemorySearchProvider) {
+  return createMemoryRetrievalProvider(nativeSearch, input => {
+    if (!input.target.namespace) throw new RetrievalError("RETRIEVAL_INVALID_INPUT", "A namespace is required");
+    return {
+      query: input.query.content, filter: { ...input.filter, tenant: input.target.namespace },
+      ...(input.limit === undefined ? {} : { limit: input.limit }),
+      ...(input.strategy === undefined ? {} : { strategy: input.strategy }),
+      ...(input.options === undefined ? {} : { options: input.options }),
+    };
+  }); // The native plugin must implement this tenant filter and enforce caller authorization.
+}
+```
+
+### createRetrievalMemorySearchProvider: in-process reuse
+
+No RETRIEVAL Worker is registered. Default mapping still requires complete MemoryItems; provider can be any search composition. Request strategy overrides constructor strategy. Connections remain application-owned.
+
+```ts
+export async function localMemoryPipeline(store: MemoryStore, provider: RetrievalSearchProvider) {
+  const search = createRetrievalMemorySearchProvider({ provider, target: { name: "kb" }, strategy: "vector", defaults: { searchLimit: 5 } });
+  const runtime = createDitto({ workers: [createMemoryWorker({ store, search })] });
+  try { return await runtime.invoke("MEMORY.SEARCH", { query: "agent memory", limit: 3 }); }
+  finally { await runtime.close(); }
+}
+```
+
+### RemoteRetrievalSearchProvider.search: delegation
+
+Construction opens no connections and starts no Workers. search returns raw MemorySearchOutput; MEMORY adds NodeResult. This example routes locally; HTTP registration preserves the same Memory request.
+
+```ts
+export async function delegatedMemory(store: MemoryStore, provider: RetrievalSearchProvider) {
+  const { runtime } = setupRetrieval(provider);
+  const search = new RemoteRetrievalSearchProvider({ runtime, target: { name: "kb" } });
+  runtime.register(createMemoryWorker({ store, search }));
+  try {
+    const raw = await search.search({ query: "agent memory", limit: 3 }); // Raw MemorySearchOutput.
+    const routed = await runtime.invoke("MEMORY.SEARCH", { query: "agent memory", limit: 3 });
+    return { raw, routed };
+  } finally { await runtime.close(); }
+}
+```
+
+### mapOutput: custom complete-record mapping
+
+Pass mapOutput: mapTextCandidates when candidate.content already is complete business content. For fragment/id-only indexes, batch-load full records instead of representing fragments as complete Memory.
+
+```ts
+export function mapTextCandidates(output: RetrievalSearchOutput) {
+  return output.candidates.map(candidate => {
+    if (!candidate.id) throw new Error("The application requires candidate ids");
+    return { memory: { id: candidate.id, content: candidate.content }, ...(candidate.score === undefined ? {} : { score: candidate.score }) };
+  }); // Use as mapOutput only when content is the application's complete memory content.
+}
+```
