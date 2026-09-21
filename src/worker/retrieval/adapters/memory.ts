@@ -43,16 +43,20 @@ export class RemoteRetrievalSearchProvider implements MemorySearchProvider {
   }
 }
 
+function validateMemory(memory: MemoryItem, id?: string): void {
+  if (!memory || typeof memory !== "object" || Array.isArray(memory) || typeof memory.id !== "string" || !memory.id.trim()
+    || !Object.hasOwn(memory, "content") || (id !== undefined && id !== memory.id)
+    || (memory.key !== undefined && (typeof memory.key !== "string" || !memory.key.length))
+    || (memory.metadata !== undefined && (!memory.metadata || typeof memory.metadata !== "object" || Array.isArray(memory.metadata)))) {
+    throw new RetrievalError("RETRIEVAL_INVALID_BACKEND_OUTPUT", "Memory candidates must contain complete MemoryItems");
+  }
+}
+
 /** Convention: candidate.content is a complete MemoryItem, not only its text. */
 export function mapMemoryCandidates(output: RetrievalSearchOutput): MemorySearchOutput {
   return output.candidates.map(candidate => {
     const memory = candidate.content as MemoryItem;
-    if (!memory || typeof memory !== "object" || Array.isArray(memory) || typeof memory.id !== "string" || !memory.id.trim()
-      || !Object.hasOwn(memory, "content") || (candidate.id !== undefined && candidate.id !== memory.id)
-      || (memory.key !== undefined && (typeof memory.key !== "string" || !memory.key.length))
-      || (memory.metadata !== undefined && (!memory.metadata || typeof memory.metadata !== "object" || Array.isArray(memory.metadata)))) {
-      throw new RetrievalError("RETRIEVAL_INVALID_BACKEND_OUTPUT", "Memory candidates must contain complete MemoryItems");
-    }
+    validateMemory(memory, candidate.id);
     return { memory, ...(candidate.score === undefined ? {} : { score: candidate.score }),
       metadata: { ...candidate.metadata, ...(candidate.source === undefined ? {} : { source: candidate.source }) } };
   });
@@ -77,12 +81,13 @@ export function createMemoryRetrievalProvider(
     };
     const output = await search.search(request);
     context.signal?.throwIfAborted();
-    const result = normalizeOutput({ target: input.target, strategy: input.strategy, candidates: output.map(hit => ({
-      id: hit.memory.id, content: hit.memory, source: { target: input.target.name, ref: hit.memory.id },
-      ...(hit.score === undefined ? {} : { score: hit.score }), ...(hit.metadata === undefined ? {} : { metadata: hit.metadata }),
-    })) }, input);
-    mapMemoryCandidates(result);
-    return result;
+    return normalizeOutput({ target: input.target, strategy: input.strategy, candidates: output.map(hit => {
+      validateMemory(hit.memory);
+      return {
+        id: hit.memory.id, content: hit.memory, source: { target: input.target.name, ref: hit.memory.id },
+        ...(hit.score === undefined ? {} : { score: hit.score }), ...(hit.metadata === undefined ? {} : { metadata: hit.metadata }),
+      };
+    }) }, input);
   } };
 }
 

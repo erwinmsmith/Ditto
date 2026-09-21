@@ -21,7 +21,7 @@ function startMemory(resources: MemoryResources) {
 }
 ```
 
-Supply resources from an application-owned adapter package. `MemoryOptions` contains `{ store, search, defaults?, concurrency? }`; defaults are `{ queryLimit?, searchLimit? }`. `createMemory` exposes `execute(node, input)` and `get/query/search/write/update/delete(input)`, all returning the same NodeResult as Runtime invocation. `createMemoryWorker` registers all six nodes for Graphs, `ctx.invoke` and existing HTTP transport. Concurrency limits apply only to Runtime Worker entry calls; the standalone SDK does not schedule calls.
+Supply resources from an application-owned adapter package. `MemoryOptions` contains `{ store, search?, defaults?, concurrency? }`; defaults are `{ queryLimit?, searchLimit? }`. `createMemory` exposes `execute(node, input)` and `get/query/search/write/update/delete(input)`, all returning the same NodeResult as Runtime invocation. `createMemoryWorker` registers all six nodes for Graphs, `ctx.invoke` and existing HTTP transport. Concurrency limits apply only to Runtime Worker entry calls; the standalone SDK does not schedule calls.
 
 ## Replaceable plugin ports
 
@@ -37,8 +37,8 @@ interface MemorySearchProvider {
   search(input: MemorySearchInput): Promise<MemorySearchOutput>;
 }
 interface MemoryResources {
-  readonly store: MemoryStore;
-  readonly search: MemorySearchProvider;
+  readonly store: MemoryStore & Partial<MemorySearchProvider>;
+  readonly search?: MemorySearchProvider;
 }
 ```
 
@@ -48,9 +48,25 @@ interface MemoryResources {
 | Standalone Milvus | Milvus adapter implementing record CRUD and structured query | The same Milvus adapter |
 | Mixed backends | Any MemoryStore | Any MemorySearchProvider |
 
-One object may implement both ports: `createMemoryWorker({ store: backend, search: backend })`. Milvus does not require SQL. A separate search plugin must return complete MemoryItems and manage its own source/index mapping, consistency and permissions; Ditto performs no implicit SQL lookup.
+When one database plugin implements both ports, use `createMemoryWorker({ store: backend })`: search defaults to store.search. An explicit search overrides only retrieval; CRUD remains on store. CRUD-only plugins need no dummy search; SEARCH returns SEARCH_UNAVAILABLE if neither search implementation is available. Milvus does not require SQL. A separate search plugin must return complete MemoryItems and manage its own source/index mapping, consistency and permissions; Ditto performs no implicit SQL lookup.
 
 No base class or registry is required. Plugins own dialects/expressions, parameterization, serialization, tenant/namespace isolation, transactions, conflict detection, timeouts and cleanup. Registering the same Worker definition shares the injected plugin objects; create separate plugins/definitions when isolation is needed. Runtime shutdown drains accepted operations but does not close application-owned connections.
+
+
+### Embedding and independent execution
+
+MEMORY unifies common database access contracts while the plugin executes the corresponding SDK. It does not implement an ORM or copy the database query engine. Native full-text, vector, graph and other retrieval methods can use the same plugin's search.
+
+| Scenario | Execution |
+| --- | --- |
+| Database-native embedding/search | `createMemoryWorker({ store: database })` passes text to the database SDK without duplicate external embedding. |
+| Database expects external vectors | The plugin injects a cloud or local EmbeddingProvider before SDK search; it may reuse the optional vector Provider. |
+| Separate search system/local pipeline | Inject search explicitly; storage and search can use different backends. |
+| Independent CPU/GPU, capacity or deployment needed | Register the same low-level pipeline in RETRIEVAL and inject RemoteRetrievalSearchProvider into MEMORY. |
+
+Compute location and storage location are independent. A cloud database or local model does not require a RETRIEVAL Worker. Cloud SDKs and local model SDKs can implement Providers directly; HTTP is just one transport. See [cloud and local providers](retrieval-providers.md#cloud-and-local-providers).
+
+For document embeddings, native database functions may handle SDK writes. Otherwise the storage plugin's write/update explicitly calls an external provider and owns record/vector consistency. MEMORY does not force a model call on every WRITE. The schema-aware plugin decides whether metadata-only changes need re-embedding, how to batch, and how to maintain indexes.
 
 ## Shared data and envelope
 
@@ -177,6 +193,7 @@ Limits are integers in 1–10000. Nodes validate arrays, required properties, id
 | Code | Meaning |
 | --- | --- |
 | INVALID_INPUT | Public input contract violation; plugin not called |
+| SEARCH_UNAVAILABLE | Neither an explicit search nor store.search is available; CRUD remains usable |
 | UNKNOWN_NODE | Unknown node passed to SDK execute |
 | INVALID_BACKEND_OUTPUT | Invalid plugin result; completed mutations are not rolled back |
 | MEMORY_BACKEND_ERROR | Unclassified backend exception; raw error/credentials are not exposed |

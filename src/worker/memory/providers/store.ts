@@ -14,4 +14,9 @@ export interface MemoryStore {
   delete(input: MemoryDeleteInput): Promise<MemoryDeleteOutput>;
 }
 export interface MemorySearchProvider { search(input: MemorySearchInput): Promise<MemorySearchOutput>; }
-export interface MemoryResources { readonly store: MemoryStore; readonly search: MemorySearchProvider; }
+export interface MemoryResources {
+  /** The database plugin can also supply native search using the same SDK/client. */
+  readonly store: MemoryStore & Partial<MemorySearchProvider>;
+  /** Explicit override for a separate index, local pipeline or optional RETRIEVAL Worker. */
+  readonly search?: MemorySearchProvider;
+}

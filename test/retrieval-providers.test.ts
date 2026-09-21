@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 import { once } from "node:events";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import test from "node:test";
-import { createDitto, createMemoryWorker, loadRuntimeConfig, loadRuntimeConfigFile, type MemoryStore } from "../src/index.js";
+import { createDitto, createMemory, createMemoryWorker, loadRuntimeConfig, loadRuntimeConfigFile, type MemoryStore } from "../src/index.js";
 import {
   createRetrieval, createRetrievalWorker, RetrievalTargetRegistry, createVectorSearchProvider, createTextSearchProvider,
   createHybridSearchProvider, createRerankSearchProvider, createCosineReranker, rerankCandidates, embedContents,
@@ -264,4 +264,37 @@ test("invalid SDK tuning and sparse vectors are rejected before backend executio
   await assert.rejects(rerankCandidates({ rank: async () => new Array(1) }, { query: request.query, candidates: [candidate("a")], limit: 1 }));
   const huge = createCosineReranker({ embed: async input => input.contents.map(() => [Number.MAX_VALUE, Number.MAX_VALUE]) });
   assert.ok(Math.abs((await huge.rank({ query: request.query, candidates: [candidate("a")], limit: 1 }))[0]!.score! - 1) < 1e-12);
+});
+
+
+test("MEMORY uses interchangeable cloud HTTP and local SDK embedding without a retrieval Worker", async () => {
+  let localCalls = 0; let cloudCalls = 0; let databaseCalls = 0;
+  const memory = { id: "m", content: "stored" };
+  const store: MemoryStore = {
+    get: async () => [memory], query: async () => ({ items: [memory] }),
+    write: async () => [], update: async () => [], delete: async () => ({ deleted: [] }),
+  };
+  // A local model handle can own native resources and require its SDK receiver.
+  const localModel = { async encode(contents: readonly unknown[]) {
+    assert.equal(this, localModel); localCalls++; assert.deepEqual(contents, ["query"]); return [[1, 0]];
+  } };
+  const local: EmbeddingProvider = { embed: input => localModel.encode(input.contents) };
+  const cloud = createHttpEmbeddingProvider({ baseUrl: "https://embedding.example/v1", model: "configured-model", apiKey: "test-only",
+    sandbox: { assert(kind, origin) { assert.equal(kind, "network"); assert.equal(origin, "https://embedding.example"); } },
+    fetch: async (url, init) => {
+      cloudCalls++; assert.equal(url, "https://embedding.example/v1/embeddings");
+      assert.deepEqual(JSON.parse(init!.body as string).input, ["query"]);
+      return Response.json({ data: [{ index: 0, embedding: [1, 0] }] });
+    },
+  });
+  const database = createMemoryRetrievalProvider({ async search(input) {
+    databaseCalls++; assert.deepEqual(input.query, [1, 0]); return [{ memory, score: 0.9 }];
+  } });
+  for (const embedding of [local, cloud]) {
+    const provider = createVectorSearchProvider({ backend: database, embedding });
+    const sdk = createMemory({ store, search: createRetrievalMemorySearchProvider({ provider, target: request.target }) });
+    assert.deepEqual((await sdk.search({ query: "query" })).output?.[0]?.memory, memory);
+    assert.deepEqual((await sdk.get({ ids: ["m"] })).output, [memory]);
+  }
+  assert.deepEqual([localCalls, cloudCalls, databaseCalls], [1, 1, 2]);
 });

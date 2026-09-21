@@ -24,7 +24,7 @@ function startMemory(resources: MemoryResources) {
 
 `createMemory(options)` 提供 `execute(node, input)` 以及 `get/query/search/write/update/delete(input)`。它与 `runtime.invoke(node, input)` 返回同一种 `NodeResult`。`createMemoryWorker(options)` 注册全部六个节点，支持已有 Graph、`ctx.invoke` 和 HTTP transport。
 
-`MemoryOptions` 是 `{ store, search, defaults?, concurrency? }`。`concurrency` 只限制 Runtime Worker 的并发入口；直接 SDK 不调度并发。`defaults` 为 `{ queryLimit?, searchLimit? }`。
+`MemoryOptions` 是 `{ store, search?, defaults?, concurrency? }`。`concurrency` 只限制 Runtime Worker 的并发入口；直接 SDK 不调度并发。`defaults` 为 `{ queryLimit?, searchLimit? }`。
 
 ## 两个独立插件接口
 
@@ -40,8 +40,8 @@ interface MemorySearchProvider {
   search(input: MemorySearchInput): Promise<MemorySearchOutput>;
 }
 interface MemoryResources {
-  readonly store: MemoryStore;
-  readonly search: MemorySearchProvider;
+  readonly store: MemoryStore & Partial<MemorySearchProvider>;
+  readonly search?: MemorySearchProvider;
 }
 ```
 
@@ -51,9 +51,25 @@ interface MemoryResources {
 | 独立 Milvus | Milvus 插件，负责完整记录的读写和结构化查询 | 同一个 Milvus 插件 |
 | 混合部署 | 任意 MemoryStore | 任意 MemorySearchProvider |
 
-同一个对象实现两个接口时，使用 `createMemoryWorker({ store: backend, search: backend })`。Milvus 不要求附加 SQL 存储。拆分部署时，SEARCH 返回完整 `MemoryItem`，搜索插件自行解决索引与事实数据的映射、一致性和权限，Ditto 不自动执行第二次 SQL GET。
+默认使用 store 自带的原生 search：同一数据库插件实现两个接口时，只需 `createMemoryWorker({ store: backend })`。显式传入 search 才替换检索执行方，CRUD 仍使用原 store。仅有 CRUD 的插件也可接入，无需提供空 search；调用 SEARCH 时返回 SEARCH_UNAVAILABLE。Milvus 不要求附加 SQL 存储。拆分部署时，SEARCH 返回完整 `MemoryItem`，搜索插件自行解决索引与事实数据的映射、一致性和权限，Ditto 不自动执行第二次 SQL GET。
 
 端口只要求上述方法，无基类、注册中心或数据库枚举。插件实现者负责数据库方言/表达式、参数化查询、序列化、namespace/tenant 隔离、事务、版本冲突、超时和资源生命周期。复用 Worker definition 会复用注入的插件对象；需要隔离连接或租户时，分别创建插件和 Worker definition。关闭 Runtime 会等待已接受调用结束，但不会关闭应用拥有的插件连接。
+
+
+### Embedding 与独立执行
+
+MEMORY 统一常见数据库访问契约，实际操作由数据库插件调用相应 SDK。它不是 ORM，也不复制数据库的查询引擎。原生全文、向量、图或其它检索方法都可以由同一插件的 search 执行。
+
+| 场景 | 执行方式 |
+| --- | --- |
+| 数据库内置 embedding/检索 | `createMemoryWorker({ store: database })`，数据库 SDK 接收原始文本；不再重复调用外部 embedding。 |
+| 数据库需要外部向量 | 插件注入云端或本地 EmbeddingProvider，生成向量后调用数据库 SDK；也可复用可选模块的 vector Provider。 |
+| 独立的检索系统或本地计算链路 | 显式注入 `search`，CRUD 与检索可以分别连接不同后端。 |
+| 需要独立 CPU/GPU、并发容量或部署 | 将同一底层检索链路注册到 RETRIEVAL，MEMORY 的 search 改用 RemoteRetrievalSearchProvider。 |
+
+“计算在哪执行”与“数据存在哪”相互独立；数据库在云端也不要求启动 RETRIEVAL，使用本地模型也不要求新增 Worker。云 SDK、本地模型 SDK 都可以直接实现 Provider；HTTP 是其中一种接入方式。详细示例见[云端与本地 Provider](retrieval-providers.zh-CN.md#云端与本地-provider)。
+
+对于写入侧 embedding，数据库内置函数可在 SDK 写入时完成；需要外部 embedding 时，由存储插件的 write/update 实现显式调用 Provider，并处理向量与记录的一致性。MEMORY 不会在每个 WRITE 上强加一次模型调用。只有元数据更新时是否需要重算、如何批处理和维护索引，仍由了解实际 schema 的插件决定。
 
 ## 公共数据与返回
 
@@ -190,6 +206,7 @@ Ditto 去重 ids，空数组直接返回 `{ deleted: [] }`。插件应忽略不�
 | code | 含义 |
 | --- | --- |
 | INVALID_INPUT | 请求违反公共契约，插件未被调用 |
+| SEARCH_UNAVAILABLE | 未提供独立 search，且数据库插件没有原生 search；CRUD 仍可用 |
 | UNKNOWN_NODE | 直接 SDK execute 收到未知节点 |
 | INVALID_BACKEND_OUTPUT | 插件返回内容违反契约；已完成的写入不会因此回滚 |
 | MEMORY_BACKEND_ERROR | 未分类的插件异常；不会把原始数据库错误或连接凭据返回调用者 |
