@@ -1,3 +1,5 @@
+import type { NodeType } from "./node-contract-map.js";
+
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue =
   | JsonPrimitive
@@ -32,14 +34,9 @@ export interface ContextItem {
 export interface Context { items: readonly ContextItem[]; }
 export type ContextSource = Message | Reference | ContextItem;
 
-export type ContextIngressSource =
-  | "CONTEXT.SKILL"
-  | "CONTEXT.RAG.RANK"
-  | "MEMORY.SEARCH"
-  | "INTERACTION.OBSERVE";
 export interface ContextIngress {
   id: string;
-  sourceNode: ContextIngressSource;
+  sourceNode: NodeType;
   content: MessageContent;
   reference?: Reference;
   metadata?: JsonObject;
@@ -58,22 +55,6 @@ export interface ToolDefinition {
   requiresApproval?: boolean;
 }
 export type ToolEffect = "read" | "write" | "execute" | "network";
-export interface KnowledgeItem {
-  id: string;
-  content: MessageContent;
-  source?: Reference;
-  metadata?: JsonObject;
-}
-export interface EmbeddingRecord { itemId: string; vector: readonly number[]; }
-export interface RagCandidate { item: KnowledgeItem; score?: number; }
-export interface Skill {
-  name: string;
-  version?: string;
-  description?: string;
-  instructions: MessageContent;
-  metadata?: JsonObject;
-}
-
 export interface ExternalResult {
   callId: string;
   source: string;

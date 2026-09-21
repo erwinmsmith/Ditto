@@ -108,8 +108,10 @@ test("ReAct reports dependency failure and routes custom action targets using ca
   const f = fixture([action()], true);
   try { const result = await runReactFlow(f.runtime, input); assert.equal(result.stopReason, "dependency_failed"); assert.equal(result.observations.length, 0); assert.equal(result.error?.message, "tool failed"); }
   finally { await f.runtime.close(); }
-  const custom = fixture([{ ...action(), actionRequests: [{ id: "c", name: "lookup", arguments: { context: { items: [] }, query: { role: "user", content: "query" } } }] }, answer]);
-  custom.runtime.register(defineWorker({ type: "CONTEXT", nodes: { "CONTEXT.SELECT": async ({ context }, ctx) => { assert.equal(ctx.execution?.graphId, "react"); return context; } } }));
+  const custom = fixture([{ ...action(), actionRequests: [{ id: "c", name: "lookup", arguments: { context: { items: [] }, purpose: "infer", query: "query" } }] }, answer]);
+  custom.runtime.register(defineWorker({ type: "CONTEXT", nodes: { "CONTEXT.SELECT": async ({ context, purpose }, ctx) => {
+    assert.equal(ctx.execution?.graphId, "react"); return { purpose, context, selectedItemIds: [] };
+  } } }));
   try { assert.equal((await runReactFlow(custom.runtime, { ...input, actions: [{ ...input.actions[0]!, target: { kind: "node", node: "CONTEXT.SELECT" } }] })).status, "completed"); assert.equal(custom.scopes.length, 0); }
   finally { await custom.runtime.close(); }
 });

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createDitto, defineWorker, graph, loop, mergeContextUpdate, type Message } from "../src/index.js";
+import { createContextWorker, createDitto, defineWorker, graph, loop, type Message } from "../src/index.js";
 
 const user: Message = { role: "user", content: "hello" };
 
@@ -9,7 +9,7 @@ test("Runtime routes final Node contracts and executes a location-free Graph", a
     defineWorker({ type: "MEMORY", nodes: {
       "MEMORY.GET": async ({ ids }) => ({ executionId: "test", node: "MEMORY.GET", status: "success", output: ids?.map(id => ({ id, content: user.content })) ?? [] }),
     } }),
-    defineWorker({ type: "CONTEXT", nodes: { "CONTEXT.UPDATE": mergeContextUpdate } }),
+    createContextWorker(),
   ] });
   const plan = graph<{ id: string }>("restore-memory")
     .node("memory", "MEMORY.GET", [], ({ id }) => ({ ids: [id] }))

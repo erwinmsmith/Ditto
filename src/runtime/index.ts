@@ -4,7 +4,7 @@ export {
   graph, ExecutionGraph, runMcpFlow, runRagFlow, runSkillFlow, runToolCallFlow,
 } from "./graph.js";
 export type {
-  ContextRagFlowInput, McpFlowInput, MemoryRagFlowInput, RagFlowInput,
+  McpFlowInput, RagFlowInput,
   InteractionFlowResult, RuntimeFlowResult, SkillFlowInput, ToolCallFlowInput,
 } from "./graph.js";
 export { loop } from "./loop.js";
