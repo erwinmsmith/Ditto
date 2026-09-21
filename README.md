@@ -37,6 +37,8 @@ Changing a model, database, tool Provider, deployment location, or replica count
 
 `INFER/PROVIDERS` is an implementation directory, not a Node. `INFER/REASONING` is also a source directory rather than a `REASONING` Node. Tool implementations are organized under `interaction/act/tool/`; the `linux-commands/` folder contains registered tool names, not additional Node Types.
 
+RETRIEVAL is an optional independently deployable search Worker exposing only `RETRIEVAL.SEARCH`. Import and register `@ditto/core/worker/retrieval` explicitly; Core does not load it by default. Existing direct MEMORY/CONTEXT providers remain available. See the [RETRIEVAL API](docs/worker-api/retrieval.md).
+
 ## Predefined Runtime Flows
 
 Four public compositions live directly in `src/runtime/graph.ts` and are exported from `@ditto/core/runtime`:
@@ -121,6 +123,7 @@ src/
     │   └── providers/            # shared provider registry and wire protocols
     ├── context/
     ├── memory/
+    ├── retrieval/                # optional SEARCH worker; explicit subpath import
     └── interaction/act/tool/     # Tool Node, registry, implementation folders
 ```
 

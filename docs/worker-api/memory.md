@@ -220,3 +220,7 @@ This mapping example assumes JSON content; applications must satisfy Context's J
 Replace MEMORY.RETRIEVE with GET/QUERY, MEMORY.RAG.* with SEARCH, and CONSOLIDATE/EVICT with application Graph/policy compositions. MEMORY.SKILL is removed. MemoryItem.message becomes content; Runtime outputs now use shared NodeResult. Obsolete scaffold modules and aliases are removed.
 
 `npm run check` covers injected-plugin CRUD, standalone/mixed resources, passthrough, validation, configuration, failure isolation and actual local HTTP transport. These fixture plugins verify Ditto contracts, not real MySQL/PostgreSQL/Milvus integration. External adapter repositories should verify persistence, query semantics, transactions and index consistency against their databases.
+
+## Optional independent retrieval service
+
+Ordinary MemorySearchProviders remain unchanged. When independent retrieval resources are needed, explicitly import RemoteRetrievalSearchProvider from `@ditto/core/worker/retrieval/adapters/memory`, supplying a fixed target and batch mapOutput. It delegates MEMORY.SEARCH to RETRIEVAL.SEARCH without changing the caller contract. MEMORY neither imports nor starts the extension. See [integration and deployment](retrieval.md).

@@ -123,3 +123,7 @@ See [Worker Communication](worker-communication.md) for transport details and [I
 In-process calls follow Runtime → Worker handler without a base-class or adapter layer. Only cross-process calls encode payloads. Worker handler lookup tables are built when definitions are created. Graphs are immutable reusable plans; each run owns its results and dependency waits. A Loop can select prebuilt Graphs or construct one from current state. Its execution path is `runtime.loop → runLoop → runtime.run → runGraph → invoke → Worker`.
 
 The Router filters capabilities, capacity, and locality in one pass while retaining equal-priority rotation. It does not maintain a second complex index or scheduling service. Extend the system with concrete Nodes or adapters instead of adding a class/factory/registry stack for every concept. No throughput benchmark improvement is claimed; current checks preserve invocation, concurrency, and routing semantics.
+
+## Optional RETRIEVAL extension
+
+The four Core Workers retain 25 leaves. The optional `@ditto/core/worker/retrieval` entry adds the RETRIEVAL.SEARCH contract and implementation through explicit imports/registration. It invokes user providers through a Target/Strategy registry, owns no corpus, performs no RAG, and is not required by MEMORY/CONTEXT. Existing Runtime/HTTP facilities support independent deployment and replicas. See [API and deployment boundaries](worker-api/retrieval.md).

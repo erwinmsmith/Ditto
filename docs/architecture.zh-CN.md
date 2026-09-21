@@ -123,3 +123,7 @@ Provider adapter 保持扁平放置在 `worker/infer/providers/`，不进入 Nod
 同进程调用沿 Runtime → Worker handler 执行，不经过基类或适配层；只有跨进程调用才编码 payload。Worker 的 handler 在定义时建立查找表。Graph 是不可变可复用计划，每次运行拥有自己的结果与依赖等待。Loop 可选择预先构建的 Graph，也可按状态构建新图。执行链为 `runtime.loop → runLoop → runtime.run → runGraph → invoke → Worker`。
 
 Router 用一次遍历筛选能力、容量与位置，保留同级轮询；没有维护第二套复杂索引或调度服务。需要扩展时增加具体 Node 或适配器，不以每个概念拆一套 class/factory/registry。性能变化未作吞吐基准承诺，当前验证保持调用、并发与路由语义一致。
+
+## 可选 RETRIEVAL 扩展
+
+四个 Core Worker 的 25 个叶子保持不变。可选入口 `@ditto/core/worker/retrieval` 增加 `RETRIEVAL.SEARCH` 的契约与实现，仅在应用显式导入/注册时启用。它通过 Target/Strategy Registry 调用用户 Provider，不拥有数据、不执行 RAG，也不要求 MEMORY/CONTEXT 经由它检索。需要独立执行资源或水平扩容时，可使用现有 Runtime/HTTP 部署多个副本。[详细 API 与部署边界](worker-api/retrieval.zh-CN.md)。

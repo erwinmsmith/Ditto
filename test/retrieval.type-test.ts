@@ -1,0 +1,12 @@
+import type { InputOf, OutputOf, NodeResult } from "@ditto/core";
+import { createRetrievalWorker, type RetrievalSearchInput, type RetrievalSearchOutput, type RetrievalProviderRegistry } from "@ditto/core/worker/retrieval";
+import { RemoteRetrievalSearchProvider } from "@ditto/core/worker/retrieval/adapters/memory";
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
+type Expect<T extends true> = T;
+type _Input = Expect<Equal<InputOf<"RETRIEVAL.SEARCH">, RetrievalSearchInput>>;
+type _Output = Expect<Equal<OutputOf<"RETRIEVAL.SEARCH">, NodeResult<RetrievalSearchOutput>>>;
+void (null as unknown as _Input);
+void (null as unknown as _Output);
+const registry: RetrievalProviderRegistry = { resolve: () => ({ search: async input => ({ target: input.target, candidates: [] }) }) };
+void createRetrievalWorker({ providers: registry });
+void RemoteRetrievalSearchProvider;
