@@ -112,3 +112,62 @@ await runtime.close();
 真实校验：`npm run check:infer:live -- --provider deepseek`。可选 `--strategies cot,tot,got`、`--cases sample,tot`、`--max-tokens 4096` 和 `--report path`。脚本对配置中的实际模型做内容断言，任何失败均非零退出；报告追加历史，包含失败，不包含凭证。详见 [真实验证报告](infer-live-report.md)。
 
 协议参考：[Anthropic 流事件](https://platform.claude.com/docs/en/build-with-claude/streaming)、[Gemini 内容生成](https://ai.google.dev/api/generate-content)、[Gemini 函数调用](https://ai.google.dev/gemini-api/docs/function-calling)。离线测试使用模拟响应与本地 HTTP Worker；真实调用结果单独记录。
+
+## 逐 API 使用示例
+
+完整代码：[examples/infer.ts](examples/infer.ts)。下列函数共用该文件的 imports，均参与 `npm run typecheck`；函数不会在导入时自动执行。数据库、模型和 MCP 参数由应用注入，不是 Ditto 内置的模拟后端。选择需要的函数调用；写入、删除、模型调用等会产生对应的真实操作。
+
+```ts
+import { createDitto, loadRuntimeConfigFile } from "@ditto/core";
+import {
+  createInfer, createInferWorker, InMemoryInferCache, inferSampleNode,
+  type InferClient, type ModelConfig, type TrajectoryInput, type ReflectInput,
+  type DeliberateInput, type TrajectoryStrategy, type InferCacheProvider, type ModelProvider, type SampleInput,
+} from "@ditto/core/worker/infer";
+
+import { ProviderRegistry, createHttpProvider, type HttpProviderOptions } from "@ditto/core/worker/infer/providers";
+```
+
+### ProviderRegistry.register / get / unregister 与 invoke
+
+演示注册、解析、原始模型调用与注销。ModelProvider.invoke 返回 SampleOutput，不含 NodeResult；输入中 provider 字段不会让单个 Provider 再次路由。注销不关闭连接或取消已执行调用。
+
+```ts
+export async function providerRegistryApis(provider: ModelProvider, input: SampleInput) {
+  const providers = new ProviderRegistry();
+  const unregister = providers.register("primary", provider);
+  try {
+    const selected = providers.get("primary");
+    return await selected.invoke(input, { signal: AbortSignal.timeout(5_000) });
+  } finally { unregister(); }
+}
+```
+
+### ModelProvider.stream：原始流
+
+stream 是可选方法，故先检查。原始流没有 SDK 的 start/step 事件；它只包含 text_delta 和一个完整 result。无 stream 时可调用 invoke，但不要声称返回真实 token 流。
+
+```ts
+export async function providerStream(provider: ModelProvider, input: SampleInput) {
+  const signal = AbortSignal.timeout(5_000);
+  if (!provider.stream) return provider.invoke(input, { signal });
+  for await (const event of provider.stream(input, { signal })) {
+    if (event.type === "text_delta") process.stdout.write(event.delta);
+    if (event.type === "result") return event.output;
+  }
+  throw new Error("Provider stream ended without a result");
+}
+```
+
+### createHttpProvider：显式构造
+
+完整参数见前文表格；options.sandbox 必须允许 baseUrl 的 origin。工厂只创建适配器，不立即发请求；首次 invoke/stream 才连接。
+
+```ts
+export function httpModelProvider(options: HttpProviderOptions) {
+  return createHttpProvider(options);
+}
+// Example options: { kind: "openai-compatible", baseUrl: "https://api.openai.com/v1",
+//   apiKey: process.env.DITTO_SHARED_PROVIDER_OPENAI_API_KEY, sandbox: runtime.services.sandbox }
+// Omit apiKey entirely when the endpoint has no authentication.
+```

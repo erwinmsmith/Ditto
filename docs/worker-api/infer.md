@@ -407,3 +407,243 @@ Trace accepts optional parentIds/summary; sample and deliberate return an additi
 Node errors become NodeResult envelopes. Construction errors throw directly. Pre-dispatch Runtime/transport errors (no Worker, closed Runtime, HTTP authentication) keep existing exception semantics.
 
 Run npm run check. INFER coverage lives in test/infer.test.ts, test/infer-provider.test.ts and test/infer.type-test.ts. Tests use injected model responses and real localhost Worker HTTP transport; they do not need a live model or API key.
+
+## Examples for each API
+
+Complete source: [examples/infer.ts](examples/infer.ts). The functions below share its imports and are checked by `npm run typecheck`; importing the file executes no examples. Applications supply database, model, or MCP resources. Choose the function you need; writes, deletes, and model calls perform real operations when invoked.
+
+```ts
+import { createDitto, loadRuntimeConfigFile } from "@ditto/core";
+import {
+  createInfer, createInferWorker, InMemoryInferCache, inferSampleNode,
+  type InferClient, type ModelConfig, type TrajectoryInput, type ReflectInput,
+  type DeliberateInput, type TrajectoryStrategy, type InferCacheProvider, type ModelProvider, type SampleInput,
+} from "@ditto/core/worker/infer";
+
+import { ProviderRegistry, createHttpProvider, type HttpProviderOptions } from "@ditto/core/worker/infer/providers";
+```
+
+Import INFER types from `@ditto/core/worker/infer` to avoid confusing them with Core Message / MemoryItem. INFER content is text or Provider content arrays; Interaction allows broader JSON content.
+
+### createInfer / createInferWorker: configuration and cache
+
+The SDK reuses Runtime services. Sharing cache requires injecting the same backend, and neither API automatically caches model output. Worker cacheFactory creates per-replica caches and takes precedence over cache.
+
+```ts
+export function setupInfer() {
+  const config = loadRuntimeConfigFile("ditto.yaml", process.env);
+  const cache = new InMemoryInferCache({ maxEntries: 2_000 });
+  const runtime = createDitto({ config, workers: [createInferWorker({ cache, concurrency: 4 })] });
+  const infer = createInfer({ runtime, cache });
+  return { runtime, infer }; // runtime.close() drains Workers; the application owns external clients.
+}
+```
+
+### reasoning.sample / SAMPLE: messages
+
+Returns an assistant Message, finishReason, and optional usage. Inspect actual results; finishReason=length indicates truncation.
+
+```ts
+export async function sample(infer: InferClient, model: ModelConfig) {
+  const result = await infer.reasoning.sample({ model,
+    messages: [{ role: "user", content: "Return the sum of 17 and 25." }],
+    generation: { temperature: 0, maxTokens: 256 },
+  });
+  if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);
+  return { message: result.output.message, finishReason: result.output.finishReason, usage: result.output.usage };
+}
+```
+
+### SAMPLE actions: action requests
+
+Actions describe available operations; actionRequests are returned for Graph/ReAct execution. The application binds targets; SAMPLE executes no tools.
+
+```ts
+export async function sampleActions(infer: InferClient, model: ModelConfig) {
+  return infer.reasoning.sample({ model,
+    messages: [{ role: "user", content: "Read README.md using the available tool." }],
+    actions: [{ name: "read_text", inputSchema: { type: "object", properties: { path: { type: "string" } }, required: ["path"] },
+      target: { kind: "tool", toolName: "read_text" } }],
+  }); // Inspect output.actionRequests; SAMPLE does not execute them.
+}
+```
+
+### reasoning.trajectory / TRAJECTORY: completion
+
+Check both NodeResult.status and output.status. Outer success can contain a partial trajectory after budget exhaustion.
+
+```ts
+export async function trajectory(infer: InferClient, model: ModelConfig) {
+  const result = await infer.reasoning.trajectory({ model,
+    messages: [{ role: "user", content: "Compare two ways to batch database writes." }],
+    strategy: { name: "cot", options: { rounds: 2 } },
+    constraints: { maxSteps: 4, timeoutMs: 30_000 },
+  });
+  if (result.status !== "success" || result.output?.status !== "completed") {
+    throw new Error(result.error?.code ?? result.output?.stopReason ?? result.status);
+  }
+  return result.output.result;
+}
+```
+
+### CoT, Long CoT, ToT, GoT, self-consistency examples
+
+Each request selects one built-in trajectory strategy. For example, call `await infer.reasoning.trajectory(strategyRequests(model)[0]!)`. Strategies do not require separate Workers.
+
+```ts
+export function strategyRequests(model: ModelConfig): TrajectoryInput[] {
+  const messages: TrajectoryInput["messages"] = [{ role: "user", content: "Find the cheapest valid delivery route." }];
+  return [
+    { model, messages, strategy: { name: "cot", options: { rounds: 2 } } },
+    { model, messages, strategy: { name: "long-cot", options: { rounds: 4 } } },
+    { model, messages, strategy: { name: "tot", options: { breadth: 2, depth: 2, beamWidth: 2 } }, constraints: { maxSteps: 16 } },
+    { model, messages, strategy: { name: "got", options: { breadth: 2, depth: 2 } }, constraints: { maxSteps: 16 } },
+    { model, messages, strategy: { name: "self-consistency", options: { candidates: 3 } }, constraints: { maxSteps: 3 } },
+  ]; // Run any one with infer.reasoning.trajectory(request).
+}
+```
+
+### reasoning.reflect / REFLECT: three modes
+
+Call reflectModes with critique, verify, or revise. All return assessment/issues; verify requires passed and revise requires revisedResult. Invalid generated JSON fails validation.
+
+```ts
+export async function reflectModes(infer: InferClient, model: ModelConfig, mode: ReflectInput["mode"]) {
+  const result = await infer.reasoning.reflect({ model, mode,
+    messages: [{ role: "user", content: "What is 2 + 2?" }],
+    target: { result: { role: "assistant", content: "5" } },
+    criteria: [{ id: "arithmetic", description: "The result must equal 4.", weight: 1 }],
+  });
+  // mode = "critique": assessment + issues; "verify": assessment.passed; "revise": revisedResult.
+  if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);
+  return result.output;
+}
+```
+
+### reasoning.deliberate / DELIBERATE: four modes
+
+Pass select, merge, consensus, or debate. selectCount is valid only for select and cannot exceed the candidate count. select returns the original top candidate Message; other modes synthesize one.
+
+```ts
+export async function deliberateModes(infer: InferClient, model: ModelConfig, mode: NonNullable<DeliberateInput["mode"]>) {
+  const result = await infer.reasoning.deliberate({ model, mode,
+    objective: "Prefer a design with bounded memory and clear error handling.",
+    candidates: [
+      { id: "a", result: { role: "assistant", content: "Use bounded batches with explicit failures." } },
+      { id: "b", result: { role: "assistant", content: "Buffer all records and retry indefinitely." } },
+    ],
+    ...(mode === "select" ? { selectCount: 1 } : {}),
+  }); // mode: select / merge / consensus / debate.
+  if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);
+  return { message: result.output.result, ids: result.output.selectedCandidateIds, assessments: result.output.assessments };
+}
+```
+
+### cache.write / lookup / invalidate: all cache operations
+
+Includes all three methods and key/tag/namespace invalidation. hit=false is a successful miss; check NodeResult.status first. Tag invalidation spans namespaces.
+
+```ts
+export async function cacheApis(infer: InferClient) {
+  const key = { namespace: "tenant-a", scope: "sample", key: "model-and-input-hash:v1" };
+  const written = await infer.cache.write({ key, value: { role: "assistant", content: "42" }, ttlMs: 60_000, tags: ["model-v1"] });
+  const lookup = await infer.cache.lookup({ key });
+  if (lookup.status === "success" && lookup.output?.hit) console.log(lookup.output.value);
+  const byKey = await infer.cache.invalidate({ selector: { type: "key", key } });
+  const byTag = await infer.cache.invalidate({ selector: { type: "tag", tag: "model-v1" } });
+  const byNamespace = await infer.cache.invalidate({ selector: { type: "namespace", namespace: "tenant-a" } });
+  return { written, lookup, byKey, byTag, byNamespace };
+}
+```
+
+### infer.execute: generic dispatch
+
+Returns the same NodeResult as typed convenience methods and supports only the seven INFER leaves. Explicit Input/Output generics do not bypass runtime validation.
+
+```ts
+export async function executeInfer(infer: InferClient, model: ModelConfig) {
+  return infer.execute("INFER.REASONING.SAMPLE", { model, messages: [{ role: "user", content: "Hello" }] }, { timeoutMs: 5_000 });
+}
+```
+
+### sample.stream / trajectory.stream / reflect.stream / deliberate.stream
+
+Each streaming method has an example and its terminal output field. All accept `{ signal, timeoutMs }`. This comparison consumes four streams sequentially; applications usually select one. text_delta is not the final structured result.
+
+```ts
+export async function streamApis(infer: InferClient, model: ModelConfig) {
+  const sampleInput = { model, messages: [{ role: "user" as const, content: "Give a brief answer." }] };
+  const trajectoryInput: TrajectoryInput = { ...sampleInput, strategy: { name: "cot" } };
+  const reflectInput: ReflectInput = { model, mode: "verify", target: { result: { role: "assistant", content: "2 + 2 = 4" } } };
+  const deliberateInput: DeliberateInput = { model, mode: "select", candidates: [{ id: "a", result: { role: "assistant", content: "4" } }] };
+  // Each method has its own typed terminal output; consume one selected stream in production.
+  for await (const event of infer.reasoning.sample.stream(sampleInput)) {
+    if (event.type === "result") console.log(event.result.output?.message);
+  }
+  for await (const event of infer.reasoning.trajectory.stream(trajectoryInput)) {
+    if (event.type === "step") console.log(event.step.id, event.step.parentIds);
+    if (event.type === "result") console.log(event.result.output?.result);
+  }
+  for await (const event of infer.reasoning.reflect.stream(reflectInput)) {
+    if (event.type === "result") console.log(event.result.output?.assessment);
+  }
+  for await (const event of infer.reasoning.deliberate.stream(deliberateInput)) {
+    if (event.type === "result") console.log(event.result.output?.selectedCandidateIds);
+  }
+}
+```
+
+### InferCallOptions: cancellation and deadlines
+
+A pre-aborted signal returns cancelled without starting a model request. Use controller.abort() for in-flight cancellation; stopping SDK waiting does not imply rollback by the service.
+
+```ts
+export async function cancelInfer(infer: InferClient, model: ModelConfig) {
+  const controller = new AbortController();
+  controller.abort();
+  return infer.reasoning.sample({ model, messages: [{ role: "user", content: "Hello" }] }, { signal: controller.signal, timeoutMs: 5_000 });
+}
+```
+
+### InMemoryInferCache / InferCacheProvider raw API
+
+Options are `{ maxEntries?: number, now?: () => number }`, defaulting to 1000 entries and Date.now. now supplies a millisecond clock. Raw methods return raw outputs; SDK/Worker add input validation, deadlines, and NodeResult.
+
+```ts
+export async function cacheProviderApi(cache: InferCacheProvider = new InMemoryInferCache({ maxEntries: 100 })) {
+  const key = { scope: "sample", key: "example" };
+  await cache.write({ key, value: "cached message", ttlMs: 1_000 });
+  const hit = await cache.lookup({ key }); // Raw CacheLookupOutput, not NodeResult.
+  const invalidated = await cache.invalidate({ selector: { type: "key", key } });
+  return { hit, invalidated };
+}
+```
+
+### TrajectoryStrategy: sample / deliberate / step
+
+Covers all three computation methods and signal. sample/deliberate return stepId for parentIds. step records public trace only. Computation consumes the current trajectory budget and does not schedule tools or other Workers.
+
+```ts
+export const refineStrategy: TrajectoryStrategy = async ctx => {
+  ctx.signal.throwIfAborted();
+  const draft = await ctx.sample(ctx.messages, { summary: "Create a draft" });
+  const revised = await ctx.sample([...ctx.messages, draft.message, { role: "user", content: "Correct mistakes and return the final answer." }], { parentIds: [draft.stepId] });
+  const decision = await ctx.deliberate([
+    { id: "draft", result: draft.message }, { id: "revised", result: revised.message },
+  ], "select", { selectCount: 1, parentIds: [draft.stepId, revised.stepId] });
+  ctx.step({ type: "decision", parentIds: [decision.stepId], summary: "Selected a checked answer" });
+  return decision.result;
+};
+// createInfer({ runtime, strategies: { refine: refineStrategy } });
+// infer.reasoning.trajectory({ model, messages, strategy: { name: "refine" } });
+```
+
+### Node descriptor type / define
+
+`inferSampleNode`, `inferTrajectoryNode`, `inferReflectNode`, and `inferDeliberateNode` expose `.type` and `.define(workerType, handler)`. Normally use createInferWorker. This example binds an SDK method as one NodeDefinition. Cache leaves are registered by the factory; INFER_CACHE_NAMESPACE is only the string INFER.CACHE and cannot be invoked.
+
+```ts
+export function sampleDescriptor(infer: InferClient) {
+  return inferSampleNode.define("INFER", input => infer.reasoning.sample(input));
+}
+```

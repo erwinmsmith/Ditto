@@ -1,21 +1,54 @@
-# Worker API reference
+# Worker usage API
 
 **English** · [简体中文](README.zh-CN.md) · [Documentation map](../README.md)
 
-| Worker | Reference | Implemented capabilities |
+These references follow current public exports and cover factories, SDK methods, every Worker node, providers/storage ports, registries, configuration, and lifecycle. Operations include examples; complete TypeScript examples in [examples](examples/README.md) participate in `npm run typecheck`. An interface does not imply an automatic database driver or plugin loader.
+
+| Worker | Reference | Operations and examples |
 | --- | --- | --- |
-| INFER | [API](infer.md) · [中文](infer.zh-CN.md) | SAMPLE, TRAJECTORY, REFLECT, DELIBERATE, CACHE LOOKUP / WRITE / INVALIDATE |
-| MEMORY | [API](memory.md) · [中文](memory.zh-CN.md) | GET / QUERY / SEARCH / WRITE / UPDATE / DELETE; external storage/search plugins |
-| INTERACTION | [API](../interaction-runtime.md#graph-loop-and-worker-setup) · [中文](../interaction-runtime.zh-CN.md#graphloop-与-worker-使用入口) | ACT.TOOL / ACT.MCP / OBSERVE / OUTPUT; Worker factory and registry wiring |
-| RETRIEVAL (optional) | [中文](retrieval.zh-CN.md) · [English](retrieval.md) | SEARCH；Target/Strategy Provider Registry |
+| INFER | [API](infer.md) · [中文](infer.zh-CN.md) | SAMPLE / TRAJECTORY / REFLECT / DELIBERATE / CACHE LOOKUP, WRITE, INVALIDATE; SDK + stream |
+| MEMORY | [API](memory.md) · [中文](memory.zh-CN.md) | GET / QUERY / SEARCH / WRITE / UPDATE / DELETE; store / search |
+| INTERACTION | [API](interaction.md) · [中文](interaction.zh-CN.md) | ACT.TOOL / ACT.MCP / OBSERVE / OUTPUT; ToolRegistry / McpRegistry / OutputSink |
+| RETRIEVAL (optional) | [API](retrieval.md) · [中文](retrieval.zh-CN.md) | SEARCH; SDK / target / strategy / deployment |
 
-These references describe executable APIs. Earlier node taxonomy proposals remain available as historical design documents; use this directory for the implemented INFER, MEMORY and optional RETRIEVAL contracts.
+## Start here
 
-- [Provider API](providers.md): shared registry, vendor protocols, streaming and tool messages.
-- [ReAct graph flow](../interaction-runtime.md#react-predefined-graph-flow): Runtime sampling/action orchestration.
+1. Define an Agent Graph with semantic nodes, data mappings, and failure policy; keep clients and credentials outside it.
+2. Add a Loop when needed: state, update, done, and maxIterations. Use runtime.run for one Graph or runtime.loop for repetition.
+3. Supply Worker implementations: model providers, MemoryStore/search, RegisteredTool/McpClient/OutputSink.
+4. Register Workers in Runtime; load YAML behavior settings and env connection/credential settings explicitly.
+5. Register optional RETRIEVAL only when independent search resources are needed; ordinary native MEMORY search does not need it.
 
-- [真实调用验证 / Live verification](infer-live-report.md)：内容断言、供应商实际结果和可复现命令。
+See [Graph + Loop + Worker](../../examples/graph-loop-worker.ts) and [real command/tool composition](../../examples/interaction-tools.ts).
 
-- [统一配置 / Shared configuration](configuration.md): 根目录 YAML、env 边界、参数与覆盖顺序。
+## Results and errors: distinct contracts
 
-- [INTERACTION 真实执行验证 / Live verification](interaction-live-report.md)：Linux/macOS 命令、普通工具与 MCP 的组合执行。
+| Call layer | Returns | Failure behavior |
+| --- | --- | --- |
+| INFER / MEMORY / RETRIEVAL SDK or Worker | `NodeResult<T>` | Check status before consuming output; construction/routing/transport can still throw |
+| INTERACTION | `ExternalResult` / `Observation` / MCP union / `OutputReceipt` | Check the appropriate status; validation/permission/infrastructure errors throw |
+| Underlying store / Provider / Sink | Their raw Output | Workers wrap or validate it; do not add another NodeResult |
+
+INFER trajectories also expose output.status: outer success does not imply completed. Cancellation/timeout does not prove rollback; applications/adapters own idempotency and retries for databases, commands, MCP, and delivery.
+
+## Adapters and configuration
+
+- [Model providers: registration/removal, HTTP, vendor protocols, invoke/stream](providers.md)
+- [Retrieval providers: embedding, vector/text, RRF, reranking, SQL/Milvus, and Memory bridges](retrieval-providers.md)
+- [Shared configuration: root ditto.yaml / .env fields, groups, and precedence](configuration.md)
+
+INTERACTION tools, MCP clients, and output functions are injected through code. YAML currently supports neither workers.interaction nor arbitrary plugin autoloading. Applications own database/model SDK lifecycle.
+
+## Example coverage and validation
+
+| Example file | Coverage |
+| --- | --- |
+| [memory.ts](examples/memory.ts) | Both factories, six operations, execute, pagination, plugins, errors, Graph, descriptors |
+| [infer.ts](examples/infer.ts) | Both factories, seven leaves, five strategies, three reflection/four deliberation modes, four streams, cache and model providers |
+| [interaction.ts](examples/interaction.ts) | Factories, registration/removal, four nodes, MCP, observations, receipts, handlers, Graph/Loop |
+| [retrieval.ts](examples/retrieval.ts) | Factories, SEARCH, registry, embedding, fusion/reranking, database adapters, Memory bridges |
+
+Type checking verifies API compatibility, not live connectivity to every database or online model. Live validation is recorded separately:
+
+- [INFER live verification](infer-live-report.md)
+- [INTERACTION Linux/macOS + MCP verification](interaction-live-report.md)

@@ -243,3 +243,188 @@ Replace MEMORY.RETRIEVE with GET/QUERY, MEMORY.RAG.* with SEARCH, and CONSOLIDAT
 Ordinary MemorySearchProviders remain unchanged. When independent retrieval resources are needed, explicitly import RemoteRetrievalSearchProvider from `@ditto/core/worker/retrieval/adapters/memory`, supplying a fixed target and, where needed, batch mapOutput. It delegates MEMORY.SEARCH to RETRIEVAL.SEARCH without changing the caller contract. MEMORY neither imports nor starts the extension. See [integration and deployment](retrieval.md).
 
 The same storage plugin/connection can also supply native search. Optional helpers support both directions: createMemoryRetrievalProvider wraps that native search for RETRIEVAL; createRetrievalMemorySearchProvider runs an embedding/search/fusion/rerank pipeline directly inside MEMORY without starting another Worker. Remote mapping is optional when candidates contain complete MemoryItems. See [database and embedding wiring](retrieval-providers.md). Embedding during SEARCH does not make WRITE automatically index or synchronize vectors.
+
+## Examples for each API
+
+Complete source: [examples/memory.ts](examples/memory.ts). The functions below share its imports and are checked by `npm run typecheck`; importing the file executes no examples. Applications supply database, model, or MCP resources. Choose the function you need; writes, deletes, and model calls perform real operations when invoked.
+
+```ts
+import { createDitto, graph, loadRuntimeConfigFile } from "@ditto/core";
+import {
+  createMemory, createMemoryWorker, MemoryError, memoryGetNode,
+  type MemoryResources, type MemoryStore, type MemorySearchProvider,
+} from "@ditto/core/worker/memory";
+```
+
+### createMemory / createMemoryWorker: setup
+
+Both factories accept MemoryOptions. The SDK calls plugins directly; the Worker participates in routing. Explicit search overrides store.search. Neither factory closes database connections.
+
+```ts
+export function setupMemory(resources: MemoryResources) {
+  const config = loadRuntimeConfigFile("ditto.yaml", process.env);
+  const worker = createMemoryWorker({ ...resources, concurrency: 16 });
+  const runtime = createDitto({ config, workers: [worker] });
+  const memory = createMemory({ ...resources, defaults: config.memory });
+  return { runtime, memory };
+}
+```
+
+### memory.get / MEMORY.GET: exact reads
+
+Successful output is a MemoryItem array, e.g. `[{ id: "m1", key: "preference", content: { language: "zh-CN" } }]`. Missing records are omitted.
+
+```ts
+export async function getMemory(resources: MemoryResources) {
+  const memory = createMemory(resources);
+  const result = await memory.get({ ids: ["m1", "m1"], keys: ["preference"] });
+  if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);
+  return result.output.map(item => ({ id: item.id, content: item.content }));
+}
+```
+
+### memory.query / MEMORY.QUERY: pagination
+
+Output is `{ items: [...], nextCursor?: string }`. Keep filters, ordering, and scope unchanged between pages. This example reads up to two pages; supported sort fields belong to the plugin.
+
+```ts
+export async function queryMemory(resources: MemoryResources) {
+  const memory = createMemory(resources);
+  const first = await memory.query({ limit: 20, orderBy: [{ field: "id", direction: "asc" }] });
+  if (first.status !== "success" || !first.output) throw new Error(first.error?.code ?? first.status);
+  const items = [...first.output.items];
+  if (first.output.nextCursor) {
+    const next = await memory.query({ limit: 20, orderBy: [{ field: "id", direction: "asc" }], cursor: first.output.nextCursor });
+    if (next.status !== "success" || !next.output) throw new Error(next.error?.code ?? next.status);
+    items.push(...next.output.items);
+  }
+  return items;
+}
+```
+
+### memory.search / MEMORY.SEARCH: relevance search
+
+Output is `[{ memory: { id, content, ... }, score?, metadata? }]`. This example uses the plugin default strategy; explicit vector/keyword strategies must be supported by that plugin.
+
+```ts
+export async function searchMemory(resources: MemoryResources) {
+  const memory = createMemory(resources);
+  const result = await memory.search({ query: "preferred language", limit: 5 });
+  if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);
+  return result.output.map(hit => ({ id: hit.memory.id, content: hit.memory.content, score: hit.score }));
+}
+```
+
+### memory.write / MEMORY.WRITE: create
+
+Creates preference and returns the database-assigned id. The output record count must equal the input count. The plugin defines duplicate-key, transaction, and idempotency behavior; rerunning may conflict.
+
+```ts
+export async function writeMemory(resources: MemoryResources) {
+  const memory = createMemory(resources);
+  const result = await memory.write({ memories: [{ key: "preference", content: { language: "zh-CN" }, metadata: { source: "user" } }] });
+  if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);
+  return result.output[0]!.id; // Allocated by the storage plugin.
+}
+```
+
+### memory.update / MEMORY.UPDATE: partial updates
+
+Pass the id returned by WRITE. This replaces content and clears metadata. Omit content for a metadata-only update; omitted fields are unchanged and key cannot be updated.
+
+```ts
+export async function updateMemory(resources: MemoryResources, id: string) {
+  const memory = createMemory(resources);
+  const result = await memory.update({ memories: [{ id, content: { language: "en" }, metadata: {} }] });
+  if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);
+  return result.output[0]!; // metadata is replaced, not merged; key is unchanged.
+}
+```
+
+### memory.delete / MEMORY.DELETE: delete
+
+Returns `{ deleted: ["m1"] }` or `{ deleted: [] }`. Inspect output.deleted to determine which records were actually deleted.
+
+```ts
+export async function deleteMemory(resources: MemoryResources, id: string) {
+  const memory = createMemory(resources);
+  const result = await memory.delete({ ids: [id, id] });
+  if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);
+  return result.output.deleted; // A missing id is not reported as deleted.
+}
+```
+
+### memory.execute: generic SDK entry
+
+Signature: `execute<N extends MemoryNode>(node, input, defaults?: MemoryDefaults)`. The third argument provides fallback defaults below factory defaults. All six convenience methods share this executor.
+
+```ts
+export async function executeMemory(resources: MemoryResources) {
+  const memory = createMemory(resources);
+  return memory.execute("MEMORY.QUERY", { limit: 10 });
+}
+```
+
+### MemoryStore / MemorySearchProvider: adapter ports
+
+Adapters return raw Output, not NodeResult. This demonstrates preserving the receiver. database is an application adapter implementing Memory contracts, not a raw SQL/Milvus SDK; SDK mapping, parameterized queries, and transactions belong inside it.
+
+```ts
+export function adaptDatabase(database: MemoryStore & Partial<MemorySearchProvider>): MemoryResources {
+  // These methods are the application's SDK adapter, not raw SQL/Milvus SDK methods.
+  // Explicit calls retain the SDK adapter's receiver and connection pool.
+  const store: MemoryStore = {
+    get: input => database.get(input),
+    query: input => database.query(input),
+    write: input => database.write(input),
+    update: input => database.update(input),
+    delete: input => database.delete(input),
+  };
+  const search = database.search ? { search: (input: Parameters<MemorySearchProvider["search"]>[0]) => database.search!(input) } : undefined;
+  return { store, ...(search ? { search } : {}) };
+}
+```
+
+### MemoryError and failures
+
+Use `new MemoryError(code, safeMessage)` for public failures. Invalid query input returns INVALID_INPUT before plugin invocation. Unclassified backend errors become MEMORY_BACKEND_ERROR; do not treat failures as empty results.
+
+```ts
+export async function memoryErrors(store: MemoryStore) {
+  const search: MemorySearchProvider = {
+    async search(input) {
+      if (input.strategy !== "keyword") throw new MemoryError("UNSUPPORTED_STRATEGY", "Only keyword search is supported");
+      throw new MemoryError("SEARCH_UNAVAILABLE", "Search is temporarily unavailable");
+    },
+  };
+  const memory = createMemory({ store, search });
+  const invalid = await memory.query({ limit: 0 }); // failed / INVALID_INPUT; store.query is not called.
+  const unavailable = await memory.search({ query: "x", strategy: "keyword" });
+  return { invalid, unavailable };
+}
+```
+
+### Graph and shutdown
+
+Place MEMORY nodes in application Graphs. Drain Runtime before closing database connections. Map MemoryItem.content explicitly before feeding INFER.
+
+```ts
+export async function memoryGraph(resources: MemoryResources) {
+  const runtime = createDitto({ workers: [createMemoryWorker(resources)] });
+  const plan = graph<string>("read-memory")
+    .node("memory", "MEMORY.GET", [], id => ({ ids: [id] }));
+  try { return await runtime.run(plan, "m1"); }
+  finally { await runtime.close(); } // Close the application's database pool afterwards.
+}
+```
+
+### Node descriptor type / define
+
+The six descriptors are memoryGetNode, memoryQueryNode, memorySearchNode, memoryWriteNode, memoryUpdateNode, and memoryDeleteNode. `.type` identifies the Node; `.define(workerType, handler)` supplies a replacement. Prefer createMemoryWorker; replacement handlers own NodeResult and validation. This example returns an explicit failure.
+
+```ts
+export const customGet = memoryGetNode.define("MEMORY", async () => ({
+  executionId: "example-call", node: "MEMORY.GET", status: "failed",
+  error: { code: "NOT_CONFIGURED", message: "Configure the application storage adapter" },
+}));
+```

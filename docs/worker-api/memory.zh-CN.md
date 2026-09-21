@@ -256,3 +256,188 @@ const result = await runRagFlow(runtime, {
 普通 MemorySearchProvider 保持不变。需要独立检索资源时，可显式导入 `@ditto/core/worker/retrieval/adapters/memory` 的 RemoteRetrievalSearchProvider，配置固定 target 与按需的批量 mapOutput，将 MEMORY.SEARCH 委托给 RETRIEVAL.SEARCH。调用方契约不变；MEMORY 不直接依赖或自动启动该扩展。见 [接入和部署说明](retrieval.zh-CN.md)。
 
 同一存储插件/连接也可以提供原生检索。可选 createMemoryRetrievalProvider 将现有原生 search 接入 RETRIEVAL；createRetrievalMemorySearchProvider 则让 MEMORY 在进程内直接复用 embedding/搜索/融合/重排链路，无需启动另一个 Worker。候选包含完整 MemoryItem 时，远程转接可省略 mapOutput。见[数据库与 embedding 接线](retrieval-providers.zh-CN.md)。SEARCH 的 embedding 不会让 WRITE 自动构建或同步向量索引。
+
+## 逐 API 使用示例
+
+完整代码：[examples/memory.ts](examples/memory.ts)。下列函数共用该文件的 imports，均参与 `npm run typecheck`；函数不会在导入时自动执行。数据库、模型和 MCP 参数由应用注入，不是 Ditto 内置的模拟后端。选择需要的函数调用；写入、删除、模型调用等会产生对应的真实操作。
+
+```ts
+import { createDitto, graph, loadRuntimeConfigFile } from "@ditto/core";
+import {
+  createMemory, createMemoryWorker, MemoryError, memoryGetNode,
+  type MemoryResources, type MemoryStore, type MemorySearchProvider,
+} from "@ditto/core/worker/memory";
+```
+
+### createMemory / createMemoryWorker：初始化
+
+两种工厂都接收 MemoryOptions。SDK 直接调用插件；Worker 参与 Runtime 路由。默认 search 来自 store.search，显式 search 会覆盖它。两者不自动关闭数据库连接。
+
+```ts
+export function setupMemory(resources: MemoryResources) {
+  const config = loadRuntimeConfigFile("ditto.yaml", process.env);
+  const worker = createMemoryWorker({ ...resources, concurrency: 16 });
+  const runtime = createDitto({ config, workers: [worker] });
+  const memory = createMemory({ ...resources, defaults: config.memory });
+  return { runtime, memory };
+}
+```
+
+### memory.get / MEMORY.GET：精确读取
+
+成功 output 是 MemoryItem 数组，例如 `[{ id: "m1", key: "preference", content: { language: "zh-CN" } }]`；记录不存在时省略该记录。下面演示去重输入和安全取 output。
+
+```ts
+export async function getMemory(resources: MemoryResources) {
+  const memory = createMemory(resources);
+  const result = await memory.get({ ids: ["m1", "m1"], keys: ["preference"] });
+  if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);
+  return result.output.map(item => ({ id: item.id, content: item.content }));
+}
+```
+
+### memory.query / MEMORY.QUERY：分页
+
+成功 output 为 `{ items: [...], nextCursor?: string }`。再次查询时保留同一 filter、orderBy 与作用域，只替换 cursor。示例取前两页；支持的排序字段由插件决定。
+
+```ts
+export async function queryMemory(resources: MemoryResources) {
+  const memory = createMemory(resources);
+  const first = await memory.query({ limit: 20, orderBy: [{ field: "id", direction: "asc" }] });
+  if (first.status !== "success" || !first.output) throw new Error(first.error?.code ?? first.status);
+  const items = [...first.output.items];
+  if (first.output.nextCursor) {
+    const next = await memory.query({ limit: 20, orderBy: [{ field: "id", direction: "asc" }], cursor: first.output.nextCursor });
+    if (next.status !== "success" || !next.output) throw new Error(next.error?.code ?? next.status);
+    items.push(...next.output.items);
+  }
+  return items;
+}
+```
+
+### memory.search / MEMORY.SEARCH：相关性检索
+
+成功 output 为 `[{ memory: { id, content, ... }, score?, metadata? }]`。示例使用插件默认策略；需要指定 vector/keyword 时，应先确认该插件支持。
+
+```ts
+export async function searchMemory(resources: MemoryResources) {
+  const memory = createMemory(resources);
+  const result = await memory.search({ query: "preferred language", limit: 5 });
+  if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);
+  return result.output.map(hit => ({ id: hit.memory.id, content: hit.memory.content, score: hit.score }));
+}
+```
+
+### memory.write / MEMORY.WRITE：创建
+
+示例创建 preference，返回数据库分配的 id。完整输出记录数必须与输入相同。重复 key、事务和幂等策略由插件声明；重复运行示例可能冲突。
+
+```ts
+export async function writeMemory(resources: MemoryResources) {
+  const memory = createMemory(resources);
+  const result = await memory.write({ memories: [{ key: "preference", content: { language: "zh-CN" }, metadata: { source: "user" } }] });
+  if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);
+  return result.output[0]!.id; // Allocated by the storage plugin.
+}
+```
+
+### memory.update / MEMORY.UPDATE：部分更新
+
+将 WRITE 返回的 id 传入。本例替换 content，并用空对象清空 metadata。只改 metadata 时省略 content；缺失字段不更新，不能通过 UPDATE 修改 key。
+
+```ts
+export async function updateMemory(resources: MemoryResources, id: string) {
+  const memory = createMemory(resources);
+  const result = await memory.update({ memories: [{ id, content: { language: "en" }, metadata: {} }] });
+  if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);
+  return result.output[0]!; // metadata is replaced, not merged; key is unchanged.
+}
+```
+
+### memory.delete / MEMORY.DELETE：删除
+
+返回 `{ deleted: ["m1"] }` 或 `{ deleted: [] }`。不要用“没有抛异常”判断实际删除数量，应检查 output.deleted。
+
+```ts
+export async function deleteMemory(resources: MemoryResources, id: string) {
+  const memory = createMemory(resources);
+  const result = await memory.delete({ ids: [id, id] });
+  if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);
+  return result.output.deleted; // A missing id is not reported as deleted.
+}
+```
+
+### memory.execute：统一 SDK 入口
+
+签名为 `execute<N extends MemoryNode>(node, input, defaults?: MemoryDefaults)`；第三参数作为默认值后备层，优先级低于工厂 defaults，通常使用工厂 defaults 即可。六个便捷方法使用相同执行器。
+
+```ts
+export async function executeMemory(resources: MemoryResources) {
+  const memory = createMemory(resources);
+  return memory.execute("MEMORY.QUERY", { limit: 10 });
+}
+```
+
+### MemoryStore / MemorySearchProvider：适配接口
+
+适配层直接返回原始 Output，不再套 NodeResult。此例演示保留 SDK 方法的 this 绑定；传入的 database 已是符合 Memory 契约的应用适配对象，不是原生 SQL/Milvus SDK。原生 SDK 的字段转换、参数化查询和事务应在该对象内部实现。
+
+```ts
+export function adaptDatabase(database: MemoryStore & Partial<MemorySearchProvider>): MemoryResources {
+  // These methods are the application's SDK adapter, not raw SQL/Milvus SDK methods.
+  // Explicit calls retain the SDK adapter's receiver and connection pool.
+  const store: MemoryStore = {
+    get: input => database.get(input),
+    query: input => database.query(input),
+    write: input => database.write(input),
+    update: input => database.update(input),
+    delete: input => database.delete(input),
+  };
+  const search = database.search ? { search: (input: Parameters<MemorySearchProvider["search"]>[0]) => database.search!(input) } : undefined;
+  return { store, ...(search ? { search } : {}) };
+}
+```
+
+### MemoryError 与失败消费
+
+公开错误使用 `new MemoryError(code, safeMessage)`。默认查询参数不合法会在调用插件前返回 INVALID_INPUT；未知后端异常统一转为 MEMORY_BACKEND_ERROR。失败输出不能当作空结果继续消费。
+
+```ts
+export async function memoryErrors(store: MemoryStore) {
+  const search: MemorySearchProvider = {
+    async search(input) {
+      if (input.strategy !== "keyword") throw new MemoryError("UNSUPPORTED_STRATEGY", "Only keyword search is supported");
+      throw new MemoryError("SEARCH_UNAVAILABLE", "Search is temporarily unavailable");
+    },
+  };
+  const memory = createMemory({ store, search });
+  const invalid = await memory.query({ limit: 0 }); // failed / INVALID_INPUT; store.query is not called.
+  const unavailable = await memory.search({ query: "x", strategy: "keyword" });
+  return { invalid, unavailable };
+}
+```
+
+### Graph 与关闭顺序
+
+也可将 MEMORY 节点放到用户 Graph 中。Runtime.close 排空已接受调用后，再由应用关闭数据库连接。后续 INFER 应通过 Graph bind 显式映射 MemoryItem.content。
+
+```ts
+export async function memoryGraph(resources: MemoryResources) {
+  const runtime = createDitto({ workers: [createMemoryWorker(resources)] });
+  const plan = graph<string>("read-memory")
+    .node("memory", "MEMORY.GET", [], id => ({ ids: [id] }));
+  try { return await runtime.run(plan, "m1"); }
+  finally { await runtime.close(); } // Close the application's database pool afterwards.
+}
+```
+
+### 节点描述符 type / define
+
+六个描述符为 memoryGetNode、memoryQueryNode、memorySearchNode、memoryWriteNode、memoryUpdateNode、memoryDeleteNode。`.type` 是对应 Node ID；`.define(workerType, handler)` 定义替换处理器。普通接入优先用 createMemoryWorker；替换处理器需要自行保证 NodeResult 和所有契约。下例仅展示显式失败处理器。
+
+```ts
+export const customGet = memoryGetNode.define("MEMORY", async () => ({
+  executionId: "example-call", node: "MEMORY.GET", status: "failed",
+  error: { code: "NOT_CONFIGURED", message: "Configure the application storage adapter" },
+}));
+```

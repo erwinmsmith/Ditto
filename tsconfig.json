@@ -41,7 +41,8 @@
     "src/**/*.ts",
     "test/**/*.ts",
     "scripts/**/*.ts",
-    "examples/**/*.ts"
+    "examples/**/*.ts",
+    "docs/worker-api/examples/**/*.ts"
   ],
   "exclude": [
     "dist",

@@ -110,3 +110,62 @@ Provider behavior now lives in YAML as `shared.providers.<name>.options` and `ma
 Run real checks explicitly: npm run check:infer:live -- --provider deepseek. Options: --strategies cot,tot,got, --cases sample,tot, --max-tokens 4096, and --report path. Assertions check content as well as execution; any failure exits nonzero. Reports append history including failures without credentials. See the [live verification report](infer-live-report.md).
 
 Protocol references: [Anthropic streaming](https://platform.claude.com/docs/en/build-with-claude/streaming), [Gemini generation](https://ai.google.dev/api/generate-content), [Gemini function calling](https://ai.google.dev/gemini-api/docs/function-calling). Offline checks use fixtures/local HTTP; real provider results are recorded separately.
+
+## Examples for each API
+
+Complete source: [examples/infer.ts](examples/infer.ts). The functions below share its imports and are checked by `npm run typecheck`; importing the file executes no examples. Applications supply database, model, or MCP resources. Choose the function you need; writes, deletes, and model calls perform real operations when invoked.
+
+```ts
+import { createDitto, loadRuntimeConfigFile } from "@ditto/core";
+import {
+  createInfer, createInferWorker, InMemoryInferCache, inferSampleNode,
+  type InferClient, type ModelConfig, type TrajectoryInput, type ReflectInput,
+  type DeliberateInput, type TrajectoryStrategy, type InferCacheProvider, type ModelProvider, type SampleInput,
+} from "@ditto/core/worker/infer";
+
+import { ProviderRegistry, createHttpProvider, type HttpProviderOptions } from "@ditto/core/worker/infer/providers";
+```
+
+### ProviderRegistry.register / get / unregister and invoke
+
+Shows registration, resolution, raw invocation, and removal. ModelProvider.invoke returns SampleOutput without NodeResult. Removal neither closes resources nor cancels in-flight calls.
+
+```ts
+export async function providerRegistryApis(provider: ModelProvider, input: SampleInput) {
+  const providers = new ProviderRegistry();
+  const unregister = providers.register("primary", provider);
+  try {
+    const selected = providers.get("primary");
+    return await selected.invoke(input, { signal: AbortSignal.timeout(5_000) });
+  } finally { unregister(); }
+}
+```
+
+### ModelProvider.stream: raw stream
+
+stream is optional. Raw streams contain text_delta and one complete result, without SDK start/step events. Falling back to invoke does not provide token streaming.
+
+```ts
+export async function providerStream(provider: ModelProvider, input: SampleInput) {
+  const signal = AbortSignal.timeout(5_000);
+  if (!provider.stream) return provider.invoke(input, { signal });
+  for await (const event of provider.stream(input, { signal })) {
+    if (event.type === "text_delta") process.stdout.write(event.delta);
+    if (event.type === "result") return event.output;
+  }
+  throw new Error("Provider stream ended without a result");
+}
+```
+
+### createHttpProvider: explicit construction
+
+Options are documented above. sandbox must allow the baseUrl origin. Construction creates an adapter without connecting; invoke/stream performs requests.
+
+```ts
+export function httpModelProvider(options: HttpProviderOptions) {
+  return createHttpProvider(options);
+}
+// Example options: { kind: "openai-compatible", baseUrl: "https://api.openai.com/v1",
+//   apiKey: process.env.DITTO_SHARED_PROVIDER_OPENAI_API_KEY, sandbox: runtime.services.sandbox }
+// Omit apiKey entirely when the endpoint has no authentication.
+```

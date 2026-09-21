@@ -426,3 +426,243 @@ trace 包含可选 parentIds/summary；sample 和 deliberate 返回额外 stepId
 Node 内的错误转为 `NodeResult`；构造阶段的错误直接抛出。Runtime 在路由前失败（无可用 Worker、Runtime 已关闭、HTTP 认证失败等）仍使用现有 Runtime 的异常语义，不会凭空产生 INFER NodeResult。
 
 验证入口：`npm run check`；针对 INFER 的测试为 `test/infer.test.ts`、`test/infer-provider.test.ts` 和 `test/infer.type-test.ts`。协议测试使用注入的模型响应和本机真实 HTTP Worker 传输，无需在线模型或 API Key。
+
+## 逐 API 使用示例
+
+完整代码：[examples/infer.ts](examples/infer.ts)。下列函数共用该文件的 imports，均参与 `npm run typecheck`；函数不会在导入时自动执行。数据库、模型和 MCP 参数由应用注入，不是 Ditto 内置的模拟后端。选择需要的函数调用；写入、删除、模型调用等会产生对应的真实操作。
+
+```ts
+import { createDitto, loadRuntimeConfigFile } from "@ditto/core";
+import {
+  createInfer, createInferWorker, InMemoryInferCache, inferSampleNode,
+  type InferClient, type ModelConfig, type TrajectoryInput, type ReflectInput,
+  type DeliberateInput, type TrajectoryStrategy, type InferCacheProvider, type ModelProvider, type SampleInput,
+} from "@ditto/core/worker/infer";
+
+import { ProviderRegistry, createHttpProvider, type HttpProviderOptions } from "@ditto/core/worker/infer/providers";
+```
+
+导出类型应优先从 `@ditto/core/worker/infer` 获取，避免与 Core 的 Message / MemoryItem 同名类型混淆。INFER Message.content 是文本或 Provider 内容数组；Interaction Message.content 允许更广的 JSON。
+
+### createInfer / createInferWorker：共享配置与缓存
+
+创建 Runtime 后，SDK 可复用它的 services；注入同一个 cache 才会共享缓存。两种调用都不会自动把模型结果写入缓存。Worker 的 cacheFactory 可按副本创建资源，优先于 cache。
+
+```ts
+export function setupInfer() {
+  const config = loadRuntimeConfigFile("ditto.yaml", process.env);
+  const cache = new InMemoryInferCache({ maxEntries: 2_000 });
+  const runtime = createDitto({ config, workers: [createInferWorker({ cache, concurrency: 4 })] });
+  const infer = createInfer({ runtime, cache });
+  return { runtime, infer }; // runtime.close() drains Workers; the application owns external clients.
+}
+```
+
+### reasoning.sample / SAMPLE：消息输入与输出
+
+返回 assistant Message、finishReason、可选 usage。示例消费真实结果而不预设模型必然回答正确；finishReason=length 表示截断。
+
+```ts
+export async function sample(infer: InferClient, model: ModelConfig) {
+  const result = await infer.reasoning.sample({ model,
+    messages: [{ role: "user", content: "Return the sum of 17 and 25." }],
+    generation: { temperature: 0, maxTokens: 256 },
+  });
+  if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);
+  return { message: result.output.message, finishReason: result.output.finishReason, usage: result.output.usage };
+}
+```
+
+### SAMPLE actions：只生成动作请求
+
+输入动作描述，输出 actionRequests。目标工具名由应用绑定；后续交给 Graph/ReAct 执行。actions 不是工具实现，不会在 SAMPLE 内自动执行。
+
+```ts
+export async function sampleActions(infer: InferClient, model: ModelConfig) {
+  return infer.reasoning.sample({ model,
+    messages: [{ role: "user", content: "Read README.md using the available tool." }],
+    actions: [{ name: "read_text", inputSchema: { type: "object", properties: { path: { type: "string" } }, required: ["path"] },
+      target: { kind: "tool", toolName: "read_text" } }],
+  }); // Inspect output.actionRequests; SAMPLE does not execute them.
+}
+```
+
+### reasoning.trajectory / TRAJECTORY：完整结果判定
+
+同时检查外层 NodeResult.status 和内层 output.status。外层 success 可能仍是预算耗尽后的 partial；只将 completed 作为完整结果使用。
+
+```ts
+export async function trajectory(infer: InferClient, model: ModelConfig) {
+  const result = await infer.reasoning.trajectory({ model,
+    messages: [{ role: "user", content: "Compare two ways to batch database writes." }],
+    strategy: { name: "cot", options: { rounds: 2 } },
+    constraints: { maxSteps: 4, timeoutMs: 30_000 },
+  });
+  if (result.status !== "success" || result.output?.status !== "completed") {
+    throw new Error(result.error?.code ?? result.output?.stopReason ?? result.status);
+  }
+  return result.output.result;
+}
+```
+
+### CoT、Long CoT、ToT、GoT、Self-consistency 示例
+
+下面五个请求逐一对应五种内置策略；每个都是合法的 TRAJECTORY 输入。通过 `await infer.reasoning.trajectory(strategyRequests(model)[0]!)` 选择一个执行，不需要为策略额外创建 Worker。
+
+```ts
+export function strategyRequests(model: ModelConfig): TrajectoryInput[] {
+  const messages: TrajectoryInput["messages"] = [{ role: "user", content: "Find the cheapest valid delivery route." }];
+  return [
+    { model, messages, strategy: { name: "cot", options: { rounds: 2 } } },
+    { model, messages, strategy: { name: "long-cot", options: { rounds: 4 } } },
+    { model, messages, strategy: { name: "tot", options: { breadth: 2, depth: 2, beamWidth: 2 } }, constraints: { maxSteps: 16 } },
+    { model, messages, strategy: { name: "got", options: { breadth: 2, depth: 2 } }, constraints: { maxSteps: 16 } },
+    { model, messages, strategy: { name: "self-consistency", options: { candidates: 3 } }, constraints: { maxSteps: 3 } },
+  ]; // Run any one with infer.reasoning.trajectory(request).
+}
+```
+
+### reasoning.reflect / REFLECT：三种模式
+
+分别调用 `reflectModes(infer, model, "critique")`、`"verify"`、`"revise"`。三者共有 assessment/issues；verify 必须给出 passed，revise 必须给出 revisedResult。JSON 不合法时返回失败，不猜测或补造结果。
+
+```ts
+export async function reflectModes(infer: InferClient, model: ModelConfig, mode: ReflectInput["mode"]) {
+  const result = await infer.reasoning.reflect({ model, mode,
+    messages: [{ role: "user", content: "What is 2 + 2?" }],
+    target: { result: { role: "assistant", content: "5" } },
+    criteria: [{ id: "arithmetic", description: "The result must equal 4.", weight: 1 }],
+  });
+  // mode = "critique": assessment + issues; "verify": assessment.passed; "revise": revisedResult.
+  if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);
+  return result.output;
+}
+```
+
+### reasoning.deliberate / DELIBERATE：四种模式
+
+分别传 select、merge、consensus、debate。selectCount 仅在 select 模式传入，且不能超过候选数。select 的 output.result 是排名第一候选的原始 Message；其余模式是合成 Message。
+
+```ts
+export async function deliberateModes(infer: InferClient, model: ModelConfig, mode: NonNullable<DeliberateInput["mode"]>) {
+  const result = await infer.reasoning.deliberate({ model, mode,
+    objective: "Prefer a design with bounded memory and clear error handling.",
+    candidates: [
+      { id: "a", result: { role: "assistant", content: "Use bounded batches with explicit failures." } },
+      { id: "b", result: { role: "assistant", content: "Buffer all records and retry indefinitely." } },
+    ],
+    ...(mode === "select" ? { selectCount: 1 } : {}),
+  }); // mode: select / merge / consensus / debate.
+  if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);
+  return { message: result.output.result, ids: result.output.selectedCandidateIds, assessments: result.output.assessments };
+}
+```
+
+### cache.write / lookup / invalidate：全部缓存操作
+
+三个方法及按 key/tag/namespace 失效都有对应调用。lookup.output.hit=false 是成功的未命中，不是失败；需先判断 NodeResult.status。tag 失效会跨 namespace。
+
+```ts
+export async function cacheApis(infer: InferClient) {
+  const key = { namespace: "tenant-a", scope: "sample", key: "model-and-input-hash:v1" };
+  const written = await infer.cache.write({ key, value: { role: "assistant", content: "42" }, ttlMs: 60_000, tags: ["model-v1"] });
+  const lookup = await infer.cache.lookup({ key });
+  if (lookup.status === "success" && lookup.output?.hit) console.log(lookup.output.value);
+  const byKey = await infer.cache.invalidate({ selector: { type: "key", key } });
+  const byTag = await infer.cache.invalidate({ selector: { type: "tag", tag: "model-v1" } });
+  const byNamespace = await infer.cache.invalidate({ selector: { type: "namespace", namespace: "tenant-a" } });
+  return { written, lookup, byKey, byTag, byNamespace };
+}
+```
+
+### infer.execute：动态 Node 调用
+
+与 reasoning.sample 等便捷方法返回同一种 NodeResult；仅支持七个 INFER 叶子。第二个重载支持显式 `<Input, Output>` 泛型，但不会绕过运行时校验。
+
+```ts
+export async function executeInfer(infer: InferClient, model: ModelConfig) {
+  return infer.execute("INFER.REASONING.SAMPLE", { model, messages: [{ role: "user", content: "Hello" }] }, { timeoutMs: 5_000 });
+}
+```
+
+### sample.stream / trajectory.stream / reflect.stream / deliberate.stream
+
+四个流式方法分别给出调用与对应终态字段。流式方法也支持第二参数 `{ signal, timeoutMs }`。为了便于对照，下例顺序消费四个流；实际应用通常选择其中一个。text_delta 不等同于最终结构化输出。
+
+```ts
+export async function streamApis(infer: InferClient, model: ModelConfig) {
+  const sampleInput = { model, messages: [{ role: "user" as const, content: "Give a brief answer." }] };
+  const trajectoryInput: TrajectoryInput = { ...sampleInput, strategy: { name: "cot" } };
+  const reflectInput: ReflectInput = { model, mode: "verify", target: { result: { role: "assistant", content: "2 + 2 = 4" } } };
+  const deliberateInput: DeliberateInput = { model, mode: "select", candidates: [{ id: "a", result: { role: "assistant", content: "4" } }] };
+  // Each method has its own typed terminal output; consume one selected stream in production.
+  for await (const event of infer.reasoning.sample.stream(sampleInput)) {
+    if (event.type === "result") console.log(event.result.output?.message);
+  }
+  for await (const event of infer.reasoning.trajectory.stream(trajectoryInput)) {
+    if (event.type === "step") console.log(event.step.id, event.step.parentIds);
+    if (event.type === "result") console.log(event.result.output?.result);
+  }
+  for await (const event of infer.reasoning.reflect.stream(reflectInput)) {
+    if (event.type === "result") console.log(event.result.output?.assessment);
+  }
+  for await (const event of infer.reasoning.deliberate.stream(deliberateInput)) {
+    if (event.type === "result") console.log(event.result.output?.selectedCandidateIds);
+  }
+}
+```
+
+### InferCallOptions：取消与调用时限
+
+示例使用已取消的信号，返回 cancelled 且不会发起模型请求。运行中取消通过同一 controller.abort() 发起；SDK 停止等待不代表第三方服务已撤销操作。
+
+```ts
+export async function cancelInfer(infer: InferClient, model: ModelConfig) {
+  const controller = new AbortController();
+  controller.abort();
+  return infer.reasoning.sample({ model, messages: [{ role: "user", content: "Hello" }] }, { signal: controller.signal, timeoutMs: 5_000 });
+}
+```
+
+### InMemoryInferCache / InferCacheProvider 原始接口
+
+构造参数为 `{ maxEntries?: number, now?: () => number }`；默认 1000 条、Date.now。now 是毫秒时钟，便于确定性验证。三个底层方法直接返回原始输出；SDK/Worker 才提供输入校验、截止时间及 NodeResult。
+
+```ts
+export async function cacheProviderApi(cache: InferCacheProvider = new InMemoryInferCache({ maxEntries: 100 })) {
+  const key = { scope: "sample", key: "example" };
+  await cache.write({ key, value: "cached message", ttlMs: 1_000 });
+  const hit = await cache.lookup({ key }); // Raw CacheLookupOutput, not NodeResult.
+  const invalidated = await cache.invalidate({ selector: { type: "key", key } });
+  return { hit, invalidated };
+}
+```
+
+### TrajectoryStrategy：sample / deliberate / step
+
+示例覆盖三个计算方法及 signal；sample/deliberate 返回 stepId，可用于 parentIds。`step` 只登记公开轨迹，不执行模型。策略计算仍消耗当前轨迹预算，不能调用工具或调度其他 Worker。
+
+```ts
+export const refineStrategy: TrajectoryStrategy = async ctx => {
+  ctx.signal.throwIfAborted();
+  const draft = await ctx.sample(ctx.messages, { summary: "Create a draft" });
+  const revised = await ctx.sample([...ctx.messages, draft.message, { role: "user", content: "Correct mistakes and return the final answer." }], { parentIds: [draft.stepId] });
+  const decision = await ctx.deliberate([
+    { id: "draft", result: draft.message }, { id: "revised", result: revised.message },
+  ], "select", { selectCount: 1, parentIds: [draft.stepId, revised.stepId] });
+  ctx.step({ type: "decision", parentIds: [decision.stepId], summary: "Selected a checked answer" });
+  return decision.result;
+};
+// createInfer({ runtime, strategies: { refine: refineStrategy } });
+// infer.reasoning.trajectory({ model, messages, strategy: { name: "refine" } });
+```
+
+### 节点描述符 type / define
+
+`inferSampleNode`、`inferTrajectoryNode`、`inferReflectNode`、`inferDeliberateNode` 分别提供对应 Node 的 `.type` 和 `.define(workerType, handler)`。普通应用使用 createInferWorker 即可；下面示例把已有 SDK 方法绑定成单个 NodeDefinition。缓存三个叶子由工厂注册；`INFER_CACHE_NAMESPACE` 只是值为 INFER.CACHE 的命名空间常量，不能作为 Node 调用。
+
+```ts
+export function sampleDescriptor(infer: InferClient) {
+  return inferSampleNode.define("INFER", input => infer.reasoning.sample(input));
+}
+```

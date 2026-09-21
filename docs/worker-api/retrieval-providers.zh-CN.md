@@ -208,3 +208,225 @@ MEMORY 转接函数来自 `@ditto/core/worker/retrieval/adapters/memory`，仅�
 `npm run check` 包含：真实 SQLite FTS5/BM25 参数化查询；本地 HTTP embedding 请求、响应索引、权限和超时；向量维度、批次与空输入；RRF 数值、去重与失败等待；cosine 重排与非法候选；Milvus 请求/响应协议；本地和委托 MEMORY 的完整记录保留；可选导出、配置与既有 HTTP Worker 通信测试。
 
 Milvus/MySQL/PostgreSQL 客户端由应用注入；本仓库测试没有连接这三种真实服务，也不宣称验证其索引吞吐或第三方模型的相关性质量。原始文档要求的 SEARCH 链路及可替换边界已覆盖；自动扩缩容、服务发现、租户限流和监控不在本轮范围内。
+
+## 逐 API 使用示例
+
+完整代码：[examples/retrieval.ts](examples/retrieval.ts)。下列函数共用该文件的 imports，均参与 `npm run typecheck`；函数不会在导入时自动执行。数据库、模型和 MCP 参数由应用注入，不是 Ditto 内置的模拟后端。选择需要的函数调用；写入、删除、模型调用等会产生对应的真实操作。
+
+```ts
+import { createDitto, createMemoryWorker, loadRuntimeConfigFile } from "@ditto/core";
+import type { MemorySearchProvider, MemoryStore, MemoryItem } from "@ditto/core/worker/memory";
+import {
+  createRetrieval, createRetrievalWorker, RetrievalTargetRegistry, RetrievalError, retrievalSearchNode,
+  embedContents, validateVector, createVectorSearchProvider, createTextSearchProvider,
+  createHybridSearchProvider, createCosineReranker, rerankCandidates, createRerankSearchProvider,
+  createHttpEmbeddingProvider, embeddingConfigFromEnv, createSqlSearchProvider, createMilvusSearchProvider,
+  type RetrievalSearchProvider, type RetrievalSearchInput, type RetrievalSearchOutput,
+  type EmbeddingProvider, type RerankProvider, type SqlSearchOptions, type MilvusSearchOptions,
+} from "@ditto/core/worker/retrieval";
+import {
+  createMemoryRetrievalProvider, createRetrievalMemorySearchProvider,
+  RemoteRetrievalSearchProvider, mapMemoryCandidates,
+} from "@ditto/core/worker/retrieval/adapters/memory";
+
+export const request: RetrievalSearchInput = { query: { content: "agent memory" }, target: { name: "kb" }, limit: 5 };
+```
+
+### EmbeddingProvider.embed / embedContents / validateVector
+
+embed 是 SDK 适配接口，直接调用不附加批次包装；embedContents 顺序分批并校验维度。validateVector(value, dimensions?) 成功返回 void，失败抛 RETRIEVAL_INVALID_EMBEDDING。示例中的 dimensions 应等于实际模型输出维度。
+
+```ts
+export async function embeddingApis(embedding: EmbeddingProvider, dimensions: number) {
+  const direct = await embedding.embed({ contents: ["query text"], purpose: "query" });
+  const documents = await embedContents(embedding, { contents: ["document A", "document B"], purpose: "document" }, { batchSize: 32, dimensions });
+  validateVector(documents[0], dimensions); // Returns void; throws on invalid/empty/mismatched vectors.
+  return { direct, documents };
+}
+```
+
+### embeddingConfigFromEnv / createHttpEmbeddingProvider
+
+前者只读取 env 并返回 baseUrl/model/apiKey，后者创建实际 HTTP embedding Provider。函数需要 .env 已由 Node --env-file 或应用加载；Ditto 不隐式加载。YAML 仅保存 batchSize/dimensions 等行为参数。
+
+```ts
+export async function httpEmbedding() {
+  const config = loadRuntimeConfigFile("ditto.yaml", process.env);
+  const runtime = createDitto({ config });
+  try {
+    const embedding = createHttpEmbeddingProvider({ ...embeddingConfigFromEnv(process.env), sandbox: runtime.services.sandbox, timeoutMs: config.timeoutMs });
+    return await embedContents(embedding, { contents: ["query text"], purpose: "query" }, {}, { defaults: config.retrieval });
+  } finally { await runtime.close(); }
+}
+```
+
+### createVectorSearchProvider：三种输入路径
+
+三个函数分别展示外部 embedding、数据库原生 embedding、预计算向量。选择一种即可；后端能否接收文本取决于数据库配置。nativeEmbedding 与 embedding 不能同时设置。
+
+```ts
+export async function externalVector(backend: RetrievalSearchProvider, embedding: EmbeddingProvider) {
+  const vector = createVectorSearchProvider({ backend, embedding });
+  return vector.search(request);
+}
+export async function nativeVector(backend: RetrievalSearchProvider) {
+  return createVectorSearchProvider({ backend, nativeEmbedding: true }).search(request);
+}
+export async function precomputedVector(backend: RetrievalSearchProvider, vector: readonly number[]) {
+  return createVectorSearchProvider({ backend, dimensions: vector.length }).search({ ...request, query: { content: vector } });
+}
+```
+
+### createTextSearchProvider：文本检索
+
+返回 RetrievalSearchProvider。要求非空文本；不执行向量化，不自带 BM25/倒排索引算法。真正的检索、排序和过滤交给传入后端。
+
+```ts
+export async function textSearch(backend: RetrievalSearchProvider) {
+  return createTextSearchProvider(backend).search({ ...request, strategy: "keyword" });
+}
+```
+
+### createHybridSearchProvider：融合
+
+两个分支会并行运行，各自收到 branch.strategy 和扩大的 limit。成功返回经过 RRF 排序的原候选及 fusion 元数据。分支可包含不同数据库，但 key 必须能正确区分/统一候选身份。
+
+```ts
+export async function hybridSearch(vector: RetrievalSearchProvider, text: RetrievalSearchProvider) {
+  const hybrid = createHybridSearchProvider({ candidateLimit: 50, rrfK: 60,
+    branches: [{ provider: vector, strategy: "vector", weight: 1 }, { provider: text, strategy: "keyword", weight: 0.7 }],
+  });
+  return hybrid.search({ ...request, strategy: "hybrid" });
+}
+```
+
+### RerankProvider.rank / rerankCandidates / createCosineReranker / createRerankSearchProvider
+
+rank 输出 `{ index, score? }[]`；rerankCandidates 将索引还原为原候选。返回数量必须等于 min(limit, candidates.length)，索引唯一且合法。cosine 使用候选 content 做 document embedding；若 content 是 MemoryItem，应在 embedding 适配器内提取实际文本。
+
+```ts
+export async function rerankApis(embedding: EmbeddingProvider, output: RetrievalSearchOutput) {
+  const reranker = createCosineReranker(embedding);
+  const input = { query: request.query, candidates: output.candidates, limit: Math.max(1, Math.min(3, output.candidates.length)) };
+  const order = await reranker.rank(input); // Raw zero-based indexes and scores.
+  const candidates = await rerankCandidates(reranker, input); // Original candidates in ranked order.
+  return { order, candidates };
+}
+export async function rerankSearch(search: RetrievalSearchProvider, reranker: RerankProvider) {
+  return createRerankSearchProvider({ search, reranker, candidateLimit: 50 }).search(request);
+}
+```
+
+### createSqlSearchProvider：可注入 SQL SDK
+
+此例假定 PostgreSQL memories(id, content, tenant) 表，并显式拒绝不支持的 filter/options。query 回调使用应用已有连接池。MySQL 使用同一工厂，但 prepare 必须换成该方言的占位符和查询；前文给出对应 SQL。本例按 namespace 绑定租户参数，权限校验仍由应用完成。
+
+```ts
+interface SqlRow { id: string; content: string; score: number; }
+export function sqlSearch(query: SqlSearchOptions<SqlRow>["query"]) {
+  return createSqlSearchProvider<SqlRow>({
+    prepare(input) {
+      if (typeof input.query.content !== "string" || !input.target.namespace || input.filter || input.options) {
+        throw new RetrievalError("RETRIEVAL_INVALID_INPUT", "Expected text and namespace without additional filters or options");
+      }
+      return {
+        text: "SELECT id, content, ts_rank_cd(to_tsvector('english', content), plainto_tsquery('english', $1)) AS score FROM memories WHERE tenant = $2 AND to_tsvector('english', content) @@ plainto_tsquery('english', $1) ORDER BY score DESC, id ASC LIMIT $3",
+        values: [input.query.content, input.target.namespace, input.limit],
+      };
+    },
+    query, // e.g. async ({ text, values }) => (await pgPool.query(text, [...values])).rows
+    mapRow: row => ({ id: row.id, content: row.content, score: row.score }),
+  });
+}
+```
+
+### createMilvusSearchProvider：可注入 Milvus SDK
+
+将现有 SDK search 适配为固定请求/响应接口；status code=0 或 error_code=Success 才成功。mapHit 返回完整 MemoryItem，便于默认 MEMORY 转接。数据库内索引、字段、embedding 函数需预先存在。
+
+```ts
+interface MilvusHit { id: string | number; score: number; memory: MemoryItem; }
+export function milvusSearch(search: MilvusSearchOptions<MilvusHit>["search"]) {
+  return createMilvusSearchProvider<MilvusHit>({ collection: "memories", vectorField: "embedding", outputFields: ["memory"],
+    search, // Adapt the application's SDK response to { status, results }.
+    scope(input) {
+      if (!input.target.namespace || input.filter || input.options) throw new RetrievalError("RETRIEVAL_INVALID_INPUT", "Expected a namespace without extra filters or options");
+      return { filter: "tenant == {tenant}", exprValues: { tenant: input.target.namespace } };
+    },
+    mapHit: hit => ({ id: String(hit.id), content: hit.memory, score: hit.score }),
+  });
+}
+```
+
+### createMemoryRetrievalProvider / mapMemoryCandidates
+
+原生 MemorySearchProvider → RetrievalSearchProvider → MemorySearchOutput。默认映射要求 candidate.content 是完整 MemoryItem；如果 candidate.id 存在，必须等于 content.id。
+
+```ts
+export async function nativeMemoryInRetrieval(nativeSearch: MemorySearchProvider) {
+  const provider = createMemoryRetrievalProvider(nativeSearch);
+  const output = await provider.search(request);
+  return mapMemoryCandidates(output); // content must be a complete MemoryItem, not just text.
+}
+```
+
+### createMemoryRetrievalProvider 的 mapInput
+
+有 target.namespace 时必须显式提供 mapInput，否则拒绝。下面只是一种应用 filter DSL，数据库插件必须明确支持 tenant 字段；不能把 namespace 当作已经鉴权的身份。
+
+```ts
+export function nativeMemoryWithNamespace(nativeSearch: MemorySearchProvider) {
+  return createMemoryRetrievalProvider(nativeSearch, input => {
+    if (!input.target.namespace) throw new RetrievalError("RETRIEVAL_INVALID_INPUT", "A namespace is required");
+    return {
+      query: input.query.content, filter: { ...input.filter, tenant: input.target.namespace },
+      ...(input.limit === undefined ? {} : { limit: input.limit }),
+      ...(input.strategy === undefined ? {} : { strategy: input.strategy }),
+      ...(input.options === undefined ? {} : { options: input.options }),
+    };
+  }); // The native plugin must implement this tenant filter and enforce caller authorization.
+}
+```
+
+### createRetrievalMemorySearchProvider：进程内复用
+
+无需注册 RETRIEVAL Worker。默认 mapOutput 仍要求完整 MemoryItem 候选，provider 可以是 vector/text/hybrid/rerank 组合。策略优先级为 MEMORY 请求 strategy > 此构造参数 strategy；插件连接由应用拥有。
+
+```ts
+export async function localMemoryPipeline(store: MemoryStore, provider: RetrievalSearchProvider) {
+  const search = createRetrievalMemorySearchProvider({ provider, target: { name: "kb" }, strategy: "vector", defaults: { searchLimit: 5 } });
+  const runtime = createDitto({ workers: [createMemoryWorker({ store, search })] });
+  try { return await runtime.invoke("MEMORY.SEARCH", { query: "agent memory", limit: 3 }); }
+  finally { await runtime.close(); }
+}
+```
+
+### RemoteRetrievalSearchProvider.search：委托执行
+
+构造不打开连接、不启动 Worker。search 原始返回 MemorySearchOutput；放入 MEMORY Worker 后才包装 NodeResult。示例在同一 Runtime 内路由，换成 HTTP 远端注册不改 MEMORY 请求。
+
+```ts
+export async function delegatedMemory(store: MemoryStore, provider: RetrievalSearchProvider) {
+  const { runtime } = setupRetrieval(provider);
+  const search = new RemoteRetrievalSearchProvider({ runtime, target: { name: "kb" } });
+  runtime.register(createMemoryWorker({ store, search }));
+  try {
+    const raw = await search.search({ query: "agent memory", limit: 3 }); // Raw MemorySearchOutput.
+    const routed = await runtime.invoke("MEMORY.SEARCH", { query: "agent memory", limit: 3 });
+    return { raw, routed };
+  } finally { await runtime.close(); }
+}
+```
+
+### mapOutput：自定义完整记录映射
+
+当 candidate.content 只是业务内容时，可在 createRetrievalMemorySearchProvider 或 RemoteRetrievalSearchProvider 中传 `mapOutput: mapTextCandidates`。若索引只含片段或 ID，应改成一次批量读取真实完整记录；不要把片段冒充完整 Memory。
+
+```ts
+export function mapTextCandidates(output: RetrievalSearchOutput) {
+  return output.candidates.map(candidate => {
+    if (!candidate.id) throw new Error("The application requires candidate ids");
+    return { memory: { id: candidate.id, content: candidate.content }, ...(candidate.score === undefined ? {} : { score: candidate.score }) };
+  }); // Use as mapOutput only when content is the application's complete memory content.
+}
+```
