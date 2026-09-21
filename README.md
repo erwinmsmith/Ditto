@@ -153,6 +153,6 @@ The package is currently private and is not published to npm. Other experiment r
 
 Use [GitHub Issues](https://github.com/erwinmsmith/Ditto/issues) for concrete use cases, bugs, and architecture discussions.
 
-Behavior defaults live in root [`ditto.yaml`](ditto.yaml); credentials and deployment bindings use [`.env.example`](.env.example). All Workers share Runtime services; see the [configuration API](docs/worker-api/configuration.md). Run `npm run check:infer:live -- --provider deepseek` explicitly; see the [INFER live verification report](docs/worker-api/infer-live-report.md).
+Behavior defaults live in root [`ditto.yaml`](ditto.yaml); credentials and deployment bindings use [`.env.example`](.env.example). All Workers share Runtime services; see the [configuration API](docs/worker-api/configuration.md). See the [INFER example guide](examples/README.md#infer) for setup and commands.
 
 See the [MEMORY API](docs/worker-api/memory.md) for plugin wiring, six node contracts and configuration.

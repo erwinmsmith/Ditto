@@ -230,13 +230,7 @@ await runRagFlow(runtime, {
 });
 ```
 
-This mapping example assumes JSON content; applications must satisfy Context's JSON contract. Applications resolve Skills before `runSkillFlow({ context, skill })` activates CONTEXT.SKILL. SkillRegistry now lives in the context directory; its root export remains available.
-
-## Migration and verification
-
-Replace MEMORY.RETRIEVE with GET/QUERY, MEMORY.RAG.* with SEARCH, and CONSOLIDATE/EVICT with application Graph/policy compositions. MEMORY.SKILL is removed. MemoryItem.message becomes content; Runtime outputs now use shared NodeResult. Obsolete scaffold modules and aliases are removed.
-
-`npm run check` covers injected-plugin CRUD, standalone/mixed resources, passthrough, validation, configuration, failure isolation and actual local HTTP transport. These fixture plugins verify Ditto contracts, not real MySQL/PostgreSQL/Milvus integration. External adapter repositories should verify persistence, query semantics, transactions and index consistency against their databases.
+This mapping example assumes JSON content; applications must satisfy Context's JSON contract. Applications resolve Skills before `runSkillFlow({ context, skill })` activates CONTEXT.SKILL. SkillRegistry is available from the context directory and the root export.
 
 ## Optional independent retrieval service
 
@@ -246,7 +240,7 @@ The same storage plugin/connection can also supply native search. Optional helpe
 
 ## Examples for each API
 
-Complete source: [examples/memory.ts](examples/memory.ts). The functions below share its imports and are checked by `npm run typecheck`; importing the file executes no examples. Applications supply database, model, or MCP resources. Choose the function you need; writes, deletes, and model calls perform real operations when invoked.
+Complete source: [examples/memory.ts](examples/memory.ts). The functions below share its imports; importing the file executes no examples. Applications supply database, model, or MCP resources. Choose the function you need; writes, deletes, and model calls perform real operations when invoked.
 
 ```ts
 import { createDitto, graph, loadRuntimeConfigFile } from "@ditto/core";

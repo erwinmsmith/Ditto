@@ -203,15 +203,9 @@ MEMORY 转接函数来自 `@ditto/core/worker/retrieval/adapters/memory`，仅�
 
 若候选只携带 ID 或文本，自定义 mapOutput 一次批量补全/映射。默认映射不会从文本猜测 Memory ID。保持原生 search 插件方向为“数据库 → Retrieval Provider”，不能把已委托 RETRIEVAL 的 MEMORY.SEARCH 再作为同一 RETRIEVAL 的后端，避免递归。
 
-## 验证范围
-
-`npm run check` 包含：真实 SQLite FTS5/BM25 参数化查询；本地 HTTP embedding 请求、响应索引、权限和超时；向量维度、批次与空输入；RRF 数值、去重与失败等待；cosine 重排与非法候选；Milvus 请求/响应协议；本地和委托 MEMORY 的完整记录保留；可选导出、配置与既有 HTTP Worker 通信测试。
-
-Milvus/MySQL/PostgreSQL 客户端由应用注入；本仓库测试没有连接这三种真实服务，也不宣称验证其索引吞吐或第三方模型的相关性质量。原始文档要求的 SEARCH 链路及可替换边界已覆盖；自动扩缩容、服务发现、租户限流和监控不在本轮范围内。
-
 ## 逐 API 使用示例
 
-完整代码：[examples/retrieval.ts](examples/retrieval.ts)。下列函数共用该文件的 imports，均参与 `npm run typecheck`；函数不会在导入时自动执行。数据库、模型和 MCP 参数由应用注入，不是 Ditto 内置的模拟后端。选择需要的函数调用；写入、删除、模型调用等会产生对应的真实操作。
+完整代码：[examples/retrieval.ts](examples/retrieval.ts)。下列函数共用该文件的 imports；函数不会在导入时自动执行。数据库、模型和 MCP 参数由应用注入，不是 Ditto 内置的模拟后端。选择需要的函数调用；写入、删除、模型调用等会产生对应的真实操作。
 
 ```ts
 import { createDitto, createMemoryWorker, loadRuntimeConfigFile } from "@ditto/core";

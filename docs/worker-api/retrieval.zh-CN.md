@@ -27,7 +27,7 @@ function startRetrieval(kbProvider: RetrievalSearchProvider, codeProvider: Retri
 }
 ```
 
-Provider 是应用传入的已有实现。迁移时将原本在 MEMORY/CONTEXT 中使用的底层检索函数包装成 RetrievalSearchProvider，沿用同一后端与算法；远端 Provider 不应反向调用已经转接到自己的 MEMORY.SEARCH。可以复用已有检索函数，或连接向量数据库、全文索引、图数据库、远程检索 API。可选模块已提供批量/HTTP embedding、向量检索接线、数据库原生全文检索适配、加权 RRF 融合与可替换重排。SQL/Milvus 通过应用已有客户端注入，Ditto 不安装数据库或驱动，也不管理索引。Graph/custom 策略继续由对应 SearchProvider 执行。完整 API 和接线方式见[检索链路与数据库适配](retrieval-providers.zh-CN.md)。不创建空的 EMBED/RANK 目录。
+Provider 是应用传入的已有实现。将 MEMORY/CONTEXT 中使用的底层检索函数包装成 RetrievalSearchProvider，沿用同一后端与算法；远端 Provider 不应反向调用已经转接到自己的 MEMORY.SEARCH。可以复用已有检索函数，或连接向量数据库、全文索引、图数据库、远程检索 API。可选模块已提供批量/HTTP embedding、向量检索接线、数据库原生全文检索适配、加权 RRF 融合与可替换重排。SQL/Milvus 通过应用已有客户端注入，Ditto 不安装数据库或驱动，也不管理索引。Graph/custom 策略继续由对应 SearchProvider 执行。完整 API 和接线方式见[检索链路与数据库适配](retrieval-providers.zh-CN.md)。不创建空的 EMBED/RANK 目录。
 
 应用决定是否将该 Worker 注册到本地 Runtime，或在独立服务进程中启动。Core 没有自动根据负载启停服务的机制。
 
@@ -218,15 +218,13 @@ Provider 可抛出 `new RetrievalError(code, safeMessage)`；message 是公开�
 
 直接 SDK 的取消信号经 context 协作式传给 Provider，HTTP embedding 自带请求 deadline；其他后端 deadline/cancellation 由 Provider 自己实现；没有 Promise.race 超时后仍占用资源却提前释放并发配额的逻辑。HTTP transport 的客户端 timeout 只停止客户端等待，不保证服务端计算被取消。Runtime 注册/路由/通信层的失败仍按已有规则拒绝 Promise；不伪装成成功的空候选。
 
-## 用户 Graph 与验证范围
+## 用户 Graph
 
 RAG 由用户 Graph 组合 `RETRIEVAL.SEARCH → 显式候选映射 → CONTEXT.UPDATE → INFER`。SEARCH 不更新 Context、不写 Memory、不调用 INFER/Tool，也不改写 query。候选到 ContextItem 的映射由调用方决定，不将 content 强制解释成文档或 Message。
 
-`npm run check` 覆盖可选性、类型导出、目标/策略选择、参数透传、配置优先级、错误与候选校验、两副本容量和关闭、MEMORY 经真实本地 HTTP 的转接。新增测试还覆盖真实 SQLite FTS5/BM25、HTTP embedding 协议、向量校验、RRF/cosine 数值以及 SQL/Milvus 协议映射。没有连接真实 MySQL/PostgreSQL/Milvus 服务，也未测量第三方模型检索质量或 GPU 吞吐。
-
 ## 逐 API 使用示例
 
-完整代码：[examples/retrieval.ts](examples/retrieval.ts)。下列函数共用该文件的 imports，均参与 `npm run typecheck`；函数不会在导入时自动执行。数据库、模型和 MCP 参数由应用注入，不是 Ditto 内置的模拟后端。选择需要的函数调用；写入、删除、模型调用等会产生对应的真实操作。
+完整代码：[examples/retrieval.ts](examples/retrieval.ts)。下列函数共用该文件的 imports；函数不会在导入时自动执行。数据库、模型和 MCP 参数由应用注入，不是 Ditto 内置的模拟后端。选择需要的函数调用；写入、删除、模型调用等会产生对应的真实操作。
 
 ```ts
 import { createDitto, createMemoryWorker, loadRuntimeConfigFile } from "@ditto/core";

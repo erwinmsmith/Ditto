@@ -48,7 +48,7 @@ Environment variables use matching ownership prefixes with comment sections:
 | INFER Worker | DITTO_WORKER_INFER_* |
 | HTTP transport | DITTO_TRANSPORT_HTTP_* |
 
-INFER, MEMORY and optional RETRIEVAL consume Worker-specific settings; database connections remain owned by external plugins. The transport token is read explicitly by HTTP bootstrap code and stays out of YAML and inference requests. Legacy top-level YAML infer/providers/react and old env prefixes are rejected; migrate them to the groups above.
+INFER, MEMORY and optional RETRIEVAL consume Worker-specific settings; database connections remain owned by external plugins. The transport token is read explicitly by HTTP bootstrap code and stays out of YAML and inference requests.
 
 ## Ownership and loaders
 
@@ -63,9 +63,9 @@ loadRuntimeConfigFile(path = "ditto.yaml", env = process.env): RuntimeConfig
 loadRuntimeConfig(env = process.env, settings: RuntimeSettings = {}): RuntimeConfig
 ```
 
-The file loader reads UTF-8 YAML relative to the current working directory. The second loader takes an object without file access. Grouping changes input files and RuntimeSettings; both loaders still return the existing normalized immutable snapshot containing environment, workspace, model, providers, timeoutMs, maxTurns, infer, memory, retrieval, react and sandbox. All Workers access it through ctx.services.config. Reload and recreate the Runtime after editing YAML; there is no per-call file I/O or hot reload.
+The file loader reads UTF-8 YAML relative to the current working directory. The second loader takes an object without file access. Both loaders return a normalized immutable snapshot containing environment, workspace, model, providers, timeoutMs, maxTurns, infer, memory, retrieval, react and sandbox. All Workers access it through ctx.services.config. Reload and recreate the Runtime after editing YAML; there is no per-call file I/O or hot reload.
 
-Missing/empty files, non-object roots, unknown keys, duplicate keys, aliases and invalid values fail at startup. YAML does not interpolate environment variables or accept deployment fields such as apiKey/baseUrl. Provider options are request parameters, never a place for credentials. Old DITTO_TIMEOUT_MS, DITTO_MAX_TURNS and DITTO_SHARED_PROVIDER_*_OPTIONS/MAX_TOKENS_FIELD now throw a migration error if present in env. Custom createDitto({ providers }) skips HTTP provider construction from config.
+Missing/empty files, non-object roots, unknown keys, duplicate keys, aliases and invalid values fail at startup. YAML does not interpolate environment variables or accept deployment fields such as apiKey/baseUrl. Provider options are request parameters, never a place for credentials. Custom createDitto({ providers }) skips HTTP provider construction from config.
 
 ## YAML fields
 
@@ -104,8 +104,6 @@ createInfer({ runtime }) and the Runtime Worker share these defaults. InferOptio
 Call timeoutMs overrides the SDK/Worker option, then Runtime timeout. Effective trajectory timeout is the minimum of that value and constraints.timeoutMs; request constraints can override their YAML defaults. Nested generation is capped by both maxTokens and the remaining total-token budget. Increasing depth can exhaust maxSteps or maxTotalTokens and return partial with an explicit stopReason. The checked-in ToT settings use 8 model calls; GoT uses 6.
 
 runReactFlow remains a Runtime graph preset. It uses runtime.maxTurns, react budgets and workers.infer.generation, independently of trajectory strategy settings.
-
-`npm run check:infer:live -- --provider deepseek` loads this same YAML. `--max-tokens` overrides generation for that experiment only. Reports record effective defaults and actual outcomes; see [live verification](infer-live-report.md).
 
 DELIBERATE resolves mode and selectCount from the request, then workers.infer.deliberate, then library defaults (select / 1). Configured selectCount only applies when the effective mode is select; supplying selectCount explicitly for other modes is invalid. Counts larger than the available candidates fail before a provider call. Generation precedence is request > deliberate.generation > infer.generation > provider defaults. ToT explicitly supplies selection mode and retention count; GoT explicitly supplies merge mode. Their judging calls inherit DELIBERATE generation defaults and remain capped by the trajectory's remaining token budget; explicit trajectory generation overrides the node defaults.
 

@@ -4,7 +4,7 @@
 
 本文对应 `src/worker/infer/` 的实际实现。INFER 提供模型采样、推理轨迹、反思、候选审议和显式推理缓存。Context / Memory 默认由 Graph 提前传入；工具、MCP、Shell 等能力由其他 Worker 执行。INFER 不直接导入其他 Worker 的实现。
 
-实现基于最新 `dev` 的 `src/worker/infer/`，复用已有节点骨架。INFER 的详细契约取代最初的骨架签名；从 `@ditto/core/worker/infer` 导入，或通过根入口 `Infer` 类型命名空间访问。其他 Worker 的公共类型保持不变；Graph 负责将 Context / Memory 输出转换为 INFER 所需的字段。
+从 `@ditto/core/worker/infer` 导入 INFER 契约，或通过根入口 `Infer` 类型命名空间访问。Graph 负责将 Context / Memory 输出转换为 INFER 所需的字段。
 
 ## 1. 接入与生命周期
 
@@ -233,7 +233,7 @@ Token 预算会限制下一次请求的 `generation.maxTokens` 并阻止超预�
 
 ### Graph 流程与自定义计算策略
 
-ReAct 是 Runtime 的预定义 Graph 流程，通过 `runReactFlow(runtime, input, options?)` 调用；完整接口见 [Runtime 流程](../interaction-runtime.zh-CN.md#react-预定义-graph-流程)。`react`、`plan-and-act` 不再作为 TRAJECTORY 策略；需要规划时先在 Graph 中调用 SAMPLE，再将计划传给 ReAct。检索 Context/Memory 同样由上游 Graph 完成。
+ReAct 是 Runtime 的预定义 Graph 流程，通过 `runReactFlow(runtime, input, options?)` 调用；完整接口见 [Runtime 流程](../interaction-runtime.zh-CN.md#react-预定义-graph-流程)。需要规划时先在 Graph 中调用 SAMPLE，再将计划传给 ReAct。检索 Context/Memory 同样由上游 Graph 完成。
 
 ```ts
 import type { TrajectoryStrategy } from "@ditto/core/worker/infer";
@@ -393,7 +393,7 @@ TRAJECTORY 的 delta 包含中间候选、审议 JSON 和最终回答，不能�
 
 ## 9. Provider 与缓存后端
 
-模型统一使用 `ModelProvider.invoke/stream`，Runtime 和 INFER 共享 `ProviderRegistry`。内置 OpenAI 兼容、Anthropic 和 Gemini 协议，详细构造参数、注册方式、字段映射、流式与工具往返约定见 [Provider API](providers.zh-CN.md)。旧的 `ModelProviderAdapter.sample` 和独立 `models` 配置已移除。
+模型统一使用 `ModelProvider.invoke/stream`，Runtime 和 INFER 共享 `ProviderRegistry`。内置 OpenAI 兼容、Anthropic 和 Gemini 协议，详细构造参数、注册方式、字段映射、流式与工具往返约定见 [Provider API](providers.zh-CN.md)。
 
 自定义缓存后端契约如下。三个方法均为异步；输入校验、调用超时由 Node 层提供，后端负责存取语义。
 
@@ -407,7 +407,7 @@ interface InferCacheProvider {
 
 trace 包含可选 parentIds/summary；sample 和 deliberate 返回额外 stepId，step 返回完整 ReasoningStep。deliberate 的 options 可传 selectCount，仅用于 select。
 
-## 10. 错误与验证
+## 10. 错误
 
 | `error.code` | 含义 |
 | --- | --- |
@@ -425,11 +425,9 @@ trace 包含可选 parentIds/summary；sample 和 deliberate 返回额外 stepId
 
 Node 内的错误转为 `NodeResult`；构造阶段的错误直接抛出。Runtime 在路由前失败（无可用 Worker、Runtime 已关闭、HTTP 认证失败等）仍使用现有 Runtime 的异常语义，不会凭空产生 INFER NodeResult。
 
-验证入口：`npm run check`；针对 INFER 的测试为 `test/infer.test.ts`、`test/infer-provider.test.ts` 和 `test/infer.type-test.ts`。协议测试使用注入的模型响应和本机真实 HTTP Worker 传输，无需在线模型或 API Key。
-
 ## 逐 API 使用示例
 
-完整代码：[examples/infer.ts](examples/infer.ts)。下列函数共用该文件的 imports，均参与 `npm run typecheck`；函数不会在导入时自动执行。数据库、模型和 MCP 参数由应用注入，不是 Ditto 内置的模拟后端。选择需要的函数调用；写入、删除、模型调用等会产生对应的真实操作。
+完整代码：[examples/infer.ts](examples/infer.ts)。下列函数共用该文件的 imports；函数不会在导入时自动执行。数据库、模型和 MCP 参数由应用注入，不是 Ditto 内置的模拟后端。选择需要的函数调用；写入、删除、模型调用等会产生对应的真实操作。
 
 ```ts
 import { createDitto, loadRuntimeConfigFile } from "@ditto/core";

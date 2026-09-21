@@ -4,7 +4,7 @@
 
 This reference describes the implementation in `src/worker/infer/`: model sampling, explicit reasoning trajectories, reflection, candidate deliberation, and inference caching. Graphs supply Context and Memory upfront. ReAct and other cross-Worker orchestration belong to Runtime graph flows. INFER does not execute tools, MCP, or shells.
 
-Implementation lives in the existing `src/worker/infer/` on current `dev`, preserving its node scaffolds. Detailed INFER contracts supersede the initial scaffold signatures. Import them from `@ditto/core/worker/infer` or the root `Infer` type namespace. Other Workers retain their shared types; Graph bindings map their Context/Memory outputs to INFER fields.
+Import INFER contracts from `@ditto/core/worker/infer` or the root `Infer` type namespace. Graph bindings map Context/Memory outputs to INFER fields.
 
 ## 1. Setup and lifecycle
 
@@ -228,7 +228,7 @@ Without YAML, ToT (breadth=3, depth=2, beamWidth=2) uses 11 SAMPLE calls; defaul
 
 ### Graph flows and custom computation strategies
 
-ReAct is a predefined Runtime graph flow, called with `runReactFlow(runtime, input, options?)`; see the [Runtime flow API](../interaction-runtime.md#react-predefined-graph-flow). `react` and `plan-and-act` are no longer TRAJECTORY strategies. For planning, run SAMPLE in an upstream Graph and supply its plan to ReAct. Context/Memory retrieval also belongs to upstream Graphs.
+ReAct is a predefined Runtime graph flow, called with `runReactFlow(runtime, input, options?)`; see the [Runtime flow API](../interaction-runtime.md#react-predefined-graph-flow). For planning, run SAMPLE in an upstream Graph and supply its plan to ReAct. Context/Memory retrieval also belongs to upstream Graphs.
 
 ```ts
 import type { TrajectoryStrategy } from "@ditto/core/worker/infer";
@@ -374,7 +374,7 @@ Trajectory deltas include intermediate candidates, judging JSON and final answer
 
 ## 9. Providers and cache backends
 
-Models use the unified `ModelProvider.invoke/stream` interface and `ProviderRegistry`, shared by Runtime and INFER. Built-in protocols cover OpenAI-compatible, Anthropic and Gemini. See the [Provider API](providers.md) for construction, registration, field mapping, streaming and tool round trips. The former `ModelProviderAdapter.sample` and separate `models` option have been removed.
+Models use the unified `ModelProvider.invoke/stream` interface and `ProviderRegistry`, shared by Runtime and INFER. Built-in protocols cover OpenAI-compatible, Anthropic and Gemini. See the [Provider API](providers.md) for construction, registration, field mapping, streaming and tool round trips.
 
 ```ts
 interface InferCacheProvider {
@@ -388,7 +388,7 @@ The Node validates inputs and deadlines; the backend implements storage semantic
 
 Trace accepts optional parentIds/summary; sample and deliberate return an additional stepId, and step returns the complete ReasoningStep. Deliberate options accept selectCount for select mode.
 
-## 10. Errors and verification
+## 10. Errors
 
 | Code | Meaning |
 | --- | --- |
@@ -406,11 +406,9 @@ Trace accepts optional parentIds/summary; sample and deliberate return an additi
 
 Node errors become NodeResult envelopes. Construction errors throw directly. Pre-dispatch Runtime/transport errors (no Worker, closed Runtime, HTTP authentication) keep existing exception semantics.
 
-Run npm run check. INFER coverage lives in test/infer.test.ts, test/infer-provider.test.ts and test/infer.type-test.ts. Tests use injected model responses and real localhost Worker HTTP transport; they do not need a live model or API key.
-
 ## Examples for each API
 
-Complete source: [examples/infer.ts](examples/infer.ts). The functions below share its imports and are checked by `npm run typecheck`; importing the file executes no examples. Applications supply database, model, or MCP resources. Choose the function you need; writes, deletes, and model calls perform real operations when invoked.
+Complete source: [examples/infer.ts](examples/infer.ts). The functions below share its imports; importing the file executes no examples. Applications supply database, model, or MCP resources. Choose the function you need; writes, deletes, and model calls perform real operations when invoked.
 
 ```ts
 import { createDitto, loadRuntimeConfigFile } from "@ditto/core";

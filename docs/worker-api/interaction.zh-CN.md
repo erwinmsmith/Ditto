@@ -217,7 +217,7 @@ export function mcpClientAdapter(client: McpClient): McpClient {
 }
 ```
 
-此包装保留客户端方法的 this 绑定及可选字段；传入的 client 已符合中立接口。原生 SDK 的联合返回类型需先适配。官方 SDK 的完整可运行例子见 [真实 MCP 脚本](../../scripts/check-interaction-mcp-live.mjs)及[实测记录](interaction-live-report.md)。Ditto 不安装 MCP SDK，不自动建立 stdio/HTTP 连接。适配器应把特定 SDK 的联合返回类型转换为 McpToolResult。isError=true 映射为 failed；没有安全错误对象时使用固定 MCP_TOOL_ERROR。
+此包装保留客户端方法的 this 绑定及可选字段；传入的 client 已符合中立接口。原生 SDK 的联合返回类型需先适配。官方 SDK 的完整可运行例子见 [真实 MCP 脚本](../../scripts/check-interaction-mcp-live.mjs)及[接入说明](../../examples/README.zh-CN.md#mcp)。Ditto 不安装 MCP SDK，不自动建立 stdio/HTTP 连接。适配器应把特定 SDK 的联合返回类型转换为 McpToolResult。isError=true 映射为 failed；没有安全错误对象时使用固定 MCP_TOOL_ERROR。
 
 ## 5. ExternalResult、OBSERVE 与消息
 
@@ -388,4 +388,4 @@ export async function interactionGraph() {
 
 同一 Worker definition 注册多次会共享传入的工具/注册表/客户端/接收端。需要独立资源时分别构造 definition，或使用 defineWorker 的 resources/dispose。动态 unregister 只移除后续查找，不取消已开始操作或关闭 SDK。关闭时先 `await runtime.close()` 排空 Worker，再关闭应用拥有的 MCP、数据库、队列等客户端。
 
-真实命令、普通工具与 MCP 的组合验证及复现命令见 [INTERACTION 实测记录](interaction-live-report.md)。数据库能力接入 MEMORY，不需要把数据库客户端塞进 Interaction。模型动作循环见 [ReAct Graph](../interaction-runtime.zh-CN.md#react-预定义-graph-流程)。
+命令、普通工具与 MCP 的组合用法见[示例指南](../../examples/README.zh-CN.md)。数据库能力接入 MEMORY，不需要把数据库客户端塞进 Interaction。模型动作循环见 [ReAct Graph](../interaction-runtime.zh-CN.md#react-预定义-graph-流程)。

@@ -39,7 +39,7 @@ INFER trajectories also expose output.status: outer success does not imply compl
 
 INTERACTION tools, MCP clients, and output functions are injected through code. YAML currently supports neither workers.interaction nor arbitrary plugin autoloading. Applications own database/model SDK lifecycle.
 
-## Example coverage and validation
+## Examples
 
 | Example file | Coverage |
 | --- | --- |
@@ -47,8 +47,3 @@ INTERACTION tools, MCP clients, and output functions are injected through code. 
 | [infer.ts](examples/infer.ts) | Both factories, seven leaves, five strategies, three reflection/four deliberation modes, four streams, cache and model providers |
 | [interaction.ts](examples/interaction.ts) | Factories, registration/removal, four nodes, MCP, observations, receipts, handlers, Graph/Loop |
 | [retrieval.ts](examples/retrieval.ts) | Factories, SEARCH, registry, embedding, fusion/reranking, database adapters, Memory bridges |
-
-Type checking verifies API compatibility, not live connectivity to every database or online model. Live validation is recorded separately:
-
-- [INFER live verification](infer-live-report.md)
-- [INTERACTION Linux/macOS + MCP verification](interaction-live-report.md)

@@ -24,7 +24,7 @@ function startRetrieval(kbProvider: RetrievalSearchProvider, codeProvider: Retri
 }
 ```
 
-To migrate, wrap the existing low-level MEMORY/CONTEXT retrieval function in RetrievalSearchProvider, keeping its backend and algorithm; do not route it back to the MEMORY.SEARCH already delegating to it.
+Wrap the existing low-level MEMORY/CONTEXT retrieval function in RetrievalSearchProvider, keeping its backend and algorithm; do not route it back to the MEMORY.SEARCH already delegating to it.
 
 The optional module supplies batched/HTTP embedding, vector and database-native full-text adapters, weighted RRF fusion and replaceable reranking. Reuse existing database search plugins or inject SQL/Milvus clients; no drivers or database lifecycle are included. Graph/custom strategies use their own SearchProvider. See [complete provider API and database wiring](retrieval-providers.md). There are no EMBED/RANK placeholders or mandatory pipeline stages.
 
@@ -200,15 +200,13 @@ Root YAML normalizes to config.retrieval. Precedence is request limit > options.
 
 Providers can throw `new RetrievalError(code, safeMessage)`; its message is public and must exclude private connection details. Other exceptions are sanitized. Local SDK cancellation is forwarded cooperatively through provider context; HTTP embedding enforces its own timeout. Other backend deadlines/cancellation remain provider-owned. There is no timeout race that releases concurrency while uncooperative work continues. HTTP client timeout stops waiting, not necessarily server execution. Existing Runtime routing/transport failures reject the Promise rather than becoming empty success.
 
-## Graph boundary and verification
+## Graph boundary
 
 RAG is an application composition: RETRIEVAL.SEARCH → explicit candidate mapping → CONTEXT.UPDATE → INFER. SEARCH does not write Context/Memory, call INFER/Tools or rewrite the query. Candidate-to-Context mapping belongs to the caller; content is not assumed to be a Document or Message.
 
-`npm run check` covers optional loading, type exports, target/strategy resolution, passthrough, defaults, sanitized errors, output validation, two-replica capacity/draining and a MEMORY bridge over actual local HTTP. Provider tests additionally cover real SQLite FTS5/BM25, HTTP embedding protocol, vector validation, RRF/cosine calculations and SQL/Milvus adapter mapping. Live MySQL/PostgreSQL/Milvus services, external model relevance and GPU throughput are not verified by these tests.
-
 ## Examples for each API
 
-Complete source: [examples/retrieval.ts](examples/retrieval.ts). The functions below share its imports and are checked by `npm run typecheck`; importing the file executes no examples. Applications supply database, model, or MCP resources. Choose the function you need; writes, deletes, and model calls perform real operations when invoked.
+Complete source: [examples/retrieval.ts](examples/retrieval.ts). The functions below share its imports; importing the file executes no examples. Applications supply database, model, or MCP resources. Choose the function you need; writes, deletes, and model calls perform real operations when invoked.
 
 ```ts
 import { createDitto, createMemoryWorker, loadRuntimeConfigFile } from "@ditto/core";

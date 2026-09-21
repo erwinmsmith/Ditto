@@ -105,15 +105,13 @@ Load the example configuration explicitly: DITTO_SHARED_PROVIDERS=deepseek,opena
 
 DITTO_WORKER_INFER_MODEL_PROVIDER and DITTO_WORKER_INFER_MODEL must be configured together; callers supply the model field on each request. Runtime never implicitly loads environment/files. Supplying createDitto({ providers }) skips provider construction from config.providers.
 
-Provider behavior now lives in YAML as `shared.providers.<name>.options` and `maxTokensField` (OpenAI-compatible only). See the [shared configuration API](configuration.md) for defaults, overrides and migration. Keep real configuration in the ignored root .env. Every Worker shares ctx.services.config/providers/sandbox; unused storage options are not invented. Reasoning models may count internal reasoning against maxTokens, so an exhausted budget produces length/partial rather than a complete success. Compatible tool messages also retain original reasoning_content when supplied, for replay only, never text_delta.
+Provider behavior is configured in YAML as `shared.providers.<name>.options` and `maxTokensField` (OpenAI-compatible only). See the [shared configuration API](configuration.md) for defaults and overrides. Keep real configuration in the ignored root .env. Every Worker shares ctx.services.config/providers/sandbox; unused storage options are not invented. Reasoning models may count internal reasoning against maxTokens, so an exhausted budget produces length/partial rather than a complete success. Compatible tool messages also retain original reasoning_content when supplied, for replay only, never text_delta.
 
-Run real checks explicitly: npm run check:infer:live -- --provider deepseek. Options: --strategies cot,tot,got, --cases sample,tot, --max-tokens 4096, and --report path. Assertions check content as well as execution; any failure exits nonzero. Reports append history including failures without credentials. See the [live verification report](infer-live-report.md).
-
-Protocol references: [Anthropic streaming](https://platform.claude.com/docs/en/build-with-claude/streaming), [Gemini generation](https://ai.google.dev/api/generate-content), [Gemini function calling](https://ai.google.dev/gemini-api/docs/function-calling). Offline checks use fixtures/local HTTP; real provider results are recorded separately.
+Protocol references: [Anthropic streaming](https://platform.claude.com/docs/en/build-with-claude/streaming), [Gemini generation](https://ai.google.dev/api/generate-content), [Gemini function calling](https://ai.google.dev/gemini-api/docs/function-calling).
 
 ## Examples for each API
 
-Complete source: [examples/infer.ts](examples/infer.ts). The functions below share its imports and are checked by `npm run typecheck`; importing the file executes no examples. Applications supply database, model, or MCP resources. Choose the function you need; writes, deletes, and model calls perform real operations when invoked.
+Complete source: [examples/infer.ts](examples/infer.ts). The functions below share its imports; importing the file executes no examples. Applications supply database, model, or MCP resources. Choose the function you need; writes, deletes, and model calls perform real operations when invoked.
 
 ```ts
 import { createDitto, loadRuntimeConfigFile } from "@ditto/core";
