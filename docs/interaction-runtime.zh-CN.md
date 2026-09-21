@@ -25,8 +25,7 @@ Provider 适配器位于 `src/worker/infer/providers/`。Runtime 与 INFER 使�
 src/worker/interaction/act/tool/
 ├── node.ts
 ├── registry.ts
-├── index.ts
-└── linux-commands/     # 注册工具实现，不是 Node Type
+└── index.ts
 ```
 
 ```ts
@@ -51,6 +50,40 @@ tools.register({
 MCP 在调用客户端前验证 operation 只能是 discover/invoke；显式 server 必须非空，invoke 的 call.id/name 必须非空，arguments 必须是 JSON 对象。缺失参数、字符串、数组或不可序列化内容会被拒绝，不会被隐式转换成空对象。业务参数的 Schema 校验仍由应用适配器负责。
 
 OUTPUT 在调用接收端前验证 deliveryId、message.role/content/name 以及 artifacts 的名称和引用。content 保留公共 MessageContent 的 JSON 语义，允许 null、数值、对象和数组。返回回执也校验 artifacts 和 metadata；回执非法时抛错，不自动重试，也不推断先前交付未发生。这些校验同样适用于 HTTP Worker 调用。
+
+## Graph、Loop 与 Worker 使用入口
+
+应用中的 Agent 由三部分组成：Graph 定义 Node 及数据依赖，Loop 定义迭代状态和停止条件，Worker 提供具体实现及 SDK 适配。单轮执行使用 `runtime.run(graph, input)`，循环执行使用 `runtime.loop(loopDefinition, state)`。不需要额外定义 Agent 管理层。
+
+完整的[可运行示例](../examples/graph-loop-worker.ts)包含 Graph → Loop → Worker → Runtime 四步。运行 `npm run example:agent` 会通过 TOOL 读取 README 和 package.json，经过 OBSERVE，再由 OUTPUT 打印两次结果；无需模型或数据库密钥。
+
+```ts
+import { createInteractionWorker } from "@ditto/core/worker/interaction";
+
+// readTextTool、connectedMcpClient、outputSink 是应用提供的实现。
+const interaction = createInteractionWorker({
+  tools: [readTextTool],
+  mcp: { files: connectedMcpClient },
+  output: outputSink,
+  concurrency: 8,
+});
+// createDitto({ workers: [interaction, infer, memory], sandbox: ... })
+```
+
+`createInteractionWorker(options?: InteractionOptions): WorkerDefinition` 可直接放入 Runtime 的 `workers`，也可传给 `runtime.register()`。
+
+| 配置 | 类型与行为 |
+| --- | --- |
+| `tools` | `readonly RegisteredTool[]` 或 `ToolRegistry`；缺省为空，始终提供 TOOL 和 OBSERVE |
+| `mcp` | 服务名到 `McpClient` 的只读映射，或 `McpRegistry`；未提供时不暴露 MCP |
+| `output` | `OutputSink`；未提供时不暴露 OUTPUT |
+| `concurrency` | 可选正整数，限制每个 Worker 副本的并发调用数；缺省不限制 |
+
+`index.ts` 只承担模块导出，实际执行位于 `worker.ts`、`act/tool/node.ts`、`act/tool/registry.ts`、`act/mcp.ts`、`observe.ts` 和 `output.ts`。已移除空的 `linux-commands/` 占位目录；项目不内置命令工具集。需要命令时，在 Worker 的 `RegisteredTool.execute()` 内调用 `context.services.sandbox.run({ command, args })`，并在 Runtime 注入 `sandboxExecutor`、开放对应 execute 与 tools 权限。
+
+数组和映射在构造时注册一次；需要动态插拔时传入注册表，使用 `register()` 返回的注销函数。注册工具仍需在 Sandbox 开放对应权限。数据库适配器同样放在 MEMORY Worker：`createMemoryWorker({ store: databaseAdapter })`；Graph 继续只调用 MEMORY Node，检索仍可由数据库自身实现，或显式接到可选 RETRIEVAL。
+
+连接、认证和 SDK 释放由应用负责。工厂不会打开或关闭 MCP/数据库连接，复用同一 Worker definition 会共享传入的实例。需要每个副本独立资源及自动释放时，使用现有 `defineWorker({ resources, dispose, nodes })` 与 `createInteractionNodes()`；不需要新增插件加载框架。env 放密钥和连接信息，YAML 放行为参数；当前工厂的工具函数和 SDK 实例通过代码注入，不能把任意插件名写入 YAML 后自动加载。
 
 ## 四类预定义流程
 

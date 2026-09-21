@@ -6,6 +6,7 @@
 | --- | --- | --- |
 | INFER | [中文 API](infer.zh-CN.md) · [English](infer.md) | SAMPLE、TRAJECTORY、REFLECT、DELIBERATE、CACHE LOOKUP / WRITE / INVALIDATE |
 | MEMORY | [API](memory.md) · [中文](memory.zh-CN.md) | GET / QUERY / SEARCH / WRITE / UPDATE / DELETE；外部存储/搜索插件 |
+| INTERACTION | [中文](../interaction-runtime.zh-CN.md#graphloop-与-worker-使用入口) · [English](../interaction-runtime.md#graph-loop-and-worker-setup) | ACT.TOOL / ACT.MCP / OBSERVE / OUTPUT；Worker 工厂、注册与插拔 |
 | RETRIEVAL （可选） | [中文](retrieval.zh-CN.md) · [English](retrieval.md) | SEARCH；Target/Strategy Provider Registry |
 
 本目录描述实际可执行的 API。早期节点体系文档保留为设计记录；INFER、MEMORY 与可选 RETRIEVAL 的输入、输出、调用及执行语义以这里的接口文档为准。

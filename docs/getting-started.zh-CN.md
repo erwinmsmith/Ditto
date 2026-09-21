@@ -18,7 +18,7 @@ npm run check
 
 复制 `.env.example` 为 `.env`，按 [Agent 与运行配置](interaction-runtime.zh-CN.md) 设置 Provider、模型、Key 和权限。库本身不会隐式加载环境文件；由应用启动代码显式加载并调用 `loadRuntimeConfigFile("ditto.yaml", process.env)`。
 
-`examples/` 当前留空，后续用于通过 npm 包构建不同 Agent 的完整例子。包目前尚未发布；下面的代码仅用于说明 API。
+完整的 [Graph + Loop + Worker 示例](../examples/graph-loop-worker.ts)通过包入口运行，执行 `npm run example:agent` 即可。示例读取本地文件并输出观察结果，无需模型或数据库配置。包目前尚未发布。
 
 公开入口：`@ditto/core`、`contracts`、`worker`、`worker/node`、`worker/memory`、`worker/context`、`worker/infer`、`worker/infer/providers`、`worker/interaction`、`runtime`、`runtime/sandbox`。不保留顶层 `node` / `agent` / `providers` / `presets` / `sandbox` 旧入口；根入口仍提供通用导出，包括四个 Runtime 流程函数。
 

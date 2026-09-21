@@ -70,7 +70,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build:test && node --test --test-isolation=none .test-dist/test/*.test.js",
     "check": "npm run typecheck && npm test && npm run build",
-    "check:infer:live": "npm run build && node --env-file=.env scripts/check-infer-live.ts"
+    "check:infer:live": "npm run build && node --env-file=.env scripts/check-infer-live.ts",
+    "example:agent": "npm run build && node examples/graph-loop-worker.ts"
   },
   "engines": {
     "node": ">=24.0.0",

@@ -1,7 +1,7 @@
 import type { NodeType } from "@ditto/core";
 import { runRagFlow, runSkillFlow, runMcpFlow, runToolCallFlow,
   type McpFlowInput, type RuntimeFlowResult, type InteractionFlowResult } from "@ditto/core/runtime";
-import type { InteractionMcpOutput } from "@ditto/core/worker/interaction";
+import { createInteractionWorker, type InteractionMcpOutput } from "@ditto/core/worker/interaction";
 import { inferTrajectoryNode } from "@ditto/core/worker/infer";
 import { ProviderRegistry } from "@ditto/core/worker/infer/providers";
 import type { MemoryGetInput } from "@ditto/core/worker/memory";
@@ -34,3 +34,5 @@ void mcpAction;
 // @ts-expect-error Model-produced action requests cannot specify routing.
 const routedRequest: ActionRequest = { id: "one", name: "search", arguments: {}, targetNode: "INTERACTION.ACT.MCP" };
 void routedRequest;
+
+void createInteractionWorker({ tools: [], mcp: {}, concurrency: 2 });

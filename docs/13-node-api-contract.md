@@ -246,7 +246,7 @@ export type OutputOf<N extends NodeType> = NodeContractMap[N]["output"];
 - One `.ts` scaffold exists for every agreed leaf Node. A scaffold fixes identity and type binding without inventing business logic.
 - INFER.CACHE is a namespace; LOOKUP, WRITE and INVALIDATE are implemented leaves.
 - Providers live in `src/worker/infer/providers/`. Runtime and INFER share ModelProvider.invoke/stream and ProviderRegistry; see [Provider API](worker-api/providers.md). ReAct is a predefined Runtime graph flow, not an INFER strategy. Model/vendor changes do not create Nodes.
-- `INTERACTION.ACT.TOOL` is represented by a source directory. Its `linux-commands/` child and registered command names are not Nodes.
+- `INTERACTION.ACT.TOOL` is represented by a source directory. Applications register tool or command implementations inside Workers; individual tool names are not Nodes.
 - Tool and MCP registries remain distinct.
 - The four predefined flows live in `src/runtime/graph.ts`; there is no `src/presets` package or export.
 - Core remains dependency-light; databases, RPC, NATS, MCP SDKs, model SDKs, and distributed transports are optional adapters.

@@ -6,6 +6,7 @@
 | --- | --- | --- |
 | INFER | [API](infer.md) · [中文](infer.zh-CN.md) | SAMPLE, TRAJECTORY, REFLECT, DELIBERATE, CACHE LOOKUP / WRITE / INVALIDATE |
 | MEMORY | [API](memory.md) · [中文](memory.zh-CN.md) | GET / QUERY / SEARCH / WRITE / UPDATE / DELETE; external storage/search plugins |
+| INTERACTION | [API](../interaction-runtime.md#graph-loop-and-worker-setup) · [中文](../interaction-runtime.zh-CN.md#graphloop-与-worker-使用入口) | ACT.TOOL / ACT.MCP / OBSERVE / OUTPUT; Worker factory and registry wiring |
 | RETRIEVAL (optional) | [中文](retrieval.zh-CN.md) · [English](retrieval.md) | SEARCH；Target/Strategy Provider Registry |
 
 These references describe executable APIs. Earlier node taxonomy proposals remain available as historical design documents; use this directory for the implemented INFER, MEMORY and optional RETRIEVAL contracts.
