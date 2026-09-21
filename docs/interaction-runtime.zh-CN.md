@@ -48,6 +48,10 @@ tools.register({
 
 客户端适配器返回中立的 `McpToolResult`，可包含内容、结构化内容、引用、`isError` 和脱敏后的结构化错误。MCP 能力发现默认合计最多 100 页、1000 项，应用可配置其他正整数上限。`isError` 为 true 但没有合规的安全错误时，Core 使用固定的 `MCP_TOOL_ERROR`，不把不可信工具内容写入诊断消息。`createInteractionNodes()` 始终注册 OBSERVE；MCP 和 OUTPUT 只有在注入注册表或应用负责的 `OutputSink` 后才注册。OUTPUT 的接收回执不代表最终送达或用户已读。
 
+MCP 在调用客户端前验证 operation 只能是 discover/invoke；显式 server 必须非空，invoke 的 call.id/name 必须非空，arguments 必须是 JSON 对象。缺失参数、字符串、数组或不可序列化内容会被拒绝，不会被隐式转换成空对象。业务参数的 Schema 校验仍由应用适配器负责。
+
+OUTPUT 在调用接收端前验证 deliveryId、message.role/content/name 以及 artifacts 的名称和引用。content 保留公共 MessageContent 的 JSON 语义，允许 null、数值、对象和数组。返回回执也校验 artifacts 和 metadata；回执非法时抛错，不自动重试，也不推断先前交付未发生。这些校验同样适用于 HTTP Worker 调用。
+
 ## 四类预定义流程
 
 公开函数直接位于 `src/runtime/graph.ts`，并由 `@ditto/core/runtime` 导出。它们是可复用的 Runtime 组合函数，不是 Node Type；仓库不再保留 `src/presets` package。

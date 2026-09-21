@@ -1,4 +1,5 @@
 import type { ExternalResult, InteractionError, JsonValue, OutputReceipt } from "../../contracts/common.js";
+import type { InteractionMcpInput, InteractionOutputInput } from "./contracts.js";
 
 const absolutePathInError = /(?:^|\s|\(|"|')(?:[A-Za-z]:[\\/]|\\\\[^\\/\s]+[\\/]|\/[^/\s])/;
 const stackFrameInError = /(?:^|\s)at\s+(?:async\s+)?(?:[^()\s]+\s+\()?[^()\s]+\.[cm]?[jt]sx?:\d+(?::\d+)?\)?(?:\s|$)/i;
@@ -7,14 +8,56 @@ export function nonempty(value: unknown, name: string): asserts value is string 
   if (typeof value !== "string" || !value.trim()) throw new Error(`${name} must be a nonempty string`);
 }
 
+function object(value: unknown, name: string): asserts value is Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${name} must be an object`);
+}
+
 export function jsonValue(value: unknown, name: string, seen = new Set<object>()): asserts value is JsonValue {
   if (value === null || typeof value === "string" || typeof value === "boolean") return;
   if (typeof value === "number" && Number.isFinite(value)) return;
   if (typeof value !== "object") throw new Error(`${name} must be JSON-serializable`);
+  if (!Array.isArray(value) && Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) {
+    throw new Error(`${name} must contain only JSON objects and arrays`);
+  }
   if (seen.has(value)) throw new Error(`${name} must not contain a cycle`);
   seen.add(value);
   for (const [key, item] of Object.entries(value)) jsonValue(item, `${name}.${key}`, seen);
   seen.delete(value);
+}
+
+export function validateMcpInput(value: unknown): asserts value is InteractionMcpInput {
+  object(value, "MCP input");
+  if (value.operation === "discover") {
+    if (value.server !== undefined) nonempty(value.server, "server");
+  } else if (value.operation === "invoke") {
+    nonempty(value.server, "server");
+    object(value.call, "call");
+    nonempty(value.call.id, "call.id"); nonempty(value.call.name, "call.name");
+    object(value.call.arguments, "call.arguments");
+    jsonValue(value.call.arguments, "call.arguments");
+  } else throw new Error("Invalid MCP operation");
+}
+
+function artifacts(value: unknown): void {
+  if (!Array.isArray(value)) throw new Error("artifacts must be an array");
+  for (const artifact of value) {
+    object(artifact, "artifact"); nonempty(artifact.name, "artifact.name");
+    object(artifact.reference, "artifact.reference");
+    nonempty(artifact.reference.uri, "artifact.reference.uri");
+    for (const key of ["mediaType", "digest"] as const) {
+      if (artifact.reference[key] !== undefined && typeof artifact.reference[key] !== "string") throw new Error(`artifact.reference.${key} must be a string`);
+    }
+  }
+}
+
+export function validateOutputInput(value: unknown): asserts value is InteractionOutputInput {
+  object(value, "OUTPUT input"); nonempty(value.deliveryId, "deliveryId");
+  object(value.message, "message");
+  if (!["system", "user", "assistant", "tool"].includes(value.message.role as string)) throw new Error("Invalid message role");
+  if (!Object.hasOwn(value.message, "content")) throw new Error("message.content is required");
+  jsonValue(value.message.content, "message.content");
+  if (value.message.name !== undefined && typeof value.message.name !== "string") throw new Error("message.name must be a string");
+  if (value.artifacts !== undefined) artifacts(value.artifacts);
 }
 
 export function interactionError(value: unknown): InteractionError {
@@ -58,12 +101,13 @@ export function externalResult(value: unknown, errorFallback?: InteractionError)
 }
 
 export function outputReceipt(value: unknown): OutputReceipt {
-  if (!value || typeof value !== "object") throw new Error("Output receipt is required");
-  const receipt = value as Record<string, unknown>;
+  object(value, "Output receipt");
+  const receipt = value;
   nonempty(receipt.deliveryId, "deliveryId");
-  if (!["accepted", "rejected", "unknown"].includes(String(receipt.status))) throw new Error("Invalid output status");
+  if (!["accepted", "rejected", "unknown"].includes(receipt.status as string)) throw new Error("Invalid output status");
   if (receipt.status !== "accepted" && receipt.error === undefined) interactionError(receipt.error);
   const error = receipt.error === undefined ? undefined : interactionError(receipt.error);
-  if (receipt.metadata !== undefined) jsonValue(receipt.metadata, "metadata");
-  return error === undefined ? value as OutputReceipt : { ...receipt, error } as unknown as OutputReceipt;
+  if (receipt.metadata !== undefined) { object(receipt.metadata, "metadata"); jsonValue(receipt.metadata, "metadata"); }
+  if (receipt.artifacts !== undefined) artifacts(receipt.artifacts);
+  return (error === undefined ? receipt : { ...receipt, error }) as unknown as OutputReceipt;
 }

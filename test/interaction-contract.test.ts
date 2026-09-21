@@ -181,8 +181,13 @@ test("Interaction projects safe errors and rejects unsafe optional errors", asyn
 test("Interaction result contracts preserve correlation and references over HTTP", async () => {
   const tools = new ToolRegistry();
   tools.register({ name: "remote", inputSchema: {}, validate() {}, async execute() { return { status: "success", structuredContent: { value: 7 }, references: [{ uri: "urn:result:7" }] }; } });
-  const remote = createDitto({ hostId: "interaction-host", processId: "remote", sandbox: { tools: ["remote"] } });
-  const worker = defineWorker({ type: "INTERACTION", nodes: createInteractionNodes({ tools }) });
+  let sdkCalls = 0; let deliveries = 0;
+  const mcp = new McpRegistry();
+  mcp.register("fixture", { async listTools() { sdkCalls++; return { tools: [] }; },
+    async callTool() { sdkCalls++; return { content: "done" }; } });
+  const output: OutputSink = { async deliver(input) { deliveries++; return { deliveryId: input.deliveryId, status: "accepted" }; } };
+  const remote = createDitto({ hostId: "interaction-host", processId: "remote", sandbox: { tools: ["remote"], mcp: ["fixture"] } });
+  const worker = defineWorker({ type: "INTERACTION", nodes: createInteractionNodes({ tools, mcp, output }) });
   const handle = remote.register(worker);
   const server = createServer(createWorkerHttpHandler(remote, { token: "fixture" }));
   server.listen(0, "127.0.0.1"); await once(server, "listening");
@@ -190,6 +195,15 @@ test("Interaction result contracts preserve correlation and references over HTTP
   const local = createDitto({ transports: [createHttpTransport({ id: "http", token: "fixture", url: `http://127.0.0.1:${address.port}/ditto/invoke` })] });
   local.registerRemote({ address: handle.address, capabilities: worker.capabilities, transportId: "http" });
   try {
+    await assert.rejects(local.invoke("INTERACTION.OUTPUT", { deliveryId: "missing-message" } as never));
+    for (const input of [{ operation: "invalid", server: "fixture" },
+      { operation: "invoke", server: "fixture", call: { id: "bad", name: "tool", arguments: "abc" } }]) {
+      await assert.rejects(local.invoke("INTERACTION.ACT.MCP", input as never));
+    }
+    assert.equal(sdkCalls, 0); assert.equal(deliveries, 0);
+    await local.invoke("INTERACTION.OUTPUT", { deliveryId: "valid", message: { role: "assistant", content: { done: true } } });
+    await local.invoke("INTERACTION.ACT.MCP", { operation: "invoke", server: "fixture", call: { id: "valid", name: "tool", arguments: {} } });
+    assert.equal(sdkCalls, 1); assert.equal(deliveries, 1);
     const result = await local.invoke("INTERACTION.ACT.TOOL", { call: { id: "wire-1", name: "remote", arguments: {} } });
     assert.equal(result.callId, "wire-1"); assert.deepEqual(result.structuredContent, { value: 7 });
     assert.deepEqual(result.references, [{ uri: "urn:result:7" }]);
@@ -198,4 +212,76 @@ test("Interaction result contracts preserve correlation and references over HTTP
   } finally {
     await local.close(); await remote.close(); server.closeAllConnections(); await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
   }
+});
+
+test("OUTPUT rejects invalid messages and artifacts before invoking the sink", async () => {
+  let deliveries = 0;
+  const output: OutputSink = { async deliver(input) { deliveries++; return { deliveryId: input.deliveryId, status: "accepted" }; } };
+  const runtime = createDitto({ workers: [defineWorker({ type: "INTERACTION", nodes: createInteractionNodes({ output }) })] });
+  const valid = { deliveryId: "delivery", message: { role: "assistant" as const, content: "done" } };
+  const badArtifacts = [null, {}, [null], [{}], [{ name: 123, reference: { uri: "urn:test" } }],
+    [{ name: "report", reference: {} }], [{ name: "report", reference: { uri: " " } }],
+    [{ name: "report", reference: { uri: "urn:test", mediaType: 1 } }], [{ name: "report", reference: { uri: "urn:test", digest: false } }]];
+  const cycle: Record<string, unknown> = {}; cycle.self = cycle;
+  const invalid = [null, [], {}, { deliveryId: "delivery" }, { ...valid, deliveryId: " " },
+    ...[null, [], {}, { role: "invalid", content: "x" }, { role: "assistant" }, { role: "assistant", content: undefined },
+      { role: "assistant", content: "x", name: 3 }, { role: "assistant", content: Infinity },
+      { role: "assistant", content: cycle }, { role: "assistant", content: new Map([["x", 1]]) }].map(message => ({ ...valid, message })),
+    ...badArtifacts.map(artifacts => ({ ...valid, artifacts }))];
+  try {
+    for (const input of invalid) await assert.rejects(runtime.invoke("INTERACTION.OUTPUT", input as never));
+    assert.equal(deliveries, 0);
+    for (const content of ["", null, false, 0, { answer: 42 }, [1, "two", null],
+      [{ type: "text", text: "report" }, { type: "json", data: { ok: true } }, { type: "reference", reference: { uri: "urn:report" } }]]) {
+      assert.equal((await runtime.invoke("INTERACTION.OUTPUT", { ...valid, message: { role: "assistant", content },
+        artifacts: [{ name: "report", reference: { uri: "urn:report", mediaType: "application/json", digest: "hash" } }] })).status, "accepted");
+    }
+    assert.equal(deliveries, 7);
+  } finally { await runtime.close(); }
+});
+
+test("OUTPUT validates returned artifact references and receipt metadata without retrying delivery", async () => {
+  let deliveries = 0;
+  let returned: unknown;
+  const output: OutputSink = { async deliver() { deliveries++; return returned as never; } };
+  const runtime = createDitto({ workers: [defineWorker({ type: "INTERACTION", nodes: createInteractionNodes({ output }) })] });
+  const malformed = [{ artifacts: {} }, { artifacts: [null] }, { artifacts: [{ name: 1, reference: { uri: "urn:x" } }] },
+    { artifacts: [{ name: "x", reference: {} }] }, { artifacts: [{ name: "x", reference: { uri: "urn:x", digest: 1 } }] },
+    { metadata: [] }, { metadata: "invalid" }, { metadata: { value: NaN } }];
+  try {
+    for (const fields of malformed) {
+      returned = { deliveryId: "d", status: "accepted", ...fields };
+      await assert.rejects(runtime.invoke("INTERACTION.OUTPUT", { deliveryId: "d", message: { role: "assistant", content: "done" } }));
+    }
+    assert.equal(deliveries, malformed.length);
+    returned = { deliveryId: "d", status: "accepted", artifacts: [], metadata: { queued: true } };
+    assert.deepEqual(await runtime.invoke("INTERACTION.OUTPUT", { deliveryId: "d", message: { role: "assistant", content: "done" } }), returned);
+  } finally { await runtime.close(); }
+});
+
+test("MCP rejects invalid operations and non-JSON argument objects before any SDK call", async () => {
+  let discoveries = 0; let calls = 0;
+  const seen: unknown[] = [];
+  const mcp = new McpRegistry();
+  mcp.register("fixture", { async listTools() { discoveries++; return { tools: [] }; },
+    async callTool(input) { calls++; seen.push(input.arguments); return { content: "done" }; } });
+  const runtime = createDitto({ sandbox: { mcp: ["fixture"] }, workers: [defineWorker({ type: "INTERACTION", nodes: createInteractionNodes({ mcp }) })] });
+  const valid = { operation: "invoke" as const, server: "fixture", call: { id: "c", name: "tool", arguments: {} } };
+  const cycle: Record<string, unknown> = {}; cycle.self = cycle;
+  const invalid = [null, [], {}, { operation: "invalid", server: "fixture" }, { operation: "discover", server: "" },
+    { operation: "discover", server: null }, { ...valid, server: " " }, { ...valid, call: null },
+    { ...valid, call: { name: "tool", arguments: {} } }, { ...valid, call: { id: "c", name: " " } },
+    ...[undefined, null, "abc", [], 1, false, { number: Infinity }, { nested: { missing: undefined } },
+      { callback: () => {} }, new Map(), { nested: new Date() }, cycle].map(arguments_ => ({ ...valid, call: { ...valid.call, arguments: arguments_ } }))];
+  try {
+    for (const input of invalid) await assert.rejects(runtime.invoke("INTERACTION.ACT.MCP", input as never));
+    assert.equal(discoveries, 0); assert.equal(calls, 0);
+    const args = { text: "query", filters: { enabled: true, values: [1, null, "x"] } };
+    await runtime.invoke("INTERACTION.ACT.MCP", { ...valid, call: { ...valid.call, arguments: args } });
+    await runtime.invoke("INTERACTION.ACT.MCP", valid);
+    assert.deepEqual(seen, [args, {}]);
+    await runtime.invoke("INTERACTION.ACT.MCP", { operation: "discover" });
+    await runtime.invoke("INTERACTION.ACT.MCP", { operation: "discover", server: "fixture" });
+    assert.equal(discoveries, 2); assert.equal(calls, 2);
+  } finally { await runtime.close(); }
 });

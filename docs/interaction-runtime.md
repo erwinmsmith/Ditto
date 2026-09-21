@@ -48,6 +48,10 @@ tools.register({
 
 The client adapter returns a neutral `McpToolResult` with optional content, structured content, references, `isError`, and a sanitized structured error. MCP discovery defaults to 100 pages and 1000 capabilities in total; applications may configure different positive limits. If `isError` is true and no valid safe error is provided, Core uses the fixed `MCP_TOOL_ERROR` instead of copying untrusted tool content into diagnostics. `createInteractionNodes()` always installs OBSERVE, and installs MCP or OUTPUT only when a registry or an application-owned `OutputSink` is supplied. OUTPUT acceptance is a sink receipt, not proof of final delivery or user reading.
 
+MCP validates requests before accessing the client: operation must be discover/invoke, an explicit server must be nonempty, invoke requires nonempty call.id/name and a JSON object for arguments. Missing arguments, strings, arrays and non-JSON values are rejected instead of being coerced into an empty object. Application adapters still own business-schema validation.
+
+OUTPUT validates deliveryId, message.role/content/name and artifact names/references before calling the sink. Content retains the shared MessageContent JSON semantics, including null, numbers, objects and arrays. Receipts also validate artifacts and metadata; an invalid receipt throws without retrying or implying that delivery did not occur. The same validation applies over HTTP Worker transport.
+
 ## Four Predefined Flows
 
 The public functions live directly in `src/runtime/graph.ts` and are exported from `@ditto/core/runtime`. They are reusable Runtime compositions, not Node Types. There is no `src/presets` package.
