@@ -76,7 +76,27 @@ Loop 实际执行两组输入：
 | 入口 | 内容 | 使用方式 |
 | --- | --- | --- |
 | [API 示例说明](../docs/worker-api/examples/README.md) | MEMORY、INFER、INTERACTION、可选 RETRIEVAL；逐个函数说明用途 | 注入应用资源后调用需要的函数；不是自动执行的完整应用 |
-| [MCP 实测脚本](../scripts/check-interaction-mcp-live.mjs) | 真实命令 → MCP 文件读取 → SHA-256 → OUTPUT | 按[实测记录](../docs/worker-api/interaction-live-report.md)安装可选 SDK，并运行 `npm run check:interaction:mcp:live -- <依赖目录>` |
-| [INFER 实测脚本](../scripts/check-infer-live.ts) | 对配置的真实模型验证采样和推理策略 | 按[实测记录](../docs/worker-api/infer-live-report.md)配置 `.env`，再运行 `npm run check:infer:live -- --provider <名称>` |
+| [MCP 实测脚本](../scripts/check-interaction-mcp-live.mjs) | 真实命令 → MCP 文件读取 → SHA-256 → OUTPUT | 按下方 [MCP](#mcp) 说明安装可选 SDK，并运行 `npm run check:interaction:mcp:live -- <依赖目录>` |
+| [INFER 实测脚本](../scripts/check-infer-live.ts) | 对配置的真实模型验证采样和推理策略 | 按下方 [INFER](#infer) 说明配置 `.env`，再运行 `npm run check:infer:live -- --provider <名称>` |
 
-源码类型检查使用 `npm run typecheck`；完整项目检查使用 `npm run check`。Linux/macOS 命令与 MCP 的实际执行结果见[验证记录](../docs/worker-api/interaction-live-report.md)。
+### MCP
+
+安装脚本使用的可选 MCP SDK 和 filesystem server，再执行命令、文件读取和工具组合：
+
+```bash
+mcp_deps="$(mktemp -d)"
+npm install --prefix "$mcp_deps" --no-audit --no-fund --ignore-scripts \
+  @modelcontextprotocol/sdk@1.30.0 \
+  @modelcontextprotocol/server-filesystem@2026.8.31
+npm run check:interaction:mcp:live -- "$mcp_deps"
+```
+
+### INFER
+
+参照根目录 [`.env.example`](../.env.example) 创建 `.env` 并填写供应商配置；在 [`ditto.yaml`](../ditto.yaml) 设置推理参数。配置字段见[统一配置 API](../docs/worker-api/configuration.zh-CN.md)。供应商名称应与配置一致：
+
+```bash
+npm run check:infer:live -- --provider deepseek
+```
+
+使用 `--strategies cot,tot,got` 筛选策略，`--cases sample,tot` 筛选用例，`--max-tokens 4096` 调整本次调用预算。`--report path` 指定结果文件；默认写入被 Git 忽略的 `.infer-live-results.json`。

@@ -153,6 +153,6 @@ npm run check
 
 具体使用案例、缺陷与架构讨论请提交至 [GitHub Issues](https://github.com/erwinmsmith/Ditto/issues)。
 
-行为参数统一放根目录 [`ditto.yaml`](ditto.yaml)，凭证与部署配置使用 [`.env.example`](.env.example)，所有 Worker 共用 Runtime services。详见 [统一配置 API](docs/worker-api/configuration.zh-CN.md)。显式运行 `npm run check:infer:live -- --provider deepseek`，查看 [INFER 真实验证报告](docs/worker-api/infer-live-report.md)。
+行为参数统一放根目录 [`ditto.yaml`](ditto.yaml)，凭证与部署配置使用 [`.env.example`](.env.example)，所有 Worker 共用 Runtime services。详见 [统一配置 API](docs/worker-api/configuration.zh-CN.md)。运行方式见 [INFER 示例指南](examples/README.zh-CN.md#infer)。
 
 MEMORY 的接入、插件边界、六个节点和配置详见 [MEMORY API](docs/worker-api/memory.zh-CN.md)。

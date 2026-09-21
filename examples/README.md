@@ -76,7 +76,27 @@ The example runs only when invoked directly. Importing its exported executor, to
 | Entry | Purpose | Usage |
 | --- | --- | --- |
 | [API example guide](../docs/worker-api/examples/README.md) | MEMORY, INFER, INTERACTION, and optional RETRIEVAL; individual function explanations | Inject application resources and call the chosen function; these are not automatically executed applications |
-| [MCP live script](../scripts/check-interaction-mcp-live.mjs) | Real command → MCP file read → SHA-256 → OUTPUT | Install optional SDKs as described in the [live report](../docs/worker-api/interaction-live-report.md), then run `npm run check:interaction:mcp:live -- <dependency-directory>` |
-| [INFER live script](../scripts/check-infer-live.ts) | Validate sampling and reasoning against configured real models | Configure `.env` per the [live report](../docs/worker-api/infer-live-report.md), then run `npm run check:infer:live -- --provider <name>` |
+| [MCP live script](../scripts/check-interaction-mcp-live.mjs) | Real command → MCP file read → SHA-256 → OUTPUT | Install optional SDKs using the [MCP](#mcp) instructions below, then run `npm run check:interaction:mcp:live -- <dependency-directory>` |
+| [INFER live script](../scripts/check-infer-live.ts) | Validate sampling and reasoning against configured real models | Configure `.env` using the [INFER](#infer) instructions below, then run `npm run check:infer:live -- --provider <name>` |
 
-Use `npm run typecheck` for source checks and `npm run check` for the full project checks. Linux/macOS command and MCP execution results are recorded in the [live report](../docs/worker-api/interaction-live-report.md).
+### MCP
+
+Install the optional MCP SDK and filesystem server used by the script, then run the command, file-reading, and tool composition flow:
+
+```bash
+mcp_deps="$(mktemp -d)"
+npm install --prefix "$mcp_deps" --no-audit --no-fund --ignore-scripts \
+  @modelcontextprotocol/sdk@1.30.0 \
+  @modelcontextprotocol/server-filesystem@2026.8.31
+npm run check:interaction:mcp:live -- "$mcp_deps"
+```
+
+### INFER
+
+Create `.env` from root [`.env.example`](../.env.example) and fill in provider settings; set reasoning parameters in [`ditto.yaml`](../ditto.yaml). See the [configuration API](../docs/worker-api/configuration.md) for fields. Use a provider name matching your configuration:
+
+```bash
+npm run check:infer:live -- --provider deepseek
+```
+
+Use `--strategies cot,tot,got` to select strategies, `--cases sample,tot` to select cases, and `--max-tokens 4096` to set the token budget for this run. `--report path` sets the output file; the default is the Git-ignored `.infer-live-results.json`.

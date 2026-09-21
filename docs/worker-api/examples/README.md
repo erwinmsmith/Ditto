@@ -19,7 +19,7 @@ npm run typecheck
 
 `tsconfig.json` includes these files; build/test emit configurations keep them out of the distributed package. These are API usage examples, not new SDK implementations or automatic live integration tests. The shared imports and each `// example:` region are reproduced in the corresponding API reference. Keep both copies aligned when changing signatures.
 
-For a complete executable local flow use `npm run example:agent` or `npm run example:tools`. Real MCP setup and commands are in the [live report](../interaction-live-report.md). `.env` loading is explicit: use Node `--env-file=.env` or your application's loader before a function that reads process.env. `loadRuntimeConfigFile` loads YAML and consumes the supplied environment; it does not read `.env` itself.
+For a complete executable local flow use `npm run example:agent` or `npm run example:tools`. MCP setup and commands are in the [example guide](../../../examples/README.md#mcp). `.env` loading is explicit: use Node `--env-file=.env` or your application's loader before a function that reads process.env. `loadRuntimeConfigFile` loads YAML and consumes the supplied environment; it does not read `.env` itself.
 
 ## 每个示例具体做什么 / Function guide
 

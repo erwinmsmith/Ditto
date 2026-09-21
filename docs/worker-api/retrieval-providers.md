@@ -198,17 +198,13 @@ MEMORY adapters are exported from `@ditto/core/worker/retrieval/adapters/memory`
 
 If candidates contain only IDs or text, supply a batch mapOutput to hydrate/map records. The default mapper never invents Memory IDs. Do not feed a MEMORY.SEARCH that already delegates to RETRIEVAL back into the same RETRIEVAL backend: that would recurse.
 
-## Verification and protocol references
-
-`npm run check` covers real SQLite FTS5/BM25 parameterized searches, local HTTP embedding wire behavior, dimensions and batching, RRF scores/deduplication/failure draining, cosine reranking and invalid indexes, Milvus protocol mapping, full Memory preservation, local/delegated execution, optional exports/configuration and existing HTTP Worker transport tests.
-
-Tests do not connect to live Milvus/MySQL/PostgreSQL services or measure their index throughput or third-party embedding quality. Autoscaling, discovery, tenant throttling and monitoring remain outside this iteration.
+## Protocol references
 
 Protocol references: [OpenAI embeddings](https://developers.openai.com/api/reference/resources/embeddings/methods/create), [Milvus Node search](https://milvus.io/api-reference/node/v2.6.x/Vector/search.md), [PostgreSQL text search](https://www.postgresql.org/docs/17/textsearch-controls.html), [RRF](https://www.elastic.co/docs/reference/elasticsearch/rest-apis/reciprocal-rank-fusion).
 
 ## Examples for each API
 
-Complete source: [examples/retrieval.ts](examples/retrieval.ts). The functions below share its imports and are checked by `npm run typecheck`; importing the file executes no examples. Applications supply database, model, or MCP resources. Choose the function you need; writes, deletes, and model calls perform real operations when invoked.
+Complete source: [examples/retrieval.ts](examples/retrieval.ts). The functions below share its imports; importing the file executes no examples. Applications supply database, model, or MCP resources. Choose the function you need; writes, deletes, and model calls perform real operations when invoked.
 
 ```ts
 import { createDitto, createMemoryWorker, loadRuntimeConfigFile } from "@ditto/core";

@@ -107,15 +107,13 @@ await runtime.close();
 
 `DITTO_WORKER_INFER_MODEL_PROVIDER` 和 `DITTO_WORKER_INFER_MODEL` 必须一起配置；模型 ID 由调用方传入 model 字段。Runtime 不会隐式读取环境或文件；`loadRuntimeConfigFile` 由应用显式调用。传入自定义 `createDitto({ providers })` 时，不再从 config.providers 额外创建 Provider。
 
-供应商行为改为 YAML 的 `shared.providers.<name>.options` 和 `maxTokensField`（仅 OpenAI 兼容协议）；默认值、覆盖顺序及迁移见 [统一配置 API](configuration.zh-CN.md)。真实配置放在根目录 .env 并由 Git 忽略，所有 Worker 通过 ctx.services.config/providers/sandbox 共享；未实现的存储后端不预设空配置项。推理模型的 maxTokens 可能同时限制隐藏推理与可见答案；预算不足会返回 length/partial，不能视为完整成功。OpenAI 兼容协议的工具消息也保留原始 reasoning_content（若存在），只作下一轮回放，不输出成 text_delta。
+供应商行为配置使用 YAML 的 `shared.providers.<name>.options` 和 `maxTokensField`（仅 OpenAI 兼容协议）；默认值与覆盖顺序见 [统一配置 API](configuration.zh-CN.md)。真实配置放在根目录 .env 并由 Git 忽略，所有 Worker 通过 ctx.services.config/providers/sandbox 共享；未实现的存储后端不预设空配置项。推理模型的 maxTokens 可能同时限制隐藏推理与可见答案；预算不足会返回 length/partial，不能视为完整成功。OpenAI 兼容协议的工具消息也保留原始 reasoning_content（若存在），只作下一轮回放，不输出成 text_delta。
 
-真实校验：`npm run check:infer:live -- --provider deepseek`。可选 `--strategies cot,tot,got`、`--cases sample,tot`、`--max-tokens 4096` 和 `--report path`。脚本对配置中的实际模型做内容断言，任何失败均非零退出；报告追加历史，包含失败，不包含凭证。详见 [真实验证报告](infer-live-report.md)。
-
-协议参考：[Anthropic 流事件](https://platform.claude.com/docs/en/build-with-claude/streaming)、[Gemini 内容生成](https://ai.google.dev/api/generate-content)、[Gemini 函数调用](https://ai.google.dev/gemini-api/docs/function-calling)。离线测试使用模拟响应与本地 HTTP Worker；真实调用结果单独记录。
+协议参考：[Anthropic 流事件](https://platform.claude.com/docs/en/build-with-claude/streaming)、[Gemini 内容生成](https://ai.google.dev/api/generate-content)、[Gemini 函数调用](https://ai.google.dev/gemini-api/docs/function-calling)。
 
 ## 逐 API 使用示例
 
-完整代码：[examples/infer.ts](examples/infer.ts)。下列函数共用该文件的 imports，均参与 `npm run typecheck`；函数不会在导入时自动执行。数据库、模型和 MCP 参数由应用注入，不是 Ditto 内置的模拟后端。选择需要的函数调用；写入、删除、模型调用等会产生对应的真实操作。
+完整代码：[examples/infer.ts](examples/infer.ts)。下列函数共用该文件的 imports；函数不会在导入时自动执行。数据库、模型和 MCP 参数由应用注入，不是 Ditto 内置的模拟后端。选择需要的函数调用；写入、删除、模型调用等会产生对应的真实操作。
 
 ```ts
 import { createDitto, loadRuntimeConfigFile } from "@ditto/core";

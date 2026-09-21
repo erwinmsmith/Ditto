@@ -85,7 +85,7 @@ Arrays and maps are registered once at construction. For dynamic changes, pass r
 
 The application owns connections, authentication, and SDK cleanup. This factory never opens or closes MCP/database connections; reusing one Worker definition shares supplied instances. For separate resources and cleanup per replica, use existing `defineWorker({ resources, dispose, nodes })` with `createInteractionNodes()`. No plugin loader is required. Keep credentials and connection settings in env, and behavior parameters in YAML; tool functions and SDK instances are injected through code, not automatically loaded from arbitrary YAML plugin names.
 
-Run the complete [command and tool composition example](../examples/interaction-tools.ts) with `npm run example:tools`. See the [INTERACTION live report](worker-api/interaction-live-report.md) for Linux/macOS results, real MCP stdio integration, and reproduction commands.
+Run the complete [command and tool composition example](../examples/interaction-tools.ts) with `npm run example:tools`. See the [example guide](../examples/README.md#mcp) for MCP SDK setup and commands.
 
 ## Four Predefined Flows
 

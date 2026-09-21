@@ -217,7 +217,7 @@ export function mcpClientAdapter(client: McpClient): McpClient {
 }
 ```
 
-This wrapper preserves method receivers and optional fields; its client already satisfies the neutral port. Adapt native SDK result unions first. see the [real MCP script](../../scripts/check-interaction-mcp-live.mjs) and [live report](interaction-live-report.md) for an executable official-SDK example. Ditto installs no MCP SDK and opens no transports automatically. Adapt SDK-specific result unions to McpToolResult. isError=true becomes failed, with MCP_TOOL_ERROR when no safe error object is available.
+This wrapper preserves method receivers and optional fields; its client already satisfies the neutral port. Adapt native SDK result unions first. See the [real MCP script](../../scripts/check-interaction-mcp-live.mjs) and [setup instructions](../../examples/README.md#mcp) for an executable official-SDK example. Ditto installs no MCP SDK and opens no transports automatically. Adapt SDK-specific result unions to McpToolResult. isError=true becomes failed, with MCP_TOOL_ERROR when no safe error object is available.
 
 ## 5. ExternalResult, OBSERVE, and messages
 
@@ -388,4 +388,4 @@ export async function interactionGraph() {
 
 Registering one Worker definition multiple times shares supplied tools, registries, clients, and sinks. Construct separate definitions or use defineWorker resources/dispose for independent resources. unregister only affects future lookups; it neither cancels started operations nor closes SDKs. Drain runtime.close() before closing application-owned clients.
 
-See the [live report](interaction-live-report.md) for real command/tool/MCP execution. Database capabilities belong in MEMORY. Model action loops are documented in [ReAct Graph](../interaction-runtime.md#react-predefined-graph-flow).
+See the [example guide](../../examples/README.md) for command, tool, and MCP composition. Database capabilities belong in MEMORY. Model action loops are documented in [ReAct Graph](../interaction-runtime.md#react-predefined-graph-flow).

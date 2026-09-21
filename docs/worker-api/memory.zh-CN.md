@@ -243,13 +243,7 @@ const result = await runRagFlow(runtime, {
 });
 ```
 
-映射需符合应用数据类型和 Context 的 JSON 契约，上例适用于 JSON 内容。Skill 由应用解析，`runSkillFlow({ context, skill })` 激活 CONTEXT.SKILL；轻量 SkillRegistry 已移到 context 目录，根导出保持可用。
-
-## 旧接口迁移与验证范围
-
-旧 MEMORY.RETRIEVE 拆成 GET / QUERY；MEMORY.RAG.* 改为 SEARCH；CONSOLIDATE 和 EVICT 改为用户 Graph/Policy 组合；MEMORY.SKILL 移出 MEMORY。旧 MemoryItem.message 改为 content；Runtime 输出改为共享 NodeResult。旧 scaffold 文件已删除，不保留失效别名。
-
-`npm run check` 包含注入插件的 CRUD、独立/混合资源、透传、校验、配置、失败隔离及真实本地 HTTP transport 测试。测试插件只用于验证 Ditto 契约，不代表真实 MySQL/PostgreSQL/Milvus 驱动测试；具体数据库插件应在自己的仓库验证持久化、查询语义、事务和索引一致性。
+映射需符合应用数据类型和 Context 的 JSON 契约，上例适用于 JSON 内容。Skill 由应用解析，`runSkillFlow({ context, skill })` 激活 CONTEXT.SKILL；SkillRegistry 位于 context 目录，也可从根入口导入。
 
 ## 可选独立 Retrieval 服务
 
@@ -259,7 +253,7 @@ const result = await runRagFlow(runtime, {
 
 ## 逐 API 使用示例
 
-完整代码：[examples/memory.ts](examples/memory.ts)。下列函数共用该文件的 imports，均参与 `npm run typecheck`；函数不会在导入时自动执行。数据库、模型和 MCP 参数由应用注入，不是 Ditto 内置的模拟后端。选择需要的函数调用；写入、删除、模型调用等会产生对应的真实操作。
+完整代码：[examples/memory.ts](examples/memory.ts)。下列函数共用该文件的 imports；函数不会在导入时自动执行。数据库、模型和 MCP 参数由应用注入，不是 Ditto 内置的模拟后端。选择需要的函数调用；写入、删除、模型调用等会产生对应的真实操作。
 
 ```ts
 import { createDitto, graph, loadRuntimeConfigFile } from "@ditto/core";

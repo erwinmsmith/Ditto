@@ -39,7 +39,7 @@ INFER 轨迹还有内层 output.status，外层 success 不等于轨迹 complete
 
 INTERACTION 的工具、MCP 实例与输出函数通过代码注入；当前 YAML 不支持 workers.interaction 或任意插件名的自动加载。数据库 SDK 与模型 SDK 生命周期由应用拥有，不逐请求创建或自动关闭。
 
-## 示例覆盖与验证范围
+## 示例目录
 
 | 示例文件 | 覆盖 |
 | --- | --- |
@@ -47,8 +47,3 @@ INTERACTION 的工具、MCP 实例与输出函数通过代码注入；当前 YAM
 | [infer.ts](examples/infer.ts) | 两个工厂、七个叶子、五种策略、三种反思、四种审议、四个流、缓存及模型 Provider |
 | [interaction.ts](examples/interaction.ts) | 工厂、注册/移除、四个节点、MCP、观察、回执、handler、Graph/Loop |
 | [retrieval.ts](examples/retrieval.ts) | 工厂、SEARCH、Registry、embedding、融合/重排、数据库适配和 MEMORY 转接 |
-
-类型检查验证示例与接口一致，不等同于已经连接每个数据库或在线模型。已执行的真实验证单独记录：
-
-- [INFER 真实验证](infer-live-report.md)
-- [INTERACTION Linux/macOS + MCP 实测](interaction-live-report.md)
