@@ -21,10 +21,10 @@ test("OpenAI adapter maps messages, generation, tools, usage and protects routin
     model: { ...input.model, endpoint: "https://model.example/v1/", providerOptions: { n: 50, model: "override", stream: true, temperature: 1.5, custom: "pass" } },
     messages: [...input.messages, { role: "assistant", content: "", metadata: { actionRequests: [{ id: "prev", name: "find", arguments: {} }] } }, { role: "tool", content: "previous result", metadata: { actionRequestId: "prev" } }],
     generation: { temperature: 0.2, topP: 0.8, topK: 5, maxTokens: 100, seed: 3, stop: ["STOP"] },
-    actions: [{ name: "find", inputSchema: { type: "object" }, targetNode: "INTERACTION.ACT" }],
+    actions: [{ name: "find", inputSchema: { type: "object" }, target: { kind: "node", node: "INTERACTION.ACT.TOOL" } }],
   });
   assert.equal(result.status, "success"); assert.deepEqual(result.output?.usage, { inputTokens: 10, outputTokens: 4, totalTokens: 14, cachedInputTokens: 2, reasoningTokens: 1 });
-  assert.equal(result.output?.actionRequests?.[0]?.targetNode, "INTERACTION.ACT"); assert.deepEqual(result.output?.actionRequests?.[0]?.arguments, { term: "test" });
+  assert.equal("target" in (result.output?.actionRequests?.[0] ?? {}), false); assert.deepEqual(result.output?.actionRequests?.[0]?.arguments, { term: "test" });
   assert.equal(body.n, 1); assert.equal(body.model, "test-model"); assert.equal(body.stream, false); assert.equal(body.temperature, 0.2); assert.equal(body.max_completion_tokens, 100); assert.equal(body.custom, "pass");
   const messages = body.messages as Record<string, unknown>[]; assert.equal(messages[2]?.tool_call_id, "prev"); assert.ok(messages[1]?.tool_calls);
 });

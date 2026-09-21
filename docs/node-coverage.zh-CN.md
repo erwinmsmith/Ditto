@@ -132,7 +132,7 @@
 | 6 | CONTEXT.UPDATE | 将禁止范围、幂等要求和删除审批规则加入上下文。 |
 | 7 | MEMORY.SEARCH | 从长期 Memory Corpus 检索该服务的历史失败和参数限制；必须有实际经验库。 |
 | 8 | INFER.REASONING.SAMPLE | 形成多个跨工具执行计划。 |
-| 9 | INFER.REASONING.DELIBERATE | 比较计划的副作用、调用次数和回滚难度。 |
+| 9 | INFER.REASONING.DELIBERATE | 比较计划对外部系统的影响、调用次数和回滚难度。 |
 | 10 | INTERACTION.ACT.MCP | 调用读取型 MCP 能力；具体协议参数由后续 Contract 固定。 |
 
 交付与验证：后续 CRUD 同样通过 TOOL 执行；官方 verifier 位于测试侧，实际被包装为工具调用时才记录 TOOL。无自动事务、回滚或审批保证。环境由应用提供 MCP SDK 连接；这不引入新的 MCP Node。

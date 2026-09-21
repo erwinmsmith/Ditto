@@ -36,8 +36,7 @@ export type ContextIngressSource =
   | "CONTEXT.SKILL"
   | "CONTEXT.RAG.RANK"
   | "MEMORY.SEARCH"
-  | "INTERACTION.ACT.TOOL"
-  | "INTERACTION.ACT.MCP";
+  | "INTERACTION.OBSERVE";
 export interface ContextIngress {
   id: string;
   sourceNode: ContextIngressSource;
@@ -47,7 +46,7 @@ export interface ContextIngress {
 }
 
 export interface ToolCall {
-  id?: string;
+  id: string;
   name: string;
   arguments: JsonObject;
 }
@@ -55,7 +54,10 @@ export interface ToolDefinition {
   name: string;
   description?: string;
   inputSchema: JsonObject;
+  effects?: readonly ToolEffect[];
+  requiresApproval?: boolean;
 }
+export type ToolEffect = "read" | "write" | "execute" | "network";
 export interface KnowledgeItem {
   id: string;
   content: MessageContent;
@@ -73,17 +75,31 @@ export interface Skill {
 }
 
 export interface ExternalResult {
+  callId: string;
   source: string;
-  content: MessageContent;
-  reference?: Reference;
+  status: ExternalResultStatus;
+  content?: MessageContent;
+  structuredContent?: JsonValue;
+  references?: readonly Reference[];
+  error?: InteractionError;
   metadata?: JsonObject;
 }
-export interface Observation { source: string; message: Message; }
+export type ExternalResultStatus = "success" | "failed" | "cancelled" | "timeout" | "unknown";
+export interface InteractionError { code: string; message: string; retryable?: boolean; }
+export interface Observation extends Omit<ExternalResult, "content"> { message: Message; }
 export interface Artifact { name: string; reference: Reference; }
-export interface OutputReceipt { accepted: boolean; artifacts?: readonly Artifact[]; }
+export type OutputStatus = "accepted" | "rejected" | "unknown";
+export interface OutputReceipt {
+  deliveryId: string;
+  status: OutputStatus;
+  artifacts?: readonly Artifact[];
+  error?: InteractionError;
+  metadata?: JsonObject;
+}
 export interface McpCapability {
   server: string;
   name: string;
   description?: string;
   inputSchema?: JsonObject;
+  outputSchema?: JsonObject;
 }

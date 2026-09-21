@@ -4,7 +4,7 @@
 
 **English** | [简体中文](13-node-api-contract.zh-CN.md)
 
-> Status: final Node taxonomy; API Contract `2.0-rc.1`; INFER and MEMORY have executable Workers.
+> Status: final Node taxonomy; API Contract `2.0-rc.1`. INFER and MEMORY have executable Workers; Interaction contract changes in this branch remain under review.
 
 This document and the linked INFER/MEMORY APIs define the Node tree, semantic boundaries, common public types, and Node input/output contracts. A Node is a composable, independently executable semantic operation. A Worker is the implementation, resource, deployment, and scaling boundary. Graphs compose Nodes; Runtime schedules, routes, communicates, and executes them.
 
@@ -16,10 +16,10 @@ Ditto exposes four directly callable Runtime functions from `src/runtime/graph.t
 | --- | --- |
 | `runRagFlow()` | `CONTEXT.RAG.RETRIEVE → CONTEXT.RAG.RANK → CONTEXT.UPDATE`, or `MEMORY.SEARCH → mapMemory → CONTEXT.UPDATE` according to `scope` |
 | `runSkillFlow()` | `CONTEXT.SKILL` |
-| `runMcpFlow()` | `INTERACTION.ACT.MCP → CONTEXT.UPDATE` |
-| `runToolCallFlow()` | `INTERACTION.ACT.TOOL → CONTEXT.UPDATE` |
+| `runMcpFlow()` | `discover`: MCP only; `invoke`: MCP → OBSERVE → CONTEXT.UPDATE |
+| `runToolCallFlow()` | TOOL → OBSERVE → CONTEXT.UPDATE |
 
-Flows return `{ output, context }`. Memory RAG requires `mapMemory` to map arbitrary content into Context and checks NodeResult before updating Context. Skill flow receives an already-resolved `skill` and invokes CONTEXT.SKILL. See [MEMORY API](worker-api/memory.md).
+Flows return `{ output, context }`; Tool and MCP invoke also return `observation`. Memory RAG requires `mapMemory` to map arbitrary content into Context and checks NodeResult before updating Context. Skill flow receives an already-resolved `skill` and invokes CONTEXT.SKILL. MCP discovery does not update Context. See [MEMORY API](worker-api/memory.md).
 
 ## 1. Final Node tree
 
@@ -106,7 +106,7 @@ export interface Context { items: readonly ContextItem[]; }
 export type ContextSource = Message | Reference | ContextItem;
 export type ContextIngressSource =
   | "CONTEXT.SKILL" | "CONTEXT.RAG.RANK" | "MEMORY.SEARCH"
-  | "INTERACTION.ACT.TOOL" | "INTERACTION.ACT.MCP";
+  | "INTERACTION.OBSERVE";
 export interface ContextIngress {
   id: string; sourceNode: ContextIngressSource; content: MessageContent;
   reference?: Reference; metadata?: JsonObject;
@@ -116,8 +116,9 @@ export interface MemoryDraft { key?: string; content: unknown; metadata?: Record
 export interface MemoryItem extends MemoryDraft { id: string; }
 export interface MemorySearchResult { memory: MemoryItem; score?: number; metadata?: Record<string, unknown>; }
 
-export interface ToolCall { id?: string; name: string; arguments: JsonObject; }
-export interface ToolDefinition { name: string; description?: string; inputSchema: JsonObject; }
+export interface ToolCall { id: string; name: string; arguments: JsonObject; }
+export type ToolEffect = "read" | "write" | "execute" | "network";
+export interface ToolDefinition { name: string; description?: string; inputSchema: JsonObject; effects?: readonly ToolEffect[]; requiresApproval?: boolean; }
 export interface KnowledgeItem { id: string; content: MessageContent; source?: Reference; metadata?: JsonObject; }
 export interface EmbeddingRecord { itemId: string; vector: readonly number[]; }
 export interface RagCandidate { item: KnowledgeItem; score?: number; }
@@ -127,12 +128,14 @@ export interface Skill {
 }
 
 export interface ExternalResult {
-  source: string; content: MessageContent; reference?: Reference; metadata?: JsonObject;
+  callId: string; source: string; status: "success" | "failed" | "cancelled" | "timeout" | "unknown";
+  content?: MessageContent; structuredContent?: JsonValue; references?: readonly Reference[];
+  error?: { code: string; message: string; retryable?: boolean }; metadata?: JsonObject;
 }
-export interface Observation { source: string; message: Message; }
+export interface Observation extends Omit<ExternalResult, "content"> { message: Message; }
 export interface Artifact { name: string; reference: Reference; }
-export interface OutputReceipt { accepted: boolean; artifacts?: readonly Artifact[]; }
-export interface McpCapability { server: string; name: string; description?: string; inputSchema?: JsonObject; }
+export interface OutputReceipt { deliveryId: string; status: "accepted" | "rejected" | "unknown"; artifacts?: readonly Artifact[]; error?: { code: string; message: string; retryable?: boolean }; metadata?: JsonObject; }
+export interface McpCapability { server: string; name: string; description?: string; inputSchema?: JsonObject; outputSchema?: JsonObject; }
 ```
 
 ## 4. Fixed Node inputs and outputs
@@ -200,7 +203,7 @@ export type InteractionMcpOutput =
   | { operation: "invoke"; result: ExternalResult };
 export interface InteractionObserveInput { result: ExternalResult; }
 export type InteractionObserveOutput = Observation;
-export interface InteractionOutputInput { message: Message; artifacts?: readonly Artifact[]; }
+export interface InteractionOutputInput { deliveryId: string; message: Message; artifacts?: readonly Artifact[]; }
 export type InteractionOutputOutput = OutputReceipt;
 ```
 

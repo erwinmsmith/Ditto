@@ -132,7 +132,7 @@ Use the officially published task and verifier rather than a simplified substitu
 | 6 | CONTEXT.UPDATE | Add forbidden scope, idempotency, and deletion approval rules to context. |
 | 7 | MEMORY.SEARCH | Retrieve historical service failures and parameter limits from the long-term Memory Corpus; an actual experience store is required. |
 | 8 | INFER.REASONING.SAMPLE | Form multiple cross-tool plans. |
-| 9 | INFER.REASONING.DELIBERATE | Compare side effects, call count, and rollback difficulty. |
+| 9 | INFER.REASONING.DELIBERATE | Compare external impact, call count, and rollback difficulty. |
 | 10 | INTERACTION.ACT.MCP | Invoke the read-only MCP capability; exact protocol fields are fixed by the later Contract. |
 
 Delivery and validation: subsequent CRUD calls also use TOOL. The official verifier belongs to the test harness, counted as TOOL only if actually wrapped and invoked as one. Core does not guarantee transactions, rollback, or approvals. Applications supply the MCP SDK connection without creating a MCP Node.

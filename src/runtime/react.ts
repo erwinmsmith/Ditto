@@ -3,7 +3,7 @@ import { graph } from "./graph.js";
 import type { InputOf, NodeType } from "../contracts/node-contract-map.js";
 import type { SampleInput, SampleOutput } from "../worker/infer/reasoning/sample/types.js";
 import { validateSample, validateSampleOutput } from "../worker/infer/reasoning/sample/schema.js";
-import type { ActionRequest, InferCallOptions, Message, Observation, Usage } from "../worker/infer/types.js";
+import type { ActionRequest, ActionTarget, InferCallOptions, Message, Observation, Usage } from "../worker/infer/types.js";
 import { abortable, addUsage, errorInfo, InferError, number } from "../worker/infer/validation.js";
 
 export interface ReactFlowInput extends SampleInput {
@@ -62,7 +62,7 @@ export async function runReactFlow(
         const descriptor = input.actions?.find(a => a.name === request.name);
         if (!descriptor) throw new InferError("UNDECLARED_ACTION", `Undeclared action: ${request.name}`);
         if (seen.has(request.id)) throw new InferError("INVALID_MODEL_OUTPUT", "Action IDs must be unique throughout ReAct");
-        seen.add(request.id); pending.set(request.id, { ...request, targetNode: descriptor.targetNode ?? "INTERACTION.ACT.TOOL" });
+        seen.add(request.id); pending.set(request.id, { id: request.id, name: request.name, arguments: request.arguments });
       }
       if (Number.isFinite(maxTokens) && response.usage?.totalTokens === undefined && (response.usage?.inputTokens === undefined || response.usage.outputTokens === undefined)) throw new InferError("USAGE_UNAVAILABLE", "maxTotalTokens requires usage from every SAMPLE");
       if ((output.usage.totalTokens ?? 0) > maxTokens || response.finishReason === "length") throw new Stop("max_tokens");
@@ -74,24 +74,41 @@ export async function runReactFlow(
       messages.push({ ...response.message, metadata: { ...response.message.metadata, actionRequests: [...pending.values()] } });
       for (const action of pending.values()) {
         signal.throwIfAborted(); if (actionCalls >= maxActions) throw new Stop("max_action_calls");
-        const target = action.targetNode as NodeType;
-        const value = target === "INTERACTION.ACT.TOOL" ? { call: { id: action.id, name: action.name, arguments: action.arguments } } : action.arguments;
+        const descriptor = input.actions!.find(candidate => candidate.name === action.name)!;
+        const binding: ActionTarget = descriptor.target ?? { kind: "tool" };
+        const target: NodeType = binding.kind === "tool" ? "INTERACTION.ACT.TOOL" : binding.kind === "mcp" ? "INTERACTION.ACT.MCP" : binding.node as NodeType;
+        const value = binding.kind === "tool"
+          ? { call: { id: action.id, name: binding.toolName ?? descriptor.name, arguments: action.arguments } }
+          : binding.kind === "mcp"
+            ? { operation: "invoke", server: binding.server, call: { id: action.id, name: binding.toolName, arguments: action.arguments } }
+            : action.arguments;
         const actionGraph = graph<unknown>(graphId).node("action", target, [], value => value as InputOf<NodeType>);
         actionCalls++;
-        let observation: Observation;
         try {
           const { action: result } = await abortable(() => runtime.run(actionGraph, value), signal);
-          const envelope = result && typeof result === "object" && "status" in result ? result as unknown as Record<string, unknown> : undefined;
-          if (envelope && ["failed", "timeout", "cancelled"].includes(String(envelope.status))) throw new InferError("DEPENDENCY_FAILED", "Action returned an unsuccessful result");
-          observation = { actionRequestId: action.id, status: "success", content: envelope?.status === "success" ? envelope.output : result };
+          if (binding.kind === "node") {
+            const envelope = result && typeof result === "object" && "status" in result ? result as unknown as Record<string, unknown> : undefined;
+            if (envelope && ["failed", "cancelled", "timeout"].includes(String(envelope.status))) throw new InferError("DEPENDENCY_FAILED", "Action Node returned an unsuccessful result");
+            pending.delete(action.id);
+            messages.push({ role: "tool", content: JSON.stringify((envelope?.status === "success" ? envelope.output : result) ?? null), metadata: { actionRequestId: action.id, name: action.name } });
+            continue;
+          }
+          const external = binding.kind === "mcp" ? (result as { result: import("../contracts/common.js").ExternalResult }).result : result as import("../contracts/common.js").ExternalResult;
+          if (external?.callId !== action.id) throw new InferError("DEPENDENCY_FAILED", "Action result callId mismatch");
+          const observeGraph = graph<unknown>(graphId).node("observation", "INTERACTION.OBSERVE", [], () => ({ result: external }));
+          const { observation } = await abortable(() => runtime.run(observeGraph, undefined), signal);
+          pending.delete(action.id); output.observations.push(observation);
+          if (["cancelled", "timeout", "unknown"].includes(observation.status)) {
+            if (observation.error) output.error = observation.error;
+            throw new Stop("dependency_failed");
+          }
+          messages.push({ role: "tool", content: typeof observation.message.content === "string" ? observation.message.content : JSON.stringify(observation.message.content), metadata: { actionRequestId: observation.callId, name: action.name } });
         } catch (error) {
+          if (error instanceof Stop) throw error;
           const info = signal.aborted ? errorInfo(signal.reason) : errorInfo(error);
-          output.observations.push({ actionRequestId: action.id, status: info.code === "TIMEOUT" ? "timeout" : signal.aborted ? "cancelled" : "failed", error: info });
           if (signal.aborted) throw signal.reason;
           pending.delete(action.id); output.error = info; throw new Stop("dependency_failed");
         }
-        pending.delete(action.id); output.observations.push(observation);
-        messages.push({ role: "tool", content: JSON.stringify(observation.content ?? null), metadata: { actionRequestId: action.id, name: action.name } });
       }
     }
   } catch (error) {

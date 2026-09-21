@@ -16,7 +16,7 @@ export type InteractionMcpOutput =
   | { operation: "invoke"; result: ExternalResult };
 export interface InteractionObserveInput { result: ExternalResult; }
 export type InteractionObserveOutput = Observation;
-export interface InteractionOutputInput { message: Message; artifacts?: readonly Artifact[]; }
+export interface InteractionOutputInput { deliveryId: string; message: Message; artifacts?: readonly Artifact[]; }
 export type InteractionOutputOutput = OutputReceipt;
 
 declare module "../../contracts/node-contract-map.js" {

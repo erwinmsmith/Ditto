@@ -40,11 +40,13 @@ tools.register({
   validate: (args) => {
     if (typeof args.path !== "string") throw new Error("path 必须是字符串");
   },
-  execute: async (args, context) => context.services.sandbox.readText(args.path as string),
+  execute: async (args, context) => ({ status: "success", content: await context.services.sandbox.readText(args.path as string) }),
 });
 ```
 
 `McpRegistry` 接收结构化的 `McpClient`。应用负责 SDK 选择、认证、连接生命周期和传输；Core 不依赖 MCP SDK。
+
+客户端适配器返回中立的 `McpToolResult`，可包含内容、结构化内容、引用、`isError` 和脱敏后的结构化错误。MCP 能力发现默认合计最多 100 页、1000 项，应用可配置其他正整数上限。`isError` 为 true 但没有合规的安全错误时，Core 使用固定的 `MCP_TOOL_ERROR`，不把不可信工具内容写入诊断消息。`createInteractionNodes()` 始终注册 OBSERVE；MCP 和 OUTPUT 只有在注入注册表或应用负责的 `OutputSink` 后才注册。OUTPUT 的接收回执不代表最终送达或用户已读。
 
 ## 四类预定义流程
 
@@ -55,10 +57,10 @@ tools.register({
 | `runRagFlow({ scope: "context" })` | `CONTEXT.RAG.RETRIEVE -> CONTEXT.RAG.RANK -> CONTEXT.UPDATE` |
 | `runRagFlow({ scope: "memory" })` | `MEMORY.SEARCH -> mapMemory -> CONTEXT.UPDATE` |
 | `runSkillFlow()` | `CONTEXT.SKILL` |
-| `runToolCallFlow()` | `INTERACTION.ACT.TOOL -> CONTEXT.UPDATE` |
-| `runMcpFlow()` | `INTERACTION.ACT.MCP -> CONTEXT.UPDATE` |
+| `runToolCallFlow()` | `INTERACTION.ACT.TOOL -> INTERACTION.OBSERVE -> CONTEXT.UPDATE` |
+| `runMcpFlow()` | `discover` 只调用 MCP；`invoke` 执行 MCP -> OBSERVE -> CONTEXT.UPDATE |
 
-RAG 的 `EMBED` 用于表示或索引准备，因此刻意不进入查询时流程。每个函数接收 Runtime client 和当前 `Context`，返回来源结果与更新后的 Context。不同来源的数据统一通过 `ContextIngress` 边界进入 `CONTEXT.UPDATE`。
+RAG 的 `EMBED` 用于索引准备，不进入查询时流程。Tool 和 MCP 调用返回 Observation 并更新 Context；MCP 能力发现只返回清单，不修改 Context。观察结果的来源经 `ContextIngress` 传入 `CONTEXT.UPDATE`。
 
 ```ts
 import { runSkillFlow, runToolCallFlow } from "@ditto/core/runtime";
@@ -93,12 +95,13 @@ Graph 定义与 Node Contract 不包含 Provider 密钥、主机地址或 Worker
 ReAct 放在 `src/runtime/react.ts`，是 Graph 的预定义运行流程：SAMPLE → 已声明动作 → 结果回填 → 下一轮 SAMPLE。它不是 INFER Node 或 TRAJECTORY 策略。循环状态、预算和跨 Worker 调度都由 Runtime 流程持有；所有模型计算仍由 SAMPLE 完成。
 
 ```ts
-import { runReactFlow, createInferWorker, defineWorker } from "@ditto/core";
+import { runReactFlow, createInferWorker, defineWorker, observeExternalResult } from "@ditto/core";
 runtime.register(createInferWorker());
 runtime.register(defineWorker({ type: "INTERACTION", nodes: {
   "INTERACTION.ACT.TOOL": async ({ call }) => ({
-    source: `tool:${call.name}`, content: { found: true },
+    callId: call.id, source: `tool:${call.name}`, status: "success", content: { found: true },
   }),
+  "INTERACTION.OBSERVE": async ({ result }) => observeExternalResult({ result }),
 } }));
 const result = await runReactFlow(runtime, {
   model: { provider: "primary", model: "your-model-id" },
@@ -146,7 +149,7 @@ export interface ReactFlowResult {
 | `timeoutMs` | constraints 与 options/Runtime config.timeoutMs 的较小值；库回退值为 30 秒，根目录 YAML 为 120 秒 |
 | `signal` | 取消等待与后续调度；已派发的远程请求/动作可能继续执行 |
 
-未指定 targetNode 时路由到 INTERACTION.ACT.TOOL，输入包装成 `{ call: { id, name, arguments } }`；其他 targetNode 直接接收 arguments，因此动作 schema 必须符合目标公共 Contract。目标只能来自调用者 action descriptor。多个动作顺序执行；目标失败后记录 observation 并停止，不自动重试。目标为 MCP 时使用 INTERACTION.ACT.MCP，并让 arguments 包含其 operation/server/call 契约。
+调用方在 `ActionDescriptor.target` 中绑定直接工具、MCP 服务端及工具，或公开 Node。未指定目标时使用 TOOL。MCP 的 `operation` 固定为 `invoke`；模型参数不能决定服务端或路由。TOOL/MCP 结果经过 OBSERVE 后才反馈给 SAMPLE。多个动作顺序执行；结构化的 `failed` 结果进入下一轮 SAMPLE，`cancelled`、`timeout`、`unknown` 则停止后续动作。基础设施异常不伪造成观察结果。Core 不自动重试可能影响外部系统的操作。
 
 成功返回 completed；预算/超时/错误中止且已有 SAMPLE 时返回 partial，否则 failed。actionRequests 仅保留尚未处理的请求；超时中的动作结果未知，仍保留 pending，调用者不能据此认定动作未发生。成功观察回填到下一轮工具消息，原始供应商 metadata 保持完整。步数耗尽且没有下一轮可消费观察时，不再执行新动作。
 
