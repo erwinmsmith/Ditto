@@ -53,6 +53,14 @@
     "./worker/node": {
       "types": "./dist/worker/node.d.ts",
       "import": "./dist/worker/node.js"
+    },
+    "./worker/retrieval": {
+      "types": "./dist/worker/retrieval/index.d.ts",
+      "import": "./dist/worker/retrieval/index.js"
+    },
+    "./worker/retrieval/adapters/memory": {
+      "types": "./dist/worker/retrieval/adapters/memory.d.ts",
+      "import": "./dist/worker/retrieval/adapters/memory.js"
     }
   },
   "scripts": {

@@ -24,6 +24,7 @@ export interface RuntimeConfig {
   readonly maxTurns: number;
   readonly infer: InferSettings;
   readonly memory: NonNullable<NonNullable<RuntimeSettings["workers"]>["memory"]>;
+  readonly retrieval: NonNullable<NonNullable<RuntimeSettings["workers"]>["retrieval"]>;
   readonly react: NonNullable<NonNullable<RuntimeSettings["runtime"]>["react"]>;
   readonly sandbox: SandboxPolicy;
 }
@@ -79,6 +80,7 @@ export function loadRuntimeConfig(env: NodeJS.ProcessEnv = process.env, settings
     maxTurns: settings.runtime?.maxTurns ?? 8,
     infer: settings.workers?.infer ?? Object.freeze({}),
     memory: settings.workers?.memory ?? Object.freeze({}),
+    retrieval: settings.workers?.retrieval ?? Object.freeze({}),
     react: settings.runtime?.react ?? Object.freeze({}),
     sandbox: Object.freeze({ tools: list("DITTO_SHARED_SANDBOX_ALLOW_TOOLS"), mcp: list("DITTO_SHARED_SANDBOX_ALLOW_MCP"),
       skills: list("DITTO_SHARED_SANDBOX_ALLOW_SKILLS"), network: list("DITTO_SHARED_SANDBOX_ALLOW_NETWORK"),

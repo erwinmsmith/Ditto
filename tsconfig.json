@@ -28,6 +28,9 @@
       ],
       "@ditto/core/worker/node": [
         "./src/worker/node.ts"
+      ],
+      "@ditto/core/worker/retrieval/adapters/memory": [
+        "./src/worker/retrieval/adapters/memory.ts"
       ]
     },
     "types": [

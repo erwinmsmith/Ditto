@@ -71,7 +71,7 @@ INTERACTION
 └── OUTPUT
 ```
 
-当前包含 25 个可路由叶子 Contract。`INFER.REASONING`、`INFER.CACHE`、`INFER.PROVIDERS`、`RAG` 分支和 `INTERACTION.ACT` 都是命名空间；CACHE 的可执行叶子为 LOOKUP、WRITE、INVALIDATE。工具名与推理策略不是 Node。
+Core 当前包含 25 个可路由叶子 Contract。`INFER.REASONING`、`INFER.CACHE`、`INFER.PROVIDERS`、`RAG` 分支和 `INTERACTION.ACT` 都是命名空间；CACHE 的可执行叶子为 LOOKUP、WRITE、INVALIDATE。工具名与推理策略不是 Node。
 
 ## 2. 能力域边界
 
@@ -246,3 +246,7 @@ export type OutputOf<N extends NodeType> = NodeContractMap[N]["output"];
 - 四个预定义流程位于 `src/runtime/graph.ts`；不再存在 `src/presets` package 或导出。
 - Core 保持轻依赖；数据库、RPC、NATS、MCP SDK、模型 SDK 与分布式 transport 都作为可选适配器。
 - 同一 Graph 与 Node Contract 必须能在本地或远端 Worker 间迁移，且不嵌入部署信息。
+
+## 可选 RETRIEVAL 扩展
+
+四个 Core Worker 的 25 个叶子保持不变。可选入口 `@ditto/core/worker/retrieval` 增加 `RETRIEVAL.SEARCH` 的契约与实现，仅在应用显式导入/注册时启用。它通过 Target/Strategy Registry 调用用户 Provider，不拥有数据、不执行 RAG，也不要求 MEMORY/CONTEXT 经由它检索。需要独立执行资源或水平扩容时，可使用现有 Runtime/HTTP 部署多个副本。[详细 API 与部署边界](worker-api/retrieval.zh-CN.md)。

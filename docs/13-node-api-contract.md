@@ -71,7 +71,7 @@ INTERACTION
 └── OUTPUT
 ```
 
-There are 25 routable leaf contracts. INFER.REASONING, INFER.CACHE, INFER.PROVIDERS, RAG branches and INTERACTION.ACT are namespaces; CACHE executes through LOOKUP, WRITE and INVALIDATE. Tool names and reasoning strategies are not Nodes.
+There are 25 Core routable leaf contracts. INFER.REASONING, INFER.CACHE, INFER.PROVIDERS, RAG branches and INTERACTION.ACT are namespaces; CACHE executes through LOOKUP, WRITE and INVALIDATE. Tool names and reasoning strategies are not Nodes.
 
 ## 2. Semantic boundaries
 
@@ -248,3 +248,7 @@ export type OutputOf<N extends NodeType> = NodeContractMap[N]["output"];
 - The four predefined flows live in `src/runtime/graph.ts`; there is no `src/presets` package or export.
 - Core remains dependency-light; databases, RPC, NATS, MCP SDKs, model SDKs, and distributed transports are optional adapters.
 - The same Graph and Node Contracts must run across local and remote Workers without embedding deployment information.
+
+## Optional RETRIEVAL extension
+
+The four Core Workers retain 25 leaves. The optional `@ditto/core/worker/retrieval` entry adds the RETRIEVAL.SEARCH contract and implementation through explicit imports/registration. It invokes user providers through a Target/Strategy registry, owns no corpus, performs no RAG, and is not required by MEMORY/CONTEXT. Existing Runtime/HTTP facilities support independent deployment and replicas. See [API and deployment boundaries](worker-api/retrieval.md).

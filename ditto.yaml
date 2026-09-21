@@ -30,6 +30,9 @@ shared:
 
 # Worker-specific behavior; add sections only when a Worker consumes them.
 workers:
+  # Optional; this config does not register or start a RETRIEVAL Worker.
+  retrieval:
+    searchLimit: 10
   memory:
     queryLimit: 100
     searchLimit: 10

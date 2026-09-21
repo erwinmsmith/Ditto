@@ -37,6 +37,8 @@ Ditto 将系统拆分为四个概念：
 
 `INFER/PROVIDERS` 是实现目录，不是 Node。`INFER/REASONING` 同样是源码目录，不存在 `REASONING` Node。工具实现位于 `interaction/act/tool/` 下，`linux-commands/` 文件夹存放注册工具名，不产生额外 Node Type。
 
+RETRIEVAL 是可选的独立检索执行 Worker，仅提供 `RETRIEVAL.SEARCH`。按需从 `@ditto/core/worker/retrieval` 导入并注册；Core 默认不加载它。普通 MEMORY/CONTEXT 的直接 Provider 接入不变。见 [RETRIEVAL API](docs/worker-api/retrieval.zh-CN.md)。
+
 ## Runtime 预定义流程
 
 四类公开组合直接位于 `src/runtime/graph.ts`，并由 `@ditto/core/runtime` 导出：
@@ -122,6 +124,7 @@ src/
     │   └── providers/            # 统一 Provider 注册和供应商协议
     ├── context/
     ├── memory/
+    ├── retrieval/                # optional SEARCH worker; explicit subpath import
     └── interaction/act/tool/     # Tool Node、注册表与实现目录
 ```
 
