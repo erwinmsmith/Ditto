@@ -71,7 +71,9 @@
     "test": "npm run build:test && node --test --test-isolation=none .test-dist/test/*.test.js",
     "check": "npm run typecheck && npm test && npm run build",
     "check:infer:live": "npm run build && node --env-file=.env scripts/check-infer-live.ts",
-    "example:agent": "npm run build && node examples/graph-loop-worker.ts"
+    "example:agent": "npm run build && node examples/graph-loop-worker.ts",
+    "example:tools": "npm run build && node examples/interaction-tools.ts",
+    "check:interaction:mcp:live": "npm run build && node scripts/check-interaction-mcp-live.mjs"
   },
   "engines": {
     "node": ">=24.0.0",

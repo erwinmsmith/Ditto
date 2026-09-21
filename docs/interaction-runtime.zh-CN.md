@@ -85,6 +85,8 @@ const interaction = createInteractionWorker({
 
 连接、认证和 SDK 释放由应用负责。工厂不会打开或关闭 MCP/数据库连接，复用同一 Worker definition 会共享传入的实例。需要每个副本独立资源及自动释放时，使用现有 `defineWorker({ resources, dispose, nodes })` 与 `createInteractionNodes()`；不需要新增插件加载框架。env 放密钥和连接信息，YAML 放行为参数；当前工厂的工具函数和 SDK 实例通过代码注入，不能把任意插件名写入 YAML 后自动加载。
 
+命令与其他工具组合的[完整示例](../examples/interaction-tools.ts)可通过 `npm run example:tools` 运行。Linux/macOS 命令及真实 MCP stdio server 的验证结果、SDK 接入和复现方法见 [INTERACTION 实测记录](worker-api/interaction-live-report.md)。
+
 ## 四类预定义流程
 
 公开函数直接位于 `src/runtime/graph.ts`，并由 `@ditto/core/runtime` 导出。它们是可复用的 Runtime 组合函数，不是 Node Type；仓库不再保留 `src/presets` package。
