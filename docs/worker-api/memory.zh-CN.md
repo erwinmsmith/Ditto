@@ -236,4 +236,6 @@ const result = await runRagFlow(runtime, {
 
 ## 可选独立 Retrieval 服务
 
-普通 MemorySearchProvider 保持不变。需要独立检索资源时，可显式导入 `@ditto/core/worker/retrieval/adapters/memory` 的 RemoteRetrievalSearchProvider，配置固定 target 与批量 mapOutput，将 MEMORY.SEARCH 委托给 RETRIEVAL.SEARCH。调用方契约不变；MEMORY 不直接依赖或自动启动该扩展。见 [接入和部署说明](retrieval.zh-CN.md)。
+普通 MemorySearchProvider 保持不变。需要独立检索资源时，可显式导入 `@ditto/core/worker/retrieval/adapters/memory` 的 RemoteRetrievalSearchProvider，配置固定 target 与按需的批量 mapOutput，将 MEMORY.SEARCH 委托给 RETRIEVAL.SEARCH。调用方契约不变；MEMORY 不直接依赖或自动启动该扩展。见 [接入和部署说明](retrieval.zh-CN.md)。
+
+同一存储插件/连接也可以提供原生检索。可选 createMemoryRetrievalProvider 将现有原生 search 接入 RETRIEVAL；createRetrievalMemorySearchProvider 则让 MEMORY 在进程内直接复用 embedding/搜索/融合/重排链路，无需启动另一个 Worker。候选包含完整 MemoryItem 时，远程转接可省略 mapOutput。见[数据库与 embedding 接线](retrieval-providers.zh-CN.md)。SEARCH 的 embedding 不会让 WRITE 自动构建或同步向量索引。

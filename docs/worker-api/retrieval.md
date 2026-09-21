@@ -26,7 +26,7 @@ function startRetrieval(kbProvider: RetrievalSearchProvider, codeProvider: Retri
 
 To migrate, wrap the existing low-level MEMORY/CONTEXT retrieval function in RetrievalSearchProvider, keeping its backend and algorithm; do not route it back to the MEMORY.SEARCH already delegating to it.
 
-Providers come from the application: reuse existing retrieval functions or connect databases, indexes, graph engines or remote APIs. Core supplies no embedding, vector/BM25/hybrid algorithms or database clients. There are no EMBED/RANK placeholders or mandatory pipeline stages.
+The optional module supplies batched/HTTP embedding, vector and database-native full-text adapters, weighted RRF fusion and replaceable reranking. Reuse existing database search plugins or inject SQL/Milvus clients; no drivers or database lifecycle are included. Graph/custom strategies use their own SearchProvider. See [complete provider API and database wiring](retrieval-providers.md). There are no EMBED/RANK placeholders or mandatory pipeline stages.
 
 ## Contracts
 
@@ -60,19 +60,19 @@ interface RetrievalSearchOutput {
   metadata?: Record<string, unknown>;
 }
 interface RetrievalSearchProvider {
-  search(input: RetrievalSearchInput): Promise<RetrievalSearchOutput>;
+  search(input: RetrievalSearchInput, context?: RetrievalExecutionContext): Promise<RetrievalSearchOutput>;
 }
 interface RetrievalProviderRegistry {
   resolve(target: RetrievalTarget, strategy?: string): RetrievalSearchProvider;
 }
 interface RetrievalResources { readonly providers: RetrievalProviderRegistry; }
 interface RetrievalOptions extends RetrievalResources {
-  readonly defaults?: { readonly searchLimit?: number };
+  readonly defaults?: RetrievalDefaults;
   readonly concurrency?: number;
 }
 ```
 
-`createRetrievalWorker(options)` returns a WorkerDefinition exposing SEARCH. `createRetrieval(options).search(input, runtimeDefaults?)` is the standalone SDK; its optional second argument is `{ searchLimit? }`. SDK calls do not schedule concurrency. Runtime calls use `runtime.invoke("RETRIEVAL.SEARCH", input)` or `ctx.invoke`, returning shared `NodeResult<RetrievalSearchOutput>` with executionId, node, status and output/error. `retrievalSearchNode` exports the semantic scaffold. The optional entry augments NodeContractMap without adding this contract to Core's default exports.
+`createRetrievalWorker(options)` returns a WorkerDefinition exposing SEARCH. `createRetrieval(options).search(input, runtimeDefaults?, context?)` is the standalone SDK; defaults include searchLimit and nested embedding/hybrid/rerank settings, and context accepts a local AbortSignal. See [provider configuration](retrieval-providers.md#http-embedding-and-root-configuration). SDK calls do not schedule concurrency. Runtime calls use `runtime.invoke("RETRIEVAL.SEARCH", input)` or `ctx.invoke`, returning shared `NodeResult<RetrievalSearchOutput>` with executionId, node, status and output/error. `retrievalSearchNode` exports the semantic scaffold. The optional entry augments NodeContractMap without adding this contract to Core's default exports.
 
 query.content must exist but can contain text, vectors or structured data. Providers validate its meaning. The caller must supply a target; no automatic corpus selection. Identifier fields are nonempty strings, metadata/filter/options are objects, and limit is an integer in 1–10000. HTTP requires application-agreed JSON representations; local calls need not stringify content. Targets are logical names, not connection descriptors. Credentials, collection names and backend URLs belong inside providers.
 
@@ -131,7 +131,7 @@ const search = new RemoteRetrievalSearchProvider({
 runtime.register(createMemoryWorker({ store: applicationMemoryStore, search }));
 ```
 
-RemoteRetrievalSearchOptions requires `runtime: Pick<RuntimeClient, "invoke">`, a fixed target, and mapOutput. The mapper receives the complete RetrievalSearchOutput and may return MemorySearchOutput synchronously or asynchronously, enabling batch hydration. The adapter does not infer memory IDs, open storage connections or perform per-candidate SQL GETs.
+RemoteRetrievalSearchOptions requires `runtime: Pick<RuntimeClient, "invoke">` and a fixed target. mapOutput is optional when candidate.content contains a complete MemoryItem; otherwise provide an explicit mapper. The mapper receives the complete RetrievalSearchOutput and may return MemorySearchOutput synchronously or asynchronously, enabling batch hydration. The adapter does not infer memory IDs, open storage connections or perform per-candidate SQL GETs.
 
 It maps MemorySearchInput.query to query.content and forwards strategy/filter/limit/options. Failed SEARCH results never reach the mapper. It invokes the public node through Runtime and imports only MEMORY types, preserving MEMORY.SEARCH's API. The name also works with a local registered retrieval Worker. Without it, continue injecting the existing MemorySearchProvider.
 
@@ -174,9 +174,16 @@ Applications own registry/provider connections. Reusing a definition shares inje
 workers:
   retrieval:
     searchLimit: 10
+    embedding:
+      batchSize: 64
+    hybrid:
+      candidateLimit: 100
+      rrfK: 60
+    rerank:
+      candidateLimit: 100
 ```
 
-Root YAML normalizes to config.retrieval. Precedence is request limit > options.defaults.searchLimit > Runtime YAML > built-in 10. Standalone SDKs may pass `defaults: config.retrieval`. Configuration loads at startup with no file I/O on the request path. Backend addresses/credentials remain application env configuration; reuse the existing HTTP token, without unused env placeholders.
+Root YAML normalizes to config.retrieval. Precedence is request limit > options.defaults.searchLimit > Runtime YAML > built-in 10. Standalone SDKs may pass `defaults: config.retrieval`. Configuration loads at startup with no file I/O on the request path. Backend addresses/credentials remain application env configuration. The optional HTTP embedding factory explicitly reads the grouped RETRIEVAL embedding env keys; see [provider configuration](retrieval-providers.md#http-embedding-and-root-configuration).
 
 | Code | Meaning |
 | --- | --- |
@@ -186,13 +193,15 @@ Root YAML normalizes to config.retrieval. Precedence is request limit > options.
 | RETRIEVAL_PROVIDER_UNAVAILABLE | Registry/provider lacks callable methods |
 | RETRIEVAL_INVALID_BACKEND_OUTPUT | Invalid shape, target, strategy or count |
 | RETRIEVAL_BACKEND_ERROR | Unclassified exception, original details hidden |
+| RETRIEVAL_INVALID_EMBEDDING | Invalid vector count, index, values or dimensions |
+| RETRIEVAL_CANCELLED | Local SDK signal aborted; status is cancelled |
 | RETRIEVAL_TIMEOUT | Explicit provider timeout; NodeResult.status is timeout |
 | RETRIEVAL_PERMISSION_DENIED | Explicit provider/custom-registry denial |
 
-Providers can throw `new RetrievalError(code, safeMessage)`; its message is public and must exclude private connection details. Other exceptions are sanitized. Backend deadlines/cancellation are provider-owned in v0.1. There is no timeout race that releases concurrency while uncooperative work continues. HTTP client timeout stops waiting, not necessarily server execution. Existing Runtime routing/transport failures reject the Promise rather than becoming empty success.
+Providers can throw `new RetrievalError(code, safeMessage)`; its message is public and must exclude private connection details. Other exceptions are sanitized. Local SDK cancellation is forwarded cooperatively through provider context; HTTP embedding enforces its own timeout. Other backend deadlines/cancellation remain provider-owned. There is no timeout race that releases concurrency while uncooperative work continues. HTTP client timeout stops waiting, not necessarily server execution. Existing Runtime routing/transport failures reject the Promise rather than becoming empty success.
 
 ## Graph boundary and verification
 
 RAG is an application composition: RETRIEVAL.SEARCH → explicit candidate mapping → CONTEXT.UPDATE → INFER. SEARCH does not write Context/Memory, call INFER/Tools or rewrite the query. Candidate-to-Context mapping belongs to the caller; content is not assumed to be a Document or Message.
 
-`npm run check` covers optional loading, type exports, target/strategy resolution, passthrough, defaults, sanitized errors, output validation, two-replica capacity/draining and a MEMORY bridge over actual local HTTP. Tests use controlled providers; real vector/BM25 algorithms, GPU throughput and database adapters remain backend test responsibilities.
+`npm run check` covers optional loading, type exports, target/strategy resolution, passthrough, defaults, sanitized errors, output validation, two-replica capacity/draining and a MEMORY bridge over actual local HTTP. Provider tests additionally cover real SQLite FTS5/BM25, HTTP embedding protocol, vector validation, RRF/cosine calculations and SQL/Milvus adapter mapping. Live MySQL/PostgreSQL/Milvus services, external model relevance and GPU throughput are not verified by these tests.

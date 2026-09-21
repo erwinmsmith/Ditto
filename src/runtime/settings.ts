@@ -23,7 +23,17 @@ export interface RuntimeSettings {
     readonly maxTurns?: number;
     readonly react?: { readonly maxActionCalls?: number; readonly maxTotalTokens?: number };
   };
-  readonly workers?: { readonly infer?: InferSettings; readonly memory?: MemoryDefaults; readonly retrieval?: { readonly searchLimit?: number } };
+  readonly workers?: {
+    readonly infer?: InferSettings;
+    readonly memory?: MemoryDefaults;
+    // Data-only settings keep the optional retrieval implementation out of Core's import graph.
+    readonly retrieval?: {
+      readonly searchLimit?: number;
+      readonly embedding?: { readonly batchSize?: number; readonly dimensions?: number };
+      readonly hybrid?: { readonly candidateLimit?: number; readonly rrfK?: number };
+      readonly rerank?: { readonly candidateLimit?: number };
+    };
+  };
   readonly shared?: {
     readonly providers?: Readonly<Record<string, {
       readonly maxTokensField?: "max_tokens" | "max_completion_tokens";
@@ -63,7 +73,13 @@ export function validateRuntimeSettings(value: unknown): RuntimeSettings {
     if (react !== undefined) integers(react, "runtime.react", { maxActionCalls: [0, Number.MAX_SAFE_INTEGER], maxTotalTokens: positive });
   }
   const workers = v.workers === undefined ? {} : record(v.workers, "workers", ["infer", "memory", "retrieval"]);
-  if (workers.retrieval !== undefined) integers(workers.retrieval, "workers.retrieval", { searchLimit: [1, 10000] });
+  if (workers.retrieval !== undefined) {
+    const { embedding, hybrid, rerank, ...retrieval } = record(workers.retrieval, "workers.retrieval", ["searchLimit", "embedding", "hybrid", "rerank"]);
+    integers(retrieval, "workers.retrieval", { searchLimit: [1, 10000] });
+    if (embedding !== undefined) integers(embedding, "workers.retrieval.embedding", { batchSize: [1, 2048], dimensions: positive });
+    if (hybrid !== undefined) integers(hybrid, "workers.retrieval.hybrid", { candidateLimit: [1, 10000], rrfK: positive });
+    if (rerank !== undefined) integers(rerank, "workers.retrieval.rerank", { candidateLimit: [1, 10000] });
+  }
   if (workers.memory !== undefined) integers(workers.memory, "workers.memory", { queryLimit: [1, 10000], searchLimit: [1, 10000] });
   if (workers.infer !== undefined) {
     const infer = record(workers.infer, "workers.infer", ["generation", "constraints", "strategies", "deliberate"]);

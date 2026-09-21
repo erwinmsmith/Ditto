@@ -33,6 +33,13 @@ workers:
   # Optional; this config does not register or start a RETRIEVAL Worker.
   retrieval:
     searchLimit: 10
+    embedding:
+      batchSize: 64
+    hybrid:
+      candidateLimit: 100
+      rrfK: 60
+    rerank:
+      candidateLimit: 100
   memory:
     queryLimit: 100
     searchLimit: 10
