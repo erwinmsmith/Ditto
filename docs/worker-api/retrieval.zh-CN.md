@@ -27,7 +27,7 @@ function startRetrieval(kbProvider: RetrievalSearchProvider, codeProvider: Retri
 }
 ```
 
-Provider 是应用传入的已有实现。迁移时将原本在 MEMORY/CONTEXT 中使用的底层检索函数包装成 RetrievalSearchProvider，沿用同一后端与算法；远端 Provider 不应反向调用已经转接到自己的 MEMORY.SEARCH。可以复用已有检索函数，或连接向量数据库、全文索引、图数据库、远程检索 API。Ditto 不安装数据库，不生成 embedding，不附带假定数据结构的 vector/BM25/hybrid 算法，也不创建空的 EMBED/RANK 目录。
+Provider 是应用传入的已有实现。迁移时将原本在 MEMORY/CONTEXT 中使用的底层检索函数包装成 RetrievalSearchProvider，沿用同一后端与算法；远端 Provider 不应反向调用已经转接到自己的 MEMORY.SEARCH。可以复用已有检索函数，或连接向量数据库、全文索引、图数据库、远程检索 API。可选模块已提供批量/HTTP embedding、向量检索接线、数据库原生全文检索适配、加权 RRF 融合与可替换重排。SQL/Milvus 通过应用已有客户端注入，Ditto 不安装数据库或驱动，也不管理索引。Graph/custom 策略继续由对应 SearchProvider 执行。完整 API 和接线方式见[检索链路与数据库适配](retrieval-providers.zh-CN.md)。不创建空的 EMBED/RANK 目录。
 
 应用决定是否将该 Worker 注册到本地 Runtime，或在独立服务进程中启动。Core 没有自动根据负载启停服务的机制。
 
@@ -63,20 +63,20 @@ interface RetrievalSearchOutput {
   metadata?: Record<string, unknown>;
 }
 interface RetrievalSearchProvider {
-  search(input: RetrievalSearchInput): Promise<RetrievalSearchOutput>;
+  search(input: RetrievalSearchInput, context?: RetrievalExecutionContext): Promise<RetrievalSearchOutput>;
 }
 interface RetrievalProviderRegistry {
   resolve(target: RetrievalTarget, strategy?: string): RetrievalSearchProvider;
 }
 interface RetrievalResources { readonly providers: RetrievalProviderRegistry; }
 interface RetrievalOptions extends RetrievalResources {
-  readonly defaults?: { readonly searchLimit?: number };
+  readonly defaults?: RetrievalDefaults;
   readonly concurrency?: number;
 }
 ```
 
 - `createRetrievalWorker(options): WorkerDefinition`：注册唯一叶子 SEARCH，复用现有 Runtime 路由、并发和关闭语义。
-- `createRetrieval(options).search(input, runtimeDefaults?)`：不经过 Runtime 的直接 SDK；第二参数可选 `{ searchLimit? }`。直接 SDK 不限制并发。
+- `createRetrieval(options).search(input, runtimeDefaults?, context?)`：直接 SDK；defaults 包含 searchLimit 及嵌套 embedding/hybrid/rerank 配置，context 可传进程内 AbortSignal。直接 SDK 不限制并发。见[Provider 配置](retrieval-providers.zh-CN.md)。
 - `runtime.invoke("RETRIEVAL.SEARCH", input)` / `ctx.invoke(...)`：使用共享 `NodeResult<RetrievalSearchOutput>`，含 executionId、node、status、output/error。
 - `retrievalSearchNode`：语义身份 scaffold。SEARCH 的 TypeScript 契约通过可选入口增强 NodeContractMap，不加入 Core 的默认契约导出。
 
@@ -146,7 +146,7 @@ const search = new RemoteRetrievalSearchProvider({
 runtime.register(createMemoryWorker({ store: applicationMemoryStore, search }));
 ```
 
-`RemoteRetrievalSearchOptions` 包含 `runtime: Pick<RuntimeClient, "invoke">`、`target`、`mapOutput`。mapOutput 必须显式提供，可同步或异步返回完整 MemorySearchOutput；它一次接收所有候选，便于在需要时批量补全记录。转接器不会自行创建存储连接、推断 Memory ID 或执行 N 次 SQL GET。
+`RemoteRetrievalSearchOptions` 包含 `runtime: Pick<RuntimeClient, "invoke">`、`target`、`mapOutput`。candidate.content 为完整 MemoryItem 时可省略 mapOutput，使用默认映射保留 key/content/metadata；其它候选结构需显式提供 mapOutput，可同步或异步返回完整 MemorySearchOutput；它一次接收所有候选，便于在需要时批量补全记录。转接器不会自行创建存储连接、推断 Memory ID 或执行 N 次 SQL GET。
 
 转接关系：MemorySearchInput.query → query.content；strategy/filter/limit/options 原样传递；target 固定在应用配置中。SEARCH 失败时不调用 mapper。转接器通过 Runtime 调用公共节点，只依赖 MEMORY 的类型接口，不导入其执行实现。MEMORY 调用方仍使用原来的输入、输出和 NodeResult。
 
@@ -190,9 +190,16 @@ runtime.registerRemote({ address, transportId: transport.id, capabilities: ["RET
 workers:
   retrieval:
     searchLimit: 10
+    embedding:
+      batchSize: 64
+    hybrid:
+      candidateLimit: 100
+      rrfK: 60
+    rerank:
+      candidateLimit: 100
 ```
 
-根目录 YAML 经 loadRuntimeConfigFile 读取为 `config.retrieval`。优先级：请求 limit > options.defaults.searchLimit > Runtime YAML > 内置 10。直接 SDK 可传 `defaults: config.retrieval`。配置在启动时读取，热路径没有文件 I/O。数据库/检索服务地址与凭据由应用 Provider 读取 env；沿用现有 HTTP token，不增加空 env 占位项。
+根目录 YAML 经 loadRuntimeConfigFile 读取为 `config.retrieval`。优先级：请求 limit > options.defaults.searchLimit > Runtime YAML > 内置 10。直接 SDK 可传 `defaults: config.retrieval`。配置在启动时读取，热路径没有文件 I/O。数据库/检索服务地址与凭据由应用 Provider 读取 env；通信沿用现有 HTTP token；可选 HTTP embedding 由工厂显式读取 RETRIEVAL 分组的 env 地址、模型和凭据。详见[配置与接线](retrieval-providers.zh-CN.md)。
 
 | 错误码 | 语义 |
 | --- | --- |
@@ -202,15 +209,17 @@ workers:
 | RETRIEVAL_PROVIDER_UNAVAILABLE | Registry/Provider 未提供可调用的方法 |
 | RETRIEVAL_INVALID_BACKEND_OUTPUT | 输出形状、目标、策略或条数不符合契约 |
 | RETRIEVAL_BACKEND_ERROR | 未分类后端异常，隐藏原始信息 |
+| RETRIEVAL_INVALID_EMBEDDING | 向量数量、索引、数值或维度错误 |
+| RETRIEVAL_CANCELLED | 本地 SDK 信号取消，status 为 cancelled |
 | RETRIEVAL_TIMEOUT | Provider 显式报告超时，NodeResult.status 为 timeout |
 | RETRIEVAL_PERMISSION_DENIED | Provider/自定义 Registry 显式拒绝权限 |
 
 Provider 可抛出 `new RetrievalError(code, safeMessage)`；message 是公开内容，不能包含凭据或私有连接信息。其他异常转换为通用错误。
 
-v0.1 的后端 deadline/cancellation 由 Provider 自己实现；没有 Promise.race 超时后仍占用资源却提前释放并发配额的逻辑。HTTP transport 的客户端 timeout 只停止客户端等待，不保证服务端计算被取消。Runtime 注册/路由/通信层的失败仍按已有规则拒绝 Promise；不伪装成成功的空候选。
+直接 SDK 的取消信号经 context 协作式传给 Provider，HTTP embedding 自带请求 deadline；其他后端 deadline/cancellation 由 Provider 自己实现；没有 Promise.race 超时后仍占用资源却提前释放并发配额的逻辑。HTTP transport 的客户端 timeout 只停止客户端等待，不保证服务端计算被取消。Runtime 注册/路由/通信层的失败仍按已有规则拒绝 Promise；不伪装成成功的空候选。
 
 ## 用户 Graph 与验证范围
 
 RAG 由用户 Graph 组合 `RETRIEVAL.SEARCH → 显式候选映射 → CONTEXT.UPDATE → INFER`。SEARCH 不更新 Context、不写 Memory、不调用 INFER/Tool，也不改写 query。候选到 ContextItem 的映射由调用方决定，不将 content 强制解释成文档或 Message。
 
-`npm run check` 覆盖可选性、类型导出、目标/策略选择、参数透传、配置优先级、错误与候选校验、两副本容量和关闭、MEMORY 经真实本地 HTTP 的转接。测试使用可控 Provider，没有声称验证真实向量索引、BM25 算法、GPU 吞吐或数据库插件；这些由应用后端的测试负责。
+`npm run check` 覆盖可选性、类型导出、目标/策略选择、参数透传、配置优先级、错误与候选校验、两副本容量和关闭、MEMORY 经真实本地 HTTP 的转接。新增测试还覆盖真实 SQLite FTS5/BM25、HTTP embedding 协议、向量校验、RRF/cosine 数值以及 SQL/Milvus 协议映射。没有连接真实 MySQL/PostgreSQL/Milvus 服务，也未测量第三方模型检索质量或 GPU 吞吐。

@@ -1,4 +1,4 @@
-import { RetrievalError, type RetrievalTarget } from "../types.js";
+import { RetrievalError, type RetrievalDefaults, type RetrievalTarget } from "../types.js";
 import type { RetrievalSearchInput, RetrievalSearchOutput } from "./types.js";
 
 function check(condition: unknown, message: string): asserts condition {
@@ -67,4 +67,17 @@ export function normalizeOutput(value: unknown, input: RetrievalSearchInput): Re
   } catch {
     throw new RetrievalError("RETRIEVAL_INVALID_BACKEND_OUTPUT", "Retrieval backend returned an invalid result");
   }
+}
+
+/** Validate SDK defaults too; YAML is not the only construction path. */
+export function validateDefaults(value: RetrievalDefaults): void {
+  object(value);
+  if (value.searchLimit !== undefined) validateLimit(value.searchLimit);
+  for (const group of [value.embedding, value.hybrid, value.rerank]) if (group !== undefined) object(group);
+  if (value.hybrid?.candidateLimit !== undefined) validateLimit(value.hybrid.candidateLimit);
+  if (value.rerank?.candidateLimit !== undefined) validateLimit(value.rerank.candidateLimit);
+  for (const number of [value.embedding?.batchSize, value.embedding?.dimensions, value.hybrid?.rrfK]) {
+    if (number !== undefined) check(Number.isSafeInteger(number) && number >= 1, "Provider defaults must be positive integers");
+  }
+  if (value.embedding?.batchSize !== undefined) check(value.embedding.batchSize <= 2048, "Embedding batch size exceeds 2048");
 }

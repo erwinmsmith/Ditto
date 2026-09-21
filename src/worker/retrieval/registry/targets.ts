@@ -21,8 +21,8 @@ export class RetrievalTargetRegistry implements RetrievalProviderRegistry {
         if (strategy.trim().toLowerCase() === "rag") throw new RetrievalError("RETRIEVAL_STRATEGY_UNSUPPORTED", "RAG is a Graph, not a search strategy");
         if (!provider || typeof provider.search !== "function") throw new RetrievalError("RETRIEVAL_PROVIDER_UNAVAILABLE", "Search provider is unavailable");
         providers.set(strategy, {
-          async search(input) {
-            const output = await provider.search({ ...input, strategy });
+          async search(input, context) {
+            const output = await provider.search({ ...input, strategy }, context);
             if (!output || typeof output !== "object" || (output.strategy !== undefined && output.strategy !== strategy)) {
               throw new RetrievalError("RETRIEVAL_INVALID_BACKEND_OUTPUT", "Retrieval backend returned an invalid strategy");
             }

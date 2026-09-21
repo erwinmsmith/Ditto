@@ -12,7 +12,12 @@ export interface RetrievalCandidate {
   source?: { target?: string; ref?: string };
   metadata?: Record<string, unknown>;
 }
-export interface RetrievalDefaults { readonly searchLimit?: number; }
+export interface RetrievalDefaults {
+  readonly searchLimit?: number;
+  readonly embedding?: { readonly batchSize?: number; readonly dimensions?: number };
+  readonly hybrid?: { readonly candidateLimit?: number; readonly rrfK?: number };
+  readonly rerank?: { readonly candidateLimit?: number };
+}
 
 /** Messages on this explicit error are public; never include backend credentials. */
 export class RetrievalError extends Error {
