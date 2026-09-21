@@ -77,7 +77,7 @@ Data shared across replicas belongs in explicitly shared storage. Objects captur
 
 Before an internal Graph executes, the current Worker is checked for every required task. Missing internal Nodes do not silently route to another replica. This lets one internal Graph share its replica's resources and configuration. `ctx.invoke` does not guarantee the current replica; use `ctx.run` for internal execution.
 
-Graphs are immutable DAGs. `node(id, nodeType, dependencies, bind)` defines a task, dependencies, and input mapping. The same semantic Node may appear more than once with distinct logical IDs. Dependencies can refer only to previously declared tasks. Independent branches run concurrently; descendants of a failed task do not run, and the scheduler waits for started branches before settling. Execution does not roll back completed external effects.
+Graphs are immutable DAGs. `node(id, nodeType, dependencies, bind)` defines a task, dependencies, and input mapping. The same semantic Node may appear more than once with distinct logical IDs. Dependencies can refer only to previously declared tasks. Independent branches run concurrently; descendants of a failed task do not run, and the scheduler waits for started branches before settling. Execution does not roll back completed changes in external systems.
 
 Graphs contain no Provider keys, physical addresses, or replica counts. Because `bind` is a TypeScript function, a Graph cannot be serialized directly as JSON. Public Node invocations cross the transport boundary; remote Workers execute their already-deployed handlers and internal Graphs.
 

@@ -12,7 +12,7 @@ function queued(outputs: SampleOutput[]): { providers: Record<string, ModelProvi
   const requests: SampleInput[] = [];
   return { requests, providers: { test: { async invoke(input) { requests.push(structuredClone(input)); const output = outputs.shift(); assert.ok(output, "Unexpected model call"); return output; } } } };
 }
-const toolRequest = (id = "call-1"): SampleOutput => ({ message: { role: "assistant", content: "" }, finishReason: "action_request", actionRequests: [{ id, name: "lookup", arguments: { query: "hello" }, targetNode: "SHOULD.NOT.RUN" }] });
+const toolRequest = (id = "call-1"): SampleOutput => ({ message: { role: "assistant", content: "" }, finishReason: "action_request", actionRequests: [{ id, name: "lookup", arguments: { query: "hello" } }] });
 const actions = [{ name: "lookup", inputSchema: { type: "object" } }];
 
 test("SAMPLE preserves configuration and usage, selects adapters and returns uniform errors", async () => {
@@ -22,7 +22,7 @@ test("SAMPLE preserves configuration and usage, selects adapters and returns uni
   assert.equal(result.status, "success"); assert.ok(result.executionId); assert.equal(result.node, "INFER.REASONING.SAMPLE"); assert.equal(result.output?.usage?.totalTokens, 5);
   assert.deepEqual(q.requests[0], input);
   const tool = await infer.reasoning.sample({ ...sampleInput, actions });
-  assert.equal(tool.output?.actionRequests?.[0]?.targetNode, undefined);
+  assert.equal("target" in (tool.output?.actionRequests?.[0] ?? {}), false);
   assert.equal((await infer.execute("INFER.CACHE", {})).error?.code, "UNKNOWN_NODE");
   assert.equal((await createInfer().reasoning.sample(sampleInput)).error?.code, "PROVIDER_NOT_FOUND");
   const bad = await infer.execute("INFER.REASONING.SAMPLE", { ...sampleInput, generation: { temperature: NaN } });

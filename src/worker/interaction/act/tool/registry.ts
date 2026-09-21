@@ -1,11 +1,14 @@
 import type {
-  ExternalResult, JsonObject, MessageContent, ToolCall, ToolDefinition,
+  ExternalResult, JsonObject, ToolCall, ToolDefinition,
 } from "../../../../contracts/common.js";
 import type { WorkerContext } from "../../../node.js";
+import { externalResult, nonempty } from "../../validation.js";
+
+export type ToolExecutionOutcome = Omit<ExternalResult, "callId" | "source">;
 
 export interface RegisteredTool extends ToolDefinition {
   validate(arguments_: JsonObject): void;
-  execute(arguments_: JsonObject, context: WorkerContext<unknown, unknown>): Promise<MessageContent>;
+  execute(arguments_: JsonObject, context: WorkerContext<unknown, unknown>): Promise<ToolExecutionOutcome>;
 }
 
 export class ToolRegistry {
@@ -22,18 +25,22 @@ export class ToolRegistry {
   list(context: WorkerContext<unknown, unknown>): readonly ToolDefinition[] {
     return [...this.#tools.values()]
       .filter((tool) => context.services.sandbox.allows("tools", tool.name))
-      .map(({ name, description, inputSchema }) => ({
+      .map(({ name, description, inputSchema, effects, requiresApproval }) => ({
         name,
         inputSchema,
         ...(description === undefined ? {} : { description }),
+        ...(effects === undefined ? {} : { effects }),
+        ...(requiresApproval === undefined ? {} : { requiresApproval }),
       }));
   }
 
   async call(call: ToolCall, context: WorkerContext<unknown, unknown>): Promise<ExternalResult> {
+    nonempty(call.id, "call.id");
     context.services.sandbox.assert("tools", call.name);
     const tool = this.#tools.get(call.name);
     if (!tool) throw new Error(`Unknown tool: ${call.name}`);
     tool.validate(call.arguments);
-    return { source: call.name, content: await tool.execute(call.arguments, context) };
+    const outcome = await tool.execute(call.arguments, context);
+    return externalResult({ ...outcome, callId: call.id, source: call.name });
   }
 }

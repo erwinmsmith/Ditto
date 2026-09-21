@@ -108,26 +108,24 @@ export interface NodeResult<T> {
   output?: T;
   error?: { code: string; message: string };
 }
+export type ActionTarget =
+  | { kind: "tool"; toolName?: string }
+  | { kind: "mcp"; server: string; toolName: string }
+  | { kind: "node"; node: string };
 export interface ActionDescriptor {
   name: string;
   description?: string;
   inputSchema: Record<string, unknown>;
-  targetNode?: string;
+  target?: ActionTarget;
 }
 export interface ActionRequest {
   id: string;
   name: string;
   arguments: Record<string, unknown>;
-  targetNode?: string;
 }
 export interface ContextItem { id?: string; content: unknown; source?: string; score?: number }
 export interface MemoryItem { id: string; content: unknown; score?: number; timestamp?: number }
-export interface Observation {
-  actionRequestId?: string;
-  status: "success" | "failed" | "cancelled" | "timeout";
-  content?: unknown;
-  error?: { code: string; message: string };
-}
+export type Observation = import("@ditto/core").Observation;
 export interface ReasoningStep {
   id: string;
   type: "plan" | "model" | "decision" | "action_request" | "observation" | "reflection" | "final";
@@ -170,7 +168,7 @@ export interface SampleOutput {
 }
 ```
 
-Messages must be nonempty and model.model is required. Action names must be unique. Provider output must contain an assistant message; action_request must have actions and other finish reasons must not have them. Actions must have been declared by the caller. Routing targets come exclusively from descriptors, overriding provider-supplied targets. SAMPLE returns requests without executing them.
+Messages must be nonempty and model.model is required. Action names must be unique. Provider output must contain an assistant message; action_request must have actions and other finish reasons must not have them. Actions must have been declared by the caller. Only caller-owned descriptors bind routing targets; SAMPLE strips provider-supplied routing fields and returns requests without executing them. Observation is the shared Interaction contract, not a second INFER result shape.
 
 A length finish is a successful but truncated sample. Cancelled/error finishes produce cancelled/failed envelopes. Usage counters are nonnegative safe integers; missing usage is not invented.
 

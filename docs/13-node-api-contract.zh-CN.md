@@ -4,7 +4,7 @@
 
 [English](13-node-api-contract.md) | **简体中文**
 
-> 状态：节点体系最终版；API Contract `2.0-rc.1`；INFER 与 MEMORY 已提供可执行 Worker。
+> 状态：节点体系最终版；API Contract `2.0-rc.1`。INFER 与 MEMORY 已提供可执行 Worker；本分支的 Interaction 接口改动仍待审阅。
 
 本文与 INFER/MEMORY API 共同定义节点树、语义边界、公共基础类型和节点输入输出契约。Node 是可组合、可独立执行的语义操作；Worker 是实现、资源、部署和扩容边界；Graph 组合 Node；Runtime 负责调度、路由、通信与执行。
 
@@ -16,10 +16,10 @@ Ditto 从 `src/runtime/graph.ts` 公开四个可直接调用的 Runtime 函数�
 | --- | --- |
 | `runRagFlow()` | 根据 `scope` 执行 `CONTEXT.RAG.RETRIEVE → CONTEXT.RAG.RANK → CONTEXT.UPDATE`，或 `MEMORY.SEARCH → mapMemory → CONTEXT.UPDATE` |
 | `runSkillFlow()` | `CONTEXT.SKILL` |
-| `runMcpFlow()` | `INTERACTION.ACT.MCP → CONTEXT.UPDATE` |
-| `runToolCallFlow()` | `INTERACTION.ACT.TOOL → CONTEXT.UPDATE` |
+| `runMcpFlow()` | `discover` 只调用 MCP；`invoke` 执行 MCP → OBSERVE → CONTEXT.UPDATE |
+| `runToolCallFlow()` | TOOL → OBSERVE → CONTEXT.UPDATE |
 
-流程返回 `{ output, context }`。Memory RAG 必须提供 mapMemory，将任意 content 显式映射到 Context，且先检查 NodeResult；Skill 流程接收已解析的 skill 并调用 CONTEXT.SKILL。详见 [MEMORY API](worker-api/memory.zh-CN.md)。
+流程返回 `{ output, context }`；Tool 和 MCP 调用还返回 `observation`。Memory RAG 必须提供 mapMemory，将任意 content 显式映射到 Context，且先检查 NodeResult；Skill 流程接收已解析的 skill 并调用 CONTEXT.SKILL。MCP 能力发现不修改 Context。详见 [MEMORY API](worker-api/memory.zh-CN.md)。
 
 ## 1. 最终节点树
 
@@ -105,7 +105,7 @@ export interface Context { items: readonly ContextItem[]; }
 export type ContextSource = Message | Reference | ContextItem;
 export type ContextIngressSource =
   | "CONTEXT.SKILL" | "CONTEXT.RAG.RANK" | "MEMORY.SEARCH"
-  | "INTERACTION.ACT.TOOL" | "INTERACTION.ACT.MCP";
+  | "INTERACTION.OBSERVE";
 export interface ContextIngress {
   id: string; sourceNode: ContextIngressSource; content: MessageContent;
   reference?: Reference; metadata?: JsonObject;
@@ -115,8 +115,9 @@ export interface MemoryDraft { key?: string; content: unknown; metadata?: Record
 export interface MemoryItem extends MemoryDraft { id: string; }
 export interface MemorySearchResult { memory: MemoryItem; score?: number; metadata?: Record<string, unknown>; }
 
-export interface ToolCall { id?: string; name: string; arguments: JsonObject; }
-export interface ToolDefinition { name: string; description?: string; inputSchema: JsonObject; }
+export interface ToolCall { id: string; name: string; arguments: JsonObject; }
+export type ToolEffect = "read" | "write" | "execute" | "network";
+export interface ToolDefinition { name: string; description?: string; inputSchema: JsonObject; effects?: readonly ToolEffect[]; requiresApproval?: boolean; }
 export interface KnowledgeItem { id: string; content: MessageContent; source?: Reference; metadata?: JsonObject; }
 export interface EmbeddingRecord { itemId: string; vector: readonly number[]; }
 export interface RagCandidate { item: KnowledgeItem; score?: number; }
@@ -125,12 +126,14 @@ export interface Skill {
   instructions: MessageContent; metadata?: JsonObject;
 }
 export interface ExternalResult {
-  source: string; content: MessageContent; reference?: Reference; metadata?: JsonObject;
+  callId: string; source: string; status: "success" | "failed" | "cancelled" | "timeout" | "unknown";
+  content?: MessageContent; structuredContent?: JsonValue; references?: readonly Reference[];
+  error?: { code: string; message: string; retryable?: boolean }; metadata?: JsonObject;
 }
-export interface Observation { source: string; message: Message; }
+export interface Observation extends Omit<ExternalResult, "content"> { message: Message; }
 export interface Artifact { name: string; reference: Reference; }
-export interface OutputReceipt { accepted: boolean; artifacts?: readonly Artifact[]; }
-export interface McpCapability { server: string; name: string; description?: string; inputSchema?: JsonObject; }
+export interface OutputReceipt { deliveryId: string; status: "accepted" | "rejected" | "unknown"; artifacts?: readonly Artifact[]; error?: { code: string; message: string; retryable?: boolean }; metadata?: JsonObject; }
+export interface McpCapability { server: string; name: string; description?: string; inputSchema?: JsonObject; outputSchema?: JsonObject; }
 ```
 
 ## 4. 固定节点输入输出
@@ -198,7 +201,7 @@ export type InteractionMcpOutput =
   | { operation: "invoke"; result: ExternalResult };
 export interface InteractionObserveInput { result: ExternalResult; }
 export type InteractionObserveOutput = Observation;
-export interface InteractionOutputInput { message: Message; artifacts?: readonly Artifact[]; }
+export interface InteractionOutputInput { deliveryId: string; message: Message; artifacts?: readonly Artifact[]; }
 export type InteractionOutputOutput = OutputReceipt;
 ```
 

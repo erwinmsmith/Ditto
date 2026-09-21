@@ -32,8 +32,7 @@ export async function sampleNode(input: SampleInput, ctx: InferExecution): Promi
     const descriptor = input.actions?.find(a => a.name === request.name);
     if (!descriptor) throw new InferError("UNDECLARED_ACTION", `Model requested undeclared action: ${request.name}`);
     // Routing comes only from the caller's descriptors, never the model response.
-    return { id: request.id, name: request.name, arguments: request.arguments,
-      ...(descriptor.targetNode ? { targetNode: descriptor.targetNode } : {}) };
+    return { id: request.id, name: request.name, arguments: request.arguments };
   });
   return { message: output.message, finishReason: output.finishReason,
     ...(output.usage ? { usage: output.usage } : {}), ...(actions?.length ? { actionRequests: actions } : {}) };
