@@ -2,7 +2,7 @@ import type { ExternalResult, InteractionError, JsonObject, McpCapability, Messa
 import type { Sandbox } from "../../../runtime/sandbox/index.js";
 import { createNodeScaffold } from "../../node-scaffold.js";
 import type { InteractionMcpInput, InteractionMcpOutput } from "../contracts.js";
-import { externalResult, jsonValue, nonempty } from "../validation.js";
+import { externalResult, jsonValue, nonempty, validateMcpInput } from "../validation.js";
 
 export const interactionMcpNode = createNodeScaffold("INTERACTION.ACT.MCP");
 
@@ -44,8 +44,8 @@ export class McpRegistry {
   }
 
   async execute(input: InteractionMcpInput, sandbox: Sandbox): Promise<InteractionMcpOutput> {
+    validateMcpInput(input);
     if (input.operation === "invoke") {
-      nonempty(input.call.id, "call.id"); nonempty(input.call.name, "call.name");
       const client = this.#client(input.server, sandbox);
       const response = await client.callTool({ name: input.call.name, arguments: { ...input.call.arguments } });
       if (!response || typeof response !== "object") throw new Error("Invalid MCP tool result");
