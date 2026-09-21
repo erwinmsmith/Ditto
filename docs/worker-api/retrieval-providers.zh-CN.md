@@ -58,6 +58,35 @@ HTTP embedding 接口只接受非空字符串；通用 EmbeddingProvider 允许�
 
 融合候选沿用首次出现的 content/source/metadata，score 替换为融合分数；每一分支的原始 score、rank、weight、source、metadata 留在 `output.metadata.fusion.contributions` 中，键为融合身份。分支输出 metadata 留在 `fusion.branches` 中。任一分支失败，整个搜索失败，并等待其他已开始的分支结束，不返回未声明的部分成功。
 
+## 云端与本地 Provider
+
+Provider 按能力区分为 EmbeddingProvider、RetrievalSearchProvider 和 RerankProvider，不再按部署位置增加平行的 Cloud/Local 类层次：
+
+- 云端 HTTP 与本地 HTTP：复用 createHttpEmbeddingProvider，更换 baseUrl/model/apiKey；本地无认证服务可省略 apiKey，仍遵守网络权限配置。
+- 云端 SDK 与进程内模型：直接实现 embed/search/rank，内部调用已有 SDK；模型加载、连接池、设备选择、批处理和关闭由应用拥有的实例负责，不逐请求创建模型或客户端。
+- 数据库原生 embedding、全文或图检索：直接调用原 SDK 能力；只有后端需要向量时才在前面添加 embedding。
+- 独立搜索引擎或远程检索 API：直接实现 RetrievalSearchProvider，按实际需要选择是否添加融合/重排，不强制走向量流程。
+
+```ts
+// encodeBatch 是应用已加载的本地模型或云端 SDK 的适配函数；没有额外 Worker。
+const embedding: EmbeddingProvider = {
+  embed: ({ contents, purpose }, context) =>
+    encodeBatch(contents, { purpose, signal: context?.signal }),
+};
+const provider = createVectorSearchProvider({ backend: databaseSearch, embedding });
+// 普通部署：在 MEMORY 内使用相同 Provider。
+const memory = createMemoryWorker({
+  store: databaseStore,
+  search: createRetrievalMemorySearchProvider({
+    provider, target: { name: "agent-memory" }, defaults: config.retrieval,
+  }),
+});
+// 需要独立资源时：把 provider 注册到 RETRIEVAL registry，
+// MEMORY 改为 search: new RemoteRetrievalSearchProvider({ runtime, target })。
+```
+
+这里改变的是执行位置，数据库 SDK、embedding 模型和结果映射可保持不变。注册到独立进程时，由该进程创建自己的 SDK/模型资源；不要传输连接对象。自动负载检测和自动启动 Worker 不在 Provider 内实现。
+
 ## HTTP embedding 与根目录配置
 
 ```ts

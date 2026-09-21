@@ -54,6 +54,34 @@ Fusion score is `sum(weight / (rrfK + rank))`, with rank starting at 1. Raw scor
 
 Fused candidates retain the first content/source/metadata, with score replaced by the fused score. Each branch's original score, rank, weight, source and metadata remain in `output.metadata.fusion.contributions`, keyed by identity; branch output metadata remains in `fusion.branches`. A branch failure fails the operation after all accepted branches settle, preventing an undeclared partial success or premature capacity release.
 
+## Cloud and local providers
+
+Provider interfaces describe capability (EmbeddingProvider, RetrievalSearchProvider, RerankProvider), without an additional Cloud/Local class hierarchy:
+
+- Cloud HTTP and local HTTP use createHttpEmbeddingProvider with different baseUrl/model/apiKey. An unauthenticated local endpoint may omit apiKey; network permission checks still apply.
+- Cloud SDKs and in-process model handles implement embed/search/rank directly. Application-owned instances manage model loading, pools, devices, batching and cleanup; avoid recreating clients/models per request.
+- Native database embedding, full-text or graph retrieval calls the existing SDK. Add external embedding only when the backend expects vectors.
+- Separate search engines and remote search APIs implement RetrievalSearchProvider; fusion/reranking are optional and vector processing is not mandatory.
+
+```ts
+// encodeBatch adapts an already loaded local model or cloud SDK; no extra Worker.
+const embedding: EmbeddingProvider = {
+  embed: ({ contents, purpose }, context) =>
+    encodeBatch(contents, { purpose, signal: context?.signal }),
+};
+const provider = createVectorSearchProvider({ backend: databaseSearch, embedding });
+const memory = createMemoryWorker({
+  store: databaseStore,
+  search: createRetrievalMemorySearchProvider({
+    provider, target: { name: "agent-memory" }, defaults: config.retrieval,
+  }),
+});
+// For independent resources, register provider in RETRIEVAL's registry and use
+// search: new RemoteRetrievalSearchProvider({ runtime, target }) in MEMORY.
+```
+
+Moving execution preserves SDK, embedding and result-mapping choices. A separate process creates its own SDK/model resources; connection objects are not transported. Providers do not implement automatic load detection or Worker startup.
+
 ## HTTP embedding and root configuration
 
 ```ts

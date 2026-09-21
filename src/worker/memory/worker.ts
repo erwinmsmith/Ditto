@@ -26,7 +26,7 @@ const handlers = {
 export function createMemory(options: MemoryOptions) {
   const configuredDefaults = Object.freeze({ ...options.defaults });
   for (const [key, value] of Object.entries(configuredDefaults)) integer(value, key);
-  const resources = { store: options.store, search: options.search };
+  const resources: MemoryResources = { store: options.store, ...(options.search === undefined ? {} : { search: options.search }) };
 
   async function execute<N extends MemoryNode>(
     node: N, input: MemoryInput<N>, defaults: MemoryDefaults = {},

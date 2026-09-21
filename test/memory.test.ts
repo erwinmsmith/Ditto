@@ -151,3 +151,31 @@ test("memory flow uses an explicit Context mapping and stops on search failure",
     assert.equal(updates, 0);
   } finally { await runtime.close(); }
 });
+
+test("MEMORY defaults to database-native search, preserving SDK receiver and allowing explicit overrides", async () => {
+  const { backend } = fixture();
+  await backend.write({ memories: [{ key: "native", content: "stored" }] });
+  let nativeCalls = 0;
+  const database = { ...backend, async search(input: Parameters<MemorySearchProvider["search"]>[0]) {
+    assert.equal(this, database); nativeCalls++;
+    return (await this.query({ limit: input.limit! })).items.map(memory => ({ memory }));
+  } };
+  const runtime = createDitto({ workers: [createMemoryWorker({ store: database })] });
+  try {
+    assert.equal((await runtime.invoke("MEMORY.SEARCH", { query: "stored" })).output?.[0]?.memory.key, "native");
+    assert.equal(runtime.workers().length, 1);
+    const override = createMemory({ store: database, search: { search: async () => [{ memory: { id: "remote", content: "remote result" } }] } });
+    assert.equal((await override.search({ query: "stored" })).output?.[0]?.memory.id, "remote");
+    assert.equal(nativeCalls, 1);
+    assert.equal((await override.get({ keys: ["native"] })).output?.[0]?.key, "native");
+  } finally { await runtime.close(); }
+});
+
+test("a CRUD-only database needs no dummy search provider; missing relevance search is explicit", async () => {
+  const { backend } = fixture();
+  const { search: _, ...store } = backend;
+  const memory = createMemory({ store });
+  assert.equal((await memory.write({ memories: [{ content: "record" }] })).status, "success");
+  assert.equal((await memory.query({})).output?.items.length, 1);
+  assert.equal((await memory.search({ query: "record" })).error?.code, "SEARCH_UNAVAILABLE");
+});
