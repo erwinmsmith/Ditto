@@ -58,7 +58,7 @@ test("read-only command tools map structured inputs to fixed commands and litera
       { command: "cut", args: ["-d", "\t", "-f", "1,3-5", "--", "data.tsv"] },
       { command: "stat", args: ["--", "README.md"] },
       { command: "file", args: ["--", "README.md"] },
-      { command: "du", args: ["-k", "--max-depth=1", "--", "src"] },
+      { command: "du", args: ["-k", "-d", "1", "--", "src"] },
       { command: "pwd", args: [] },
     ]);
   } finally { await runtime.close(); }
@@ -173,7 +173,7 @@ test("real POSIX read-only commands flow through Observation into Context", { sk
     ] as const;
     for (const call of calls) {
       const result = await runToolCallFlow(runtime, { context, call });
-      assert.equal(result.output.status, "success");
+      assert.equal(result.output.status, "success", `${call.name}: ${JSON.stringify(result.output.structuredContent)}`);
       assert.equal(result.observation.source, call.name);
       context = result.context;
     }

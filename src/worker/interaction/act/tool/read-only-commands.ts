@@ -118,7 +118,7 @@ function commandTool(
     validate(input) { build(input); },
     async execute(input, context): Promise<ToolExecutionOutcome> {
       const command = build(input);
-      const result = await context.services.sandbox.run(command);
+      const result = await context.services.sandbox.run(command, context.signal);
       const stdout = bounded(result.stdout, outputLimits.maxOutputBytes, outputLimits.maxEntries);
       const stderr = bounded(result.stderr, outputLimits.maxErrorBytes, outputLimits.maxEntries);
       const structuredContent = {
@@ -258,7 +258,7 @@ export function createReadOnlyCommandTools(options: ReadOnlyCommandToolOptions =
       properties: { path: { type: "string" }, maxDepth: { type: "integer", minimum: 0, maximum: 32 } }, required: ["path"],
     }, input => {
       exactKeys(input, ["path", "maxDepth"]);
-      return { command: "du", args: ["-k", `--max-depth=${integer(input.maxDepth, "maxDepth", 1, 0, 32)}`, "--", relativePath(input.path, "path")] };
+      return { command: "du", args: ["-k", "-d", String(integer(input.maxDepth, "maxDepth", 1, 0, 32)), "--", relativePath(input.path, "path")] };
     }, outputLimits),
     commandTool("pwd", "Return the executor workspace directory", {
       type: "object", additionalProperties: false, properties: {},
