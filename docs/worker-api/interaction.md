@@ -2,12 +2,12 @@
 
 **English** · [简体中文](interaction.zh-CN.md) · [Worker API](README.md)
 
-INTERACTION executes external actions, normalizes observations, and delivers final messages. Graph defines dependencies; Loop owns iteration and termination; Worker injects tools, MCP clients, and output sinks. No separate Agent manager, bundled Linux tool directory, or automatic plugin scanner is needed.
+INTERACTION executes external actions, normalizes observations, and delivers final messages. Graph defines dependencies; Loop owns iteration and termination; Worker injects tools, MCP clients, and output sinks. No separate Agent manager, automatic command registration, or plugin scanner is needed.
 
 ## 1. Imports and API inventory
 
 ```ts
-import { createInteractionWorker, ToolRegistry, McpRegistry } from "@ditto/core/worker/interaction";
+import { createBraveWebSearchProvider, createInteractionWorker, createReadOnlyCommandTools, createWebSearchTool, ToolRegistry, McpRegistry } from "@ditto/core/worker/interaction";
 // Also exported by @ditto/core.
 ```
 
@@ -16,6 +16,9 @@ import { createInteractionWorker, ToolRegistry, McpRegistry } from "@ditto/core/
 | `createInteractionWorker(options?)` | WorkerDefinition; standard setup |
 | `createInteractionNodes(options?)` | WorkerNodes for custom defineWorker |
 | `ToolRegistry.register / list / call` | Register/remove, list permitted tools, invoke one tool |
+| `createReadOnlyCommandTools(options?)` | 14 optional read-only command registrations with structured inputs and bounded output |
+| `createWebSearchTool({ provider })` | Optional provider-neutral `web_search` registration with bounded normalized results |
+| `createBraveWebSearchProvider(options)` | Native-fetch Brave Web Search adapter; application supplies credentials |
 | `McpRegistry.register / execute` | Register/remove clients, discover or invoke MCP tools |
 | `createToolHandler / createMcpHandler / createOutputHandler` | Construct individual leaf NodeHandlers |
 | `observeExternalResult(input)` | Synchronously returns Observation; pure normalization |
@@ -74,6 +77,53 @@ export const readTextTool: RegisteredTool = {
 ```
 
 context provides services.sandbox/config/providers, Worker/execution identity, invoke/emit, and internal Graph execution. Use Sandbox for file, command, and network access; it is a cooperative guard, not isolation against arbitrary application JS.
+
+### createReadOnlyCommandTools(options?)
+
+This helper returns 14 ordinary RegisteredTool values; it does not register them or create a process executor. Inputs expose only common read operations rather than arbitrary flags:
+
+| Tool | Structured arguments | Fixed command shape |
+| --- | --- | --- |
+| `grep` | `pattern`, `paths`, optional `recursive`, `ignoreCase`, `fixedStrings` | `grep -n ... -- pattern paths...` |
+| `ls` | optional `path`, `all` | `ls -1 [-a] -- path` |
+| `cat` | `path` | `cat -- path` |
+| `find` | optional `path`, `name`, `type`, `maxDepth` | `find path -maxdepth ... [-type ...] [-name ...] -print` |
+| `head` / `tail` | `path`, optional `lines` (1–1,000; default 20) | `head/tail -n lines -- path` |
+| `wc` | `path`, optional `metric` (`lines / words / bytes`) | `wc -l/-w/-c -- path` |
+| `sort` | `path`, optional `reverse`, `numeric`, `unique` | `sort [-r] [-n] [-u] -- path` |
+| `uniq` | `path`, optional `count`, `ignoreCase` | `uniq [-c] [-i] -- path` |
+| `cut` | `path`, `fields`, optional one-character `delimiter` | `cut [-d delimiter] -f fields -- path` |
+| `stat` / `file` | `path` | `stat/file -- path` |
+| `du` | `path`, optional `maxDepth` (0–32; default 1) | `du -k --max-depth=N -- path` |
+| `pwd` | no fields | `pwd` |
+
+Paths must be relative POSIX workspace paths; absolute paths, backslashes, traversal segments, unknown fields, and raw find expressions are rejected before execution. Defaults are 1,000 returned lines, 64 KiB stdout, and 8 KiB stderr. Options may lower or raise them only within hard caps of 10,000 lines, 1 MiB stdout, and 64 KiB stderr. Output truncation is UTF-8 safe and reported in `structuredContent.truncated`.
+
+```ts
+const commandTools = createReadOnlyCommandTools({ maxEntries: 200, maxOutputBytes: 32 * 1024 });
+const runtime = createDitto({
+  sandbox: { tools: commandTools.map(tool => tool.name), execute: true },
+  sandboxExecutor,
+  workers: [createInteractionWorker({ tools: commandTools })],
+});
+```
+
+Each invocation calls `sandbox.run({ command, args })` once. A nonzero exit becomes a `failed` ExternalResult with `COMMAND_EXIT_NONZERO`; startup, permission, transport, or executor exceptions still reject and are never retried automatically. Relative-path validation is a cooperative API boundary, not protection against a malicious executor or workspace symlink; use OS/container isolation for untrusted workloads.
+
+### createWebSearchTool({ provider })
+
+`web_search` accepts `{ query, limit? }`; query is a nonempty single line of at most 600 characters and 75 words, and limit defaults to 5 with a hard maximum of 20. The Tool normalizes at most the requested results to `title / url / snippet`, bounds titles to 256 characters and snippets to 2,048 characters, accepts only HTTP(S) URLs without embedded credentials, and emits each URL as a Reference.
+
+```ts
+const provider = createBraveWebSearchProvider({ apiKey: process.env.BRAVE_SEARCH_API_KEY! });
+const webSearch = createWebSearchTool({ provider });
+const runtime = createDitto({
+  sandbox: { tools: [webSearch.name], network: [provider.origin] },
+  workers: [createInteractionWorker({ tools: [webSearch] })],
+});
+```
+
+The registry checks Tool permission before validation; the Tool checks the exact Provider origin before calling it. Provider errors and malformed results become one sanitized `failed / WEB_SEARCH_FAILED` result without retry. Credentials, quotas and retry/lifecycle policies remain application responsibilities and never enter the ToolCall. The Brave adapter uses `GET /res/v1/web/search`, `X-Subscription-Token`, native fetch and a configurable timeout; it is not registered automatically.
 
 ### OutputSink.deliver
 

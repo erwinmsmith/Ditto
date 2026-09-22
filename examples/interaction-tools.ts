@@ -2,11 +2,14 @@ import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
-import { createDitto, createInteractionWorker, graph, loop, type RegisteredTool } from "@ditto/core";
+import { createDitto, createInteractionWorker, createReadOnlyCommandTools, graph, loop, type RegisteredTool } from "@ditto/core";
 import type { SandboxExecutor } from "@ditto/core/runtime/sandbox";
 
 const executeFile = promisify(execFile);
-const commands = new Set(["uname", "printf", "pwd", "false"]);
+const commands = new Set([
+  "uname", "printf", "false", "grep", "ls", "cat", "find", "head", "tail", "wc", "sort", "uniq", "cut", "stat", "file", "du", "pwd",
+]);
+export const readOnlyCommandTools = createReadOnlyCommandTools();
 
 // Explicit, trusted local execution for this example; not an OS isolation boundary.
 // Replace this object with a container/SSH executor when deploying elsewhere.
@@ -76,8 +79,8 @@ export const toolGraph = commandGraph
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const runtime = createDitto({
-    sandbox: { tools: ["linux", "sha256"], execute: true }, sandboxExecutor: commandExecutor,
-    workers: [createInteractionWorker({ tools: [linuxTool, sha256Tool], output: {
+    sandbox: { tools: ["linux", "sha256", ...readOnlyCommandTools.map(tool => tool.name)], execute: true }, sandboxExecutor: commandExecutor,
+    workers: [createInteractionWorker({ tools: [linuxTool, sha256Tool, ...readOnlyCommandTools], output: {
       async deliver(input) {
         console.log(JSON.stringify(input));
         return { deliveryId: input.deliveryId, status: "accepted" };
@@ -89,6 +92,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     { id: "literal", command: "printf", args: ["%s", "Ditto: spaces; $(uname) stay literal"] },
   ];
   try {
+    const grep = await runtime.invoke("INTERACTION.ACT.TOOL", { call: {
+      id: "grep-readme", name: "grep", arguments: { pattern: "Ditto", paths: ["README.md"], fixedStrings: true },
+    } });
+    console.log(JSON.stringify(await runtime.invoke("INTERACTION.OBSERVE", { result: grep })));
     await runtime.loop(loop({ graph: toolGraph, maxIterations: inputs.length,
       bind: (index: number) => inputs[index]!, update: index => index + 1, done: index => index === inputs.length,
     }), 0);

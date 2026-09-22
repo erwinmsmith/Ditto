@@ -9,7 +9,7 @@ This directory contains complete executable flows. Start with `graph-loop-worker
 | File | Purpose | Command | Requirements |
 | --- | --- | --- | --- |
 | [graph-loop-worker.ts](graph-loop-worker.ts) | Compose file inspection, observation, and output in a Graph; iterate over two files with a Loop; implement the tool inside a Worker | `npm run example:agent` | Node 24+, npm 11+; no model, database, or MCP setup |
-| [interaction-tools.ts](interaction-tools.ts) | Register Linux/macOS operations as one tool, compose it with SHA-256, and run two command inputs | `npm run example:tools` | Same runtime; Linux or macOS with uname / printf |
+| [interaction-tools.ts](interaction-tools.ts) | Register the optional read-only commands plus a low-level command example, then compose command output with SHA-256 | `npm run example:tools` | Same runtime; Linux or macOS with grep / uname / printf |
 | [runtime/](runtime/README.md) | Multiple graphs, independent Worker sandboxes, local IPC and cross-host HTTP | `npm run example:runtime` / `npm run example:runtime:placement` | No additional SDK or service |
 | [worker/](worker/README.md) | CONTEXT with Redis; MEMORY with SQLite/PostgreSQL/MySQL/Milvus | See subfolder commands | Optional SDKs and database connections |
 
@@ -43,7 +43,7 @@ Change paths and maxIterations together to inspect other workspace files. Replac
 
 ## interaction-tools.ts: system commands and ordinary tools
 
-Linux/macOS interaction is one `linux` tool with an injected executor. A second tool consumes its output in the same Worker/Graph.
+The example explicitly registers all 14 reusable read-only command tools and a lower-level `linux` tool with the same injected executor. A SHA-256 tool consumes low-level command output in the same Worker/Graph.
 
 ```text
 linux tool → OBSERVE → sha256 tool → OBSERVE → OUTPUT
@@ -52,6 +52,7 @@ linux tool → OBSERVE → sha256 tool → OBSERVE → OUTPUT
 | Export | Responsibility |
 | --- | --- |
 | `commandExecutor` | Execute using Node execFile, separate command/args, workspace, timeout, and output limit |
+| `readOnlyCommandTools` | The 14 optional bounded read-only command registrations from Core |
 | `linuxTool` | Validate arguments, call SandboxExecutor, return stdout/stderr/exitCode, and report nonzero exits as failed |
 | `sha256Tool` | Hash text from the preceding tool |
 | `CommandInput` | Graph input: id, command, args |
@@ -62,14 +63,14 @@ linux tool → OBSERVE → sha256 tool → OBSERVE → OUTPUT
 npm run example:tools
 ```
 
-The Loop executes:
+Before the Loop, `grep` searches README through ACT.TOOL and OBSERVE. The Loop then executes:
 
 1. `uname -s`: returns Darwin on macOS or Linux in Linux; hashes raw stdout including its trailing newline.
 2. `printf`: prints `Ditto: spaces; $(uname) stay literal` literally and hashes it. No shell is started, so command substitution does not execute.
 
-Two JSON lines use delivery IDs `os:delivery` and `literal:delivery`. Messages contain the command result and SHA-256 digest. A failed command prevents hashing.
+The first JSON line is the grep Observation. Two later lines use delivery IDs `os:delivery` and `literal:delivery`; their messages contain the command result and SHA-256 digest. A failed command prevents hashing.
 
-The example executor enables only uname, printf, pwd, and false; the latter two are used by integration tests. It limits execution to 5 seconds and output to 64 KiB. This is explicit local process execution, not OS isolation. Inject a container or SSH executor for other deployment needs without changing the Tool contract or adding a linux-commands directory.
+The example executor enables the 14 read-only commands plus uname, printf, and false; the latter commands support the lower-level example and integration tests. It limits execution to 5 seconds and output to 64 KiB. This is explicit local process execution, not OS isolation. Inject a container or SSH executor for other deployment needs without changing the Tool contract.
 
 The example runs only when invoked directly. Importing its exported executor, tools, or Graphs does not execute commands.
 
@@ -80,6 +81,15 @@ The example runs only when invoked directly. Importing its exported executor, to
 | [API example guide](../docs/worker-api/examples/README.md) | MEMORY, INFER, INTERACTION, and optional RETRIEVAL; individual function explanations | Inject application resources and call the chosen function; these are not automatically executed applications |
 | [MCP live script](../scripts/check-interaction-mcp-live.mjs) | Real command → MCP file read → SHA-256 → OUTPUT | Install optional SDKs using the [MCP](#mcp) instructions below, then run `npm run check:interaction:mcp:live -- <dependency-directory>` |
 | [INFER live script](../scripts/check-infer-live.ts) | Validate sampling and reasoning against configured real models | Configure `.env` using the [INFER](#infer) instructions below, then run `npm run check:infer:live -- --provider <name>` |
+| [Web search live script](../scripts/check-interaction-web-search-live.mjs) | Brave Search → ACT.TOOL → OBSERVE → CONTEXT.UPDATE | Set `BRAVE_SEARCH_API_KEY`, then run `npm run check:interaction:web-search:live -- "query"` |
+
+### Web search
+
+The live script explicitly creates the Brave adapter and `web_search` Tool, grants the Tool plus the exact Brave origin, and verifies that real results become an Observation and one Context item. It prints normalized results but never the API key. Core does not read this environment variable; the script is the application layer that injects it.
+
+```bash
+BRAVE_SEARCH_API_KEY="..." npm run check:interaction:web-search:live -- "Ditto agent runtime"
+```
 
 ### MCP
 

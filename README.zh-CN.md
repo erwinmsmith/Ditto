@@ -35,7 +35,7 @@ Ditto 将系统拆分为四个概念：
 - `INTERACTION.ACT.TOOL` / `INTERACTION.ACT.MCP`：对外动作；
 - `INTERACTION.OBSERVE` / `INTERACTION.OUTPUT`：标准化观察与最终输出。
 
-`INFER/PROVIDERS` 是实现目录，不是 Node。`INFER/REASONING` 同样是源码目录，不存在 `REASONING` Node。工具通过 `createInteractionWorker({ tools, mcp, output })` 注入；具体工具名与 Linux 命令不产生额外 Node Type。
+`INFER/PROVIDERS` 是实现目录，不是 Node。`INFER/REASONING` 同样是源码目录，不存在 `REASONING` Node。工具通过 `createInteractionWorker({ tools, mcp, output })` 注入；具体工具名、Linux 命令与网页搜索 Provider 都不产生额外 Node Type。`createReadOnlyCommandTools()` 提供 14 个可选且有界的搜索、读取、文本处理、元数据、磁盘占用和工作区定位命令；`createWebSearchTool()` 接收应用注入的 Provider，`createBraveWebSearchProvider()` 是首个基于原生 fetch 的适配器。Core 不会自动注册或授权这些辅助函数返回的工具。
 
 RETRIEVAL 是可选的独立检索执行 Worker，仅提供 `RETRIEVAL.SEARCH`。按需从 `@ditto/core/worker/retrieval` 导入并注册；Core 默认不加载它。普通 MEMORY/CONTEXT 的直接 Provider 接入不变。见 [RETRIEVAL API](docs/worker-api/retrieval.zh-CN.md)。
 
