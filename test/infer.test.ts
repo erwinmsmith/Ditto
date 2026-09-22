@@ -274,3 +274,18 @@ test("self-consistency treats JSON key ordering as the same answer, without merg
   const result = await createInfer(q).reasoning.trajectory({ ...sampleInput, strategy: { name: "self-consistency" } });
   assert.equal(result.output?.result.content, '{"a":1,"b":2}');
 });
+
+test("all INFER cache operations forward cancellation to external cache adapters", async () => {
+  const base = new InMemoryInferCache();
+  const seen: string[] = [];
+  const infer = createInfer({ cache: {
+    async lookup(input, options) { assert.ok(options?.signal); seen.push("lookup"); return base.lookup(input); },
+    async write(input, options) { assert.ok(options?.signal); seen.push("write"); return base.write(input); },
+    async invalidate(input, options) { assert.ok(options?.signal); seen.push("invalidate"); return base.invalidate(input); },
+  } });
+  const key = { scope: "test", key: "key" };
+  await infer.cache.write({ key, value: "value" });
+  await infer.cache.lookup({ key });
+  await infer.cache.invalidate({ selector: { type: "key", key } });
+  assert.deepEqual(seen, ["write", "lookup", "invalidate"]);
+});

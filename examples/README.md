@@ -51,7 +51,7 @@ linux tool → OBSERVE → sha256 tool → OBSERVE → OUTPUT
 
 | Export | Responsibility |
 | --- | --- |
-| `commandExecutor` | Execute using Node execFile, separate command/args, workspace, timeout, and output limit |
+| `commandExecutor` | Use createLocalSandboxExecutor with literal command/args, workspace, timeout and output limit |
 | `readOnlyCommandTools` | The 14 optional bounded read-only command registrations from Core |
 | `linuxTool` | Validate arguments, call SandboxExecutor, return stdout/stderr/exitCode, and report nonzero exits as failed |
 | `sha256Tool` | Hash text from the preceding tool |
@@ -152,3 +152,5 @@ try {
 ## CONTEXT and RETRIEVAL composition
 
 [worker/context-retrieval.ts](worker/context-retrieval.ts) compares inline CONTEXT retrieval and an optional RETRIEVAL Worker using real SQLite FTS5. It includes local cache/queue resources, reference resolution and a LOAD → SELECT Graph. Run `npm run example:worker:context-retrieval` without external credentials; see the [Worker example guide](worker/README.md#context-caching-and-optional-retrieval).
+
+`interaction-tools.ts` reuses Core's createLocalSandboxExecutor, with timeoutMs/maxOutputBytes from runtime.sandbox in root YAML, instead of maintaining a second process implementation. Run `npm run example:tools` for the command → OBSERVE → SHA-256 → OUTPUT Graph/Loop.

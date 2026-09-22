@@ -399,9 +399,9 @@ TRAJECTORY 的 delta 包含中间候选、审议 JSON 和最终回答，不能�
 
 ```ts
 interface InferCacheProvider {
-  lookup(input: CacheLookupInput): Promise<CacheLookupOutput>;
-  write(input: CacheWriteInput): Promise<CacheWriteOutput>;
-  invalidate(input: CacheInvalidateInput): Promise<CacheInvalidateOutput>;
+  lookup(input: CacheLookupInput, options?: InferCacheCallOptions): Promise<CacheLookupOutput>;
+  write(input: CacheWriteInput, options?: InferCacheCallOptions): Promise<CacheWriteOutput>;
+  invalidate(input: CacheInvalidateInput, options?: InferCacheCallOptions): Promise<CacheInvalidateOutput>;
 }
 ```
 
@@ -695,3 +695,5 @@ await runtime.invoke("INFER.REASONING.SAMPLE", {
 ```
 
 跨机器 HTTP 或同机 IPC 的信号当前只控制调用方等待，不自动中断远端执行；服务端仍应配置模型超时。
+
+外部 `InferCacheProvider.lookup/write/invalidate(input, options?)` 的第二参数为 `InferCacheCallOptions { signal?: AbortSignal }`。例如 `lookup: (input, options) => databaseCache.lookup(input, options)`，由适配器按底层 SDK 约定继续传递取消；INFER 超时停止等待，不会撤销数据库已提交的缓存写入。

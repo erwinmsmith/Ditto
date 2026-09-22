@@ -157,3 +157,25 @@ test("Worker and local SDK honor the shared Runtime timeout without per-worker d
     assert.equal((await createInfer({ runtime }).reasoning.sample(input)).status, "timeout");
   } finally { await runtime.close(); }
 });
+
+test("ReAct cancellation reaches the executing action Worker rather than only stopping its caller", async () => {
+  const started = Promise.withResolvers<void>();
+  let received: AbortSignal | undefined;
+  const runtime = createDitto({ providers: new ProviderRegistry({ fixture: { invoke: async () => action() } }),
+    workers: [createInferWorker(), defineWorker({ type: "INTERACTION", nodes: {
+      "INTERACTION.ACT.TOOL": async (_input, context) => {
+        received = context.signal; started.resolve();
+        assert.ok(received);
+        await new Promise<void>((_resolve, reject) => received!.addEventListener("abort", () => reject(received!.reason), { once: true }));
+        throw new Error("unreachable");
+      },
+    } })],
+  });
+  const controller = new AbortController();
+  try {
+    const running = runReactFlow(runtime, input, { signal: controller.signal });
+    await started.promise;
+    controller.abort(new Error("stop action"));
+    assert.equal((await running).stopReason, "cancelled"); assert.equal(received?.aborted, true);
+  } finally { controller.abort(); await runtime.close(); }
+});

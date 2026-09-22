@@ -175,3 +175,7 @@ workers:
 以上默认值在工厂与根 YAML 中一致；加载器输出不可变 config.context / config.interaction。显式传给 createInMemoryContextStore、createContextOperationQueue、createReadOnlyCommandTools、createBraveWebSearchProvider，参数加载不会自动启用工具、缓存或网络权限。[Context 示例](../../examples/worker/context-retrieval.ts) 与 [Interaction API](interaction.zh-CN.md#provider-取消和有界网页响应) 给出完整接线。
 
 Brave 密钥由应用读取 `DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY`；CONTEXT 与 MEMORY 连接信息分别使用 `DITTO_WORKER_CONTEXT_*`、`DITTO_WORKER_MEMORY_*`，见根 .env.example。env 放连接/密钥，YAML 放行为/容量；没有隐式加载插件。
+
+## Runtime Sandbox 执行参数
+
+根 YAML 的 `runtime.sandbox.timeoutMs`（默认 5000，1–2147483647）和 `runtime.sandbox.maxOutputBytes`（默认 65536，1–16777216）加载为不可变 `config.sandboxExecution`。例如 `createLocalSandboxExecutor({ commands: ["uname"], ...config.sandboxExecution })`。这些配置不会自动授予执行权限或创建执行器；命令白名单、环境变量与执行后端由应用显式注入，权限仍由 config.sandbox / Worker services 管理。完整 API 见 [Sandbox](runtime.zh-CN.md#sandbox-api-与本地执行器)。

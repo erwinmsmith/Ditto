@@ -17,11 +17,11 @@ flowchart TB
     Entry[Public entry Node] --> G[Internal Graph]
     G --> Think[Model Node]
     G --> Tool[Tool / MCP Node]
-    G --> Skill[Skill Node]
+    G --> Context[Context Node]
   end
   Think --> Services[Runtime Services: Provider / Sandbox / Config]
   Tool --> Services
-  Skill --> Services
+  Context --> Services
 ```
 
 | Module | Responsibility |
@@ -30,16 +30,16 @@ flowchart TB
 | `worker/node.ts`, `worker/execution-context.ts` | Shared typed handlers, `defineNode`, and execution context; no domain operations |
 | `worker/define-worker.ts` | `defineWorker` / `extendWorker`, public capabilities, and replica resources |
 | `worker/memory/` | `contracts.ts`: Memory entities and GET / QUERY / SEARCH / WRITE / UPDATE / DELETE contracts |
-| `worker/context/` | Context contracts and leaf scaffolds, including current-task RAG and Skill activation |
-| `worker/infer/` | `reasoning/`: reasoning Contracts/scaffolds; `providers/`: flat vendor-neutral adapters; `cache/`: reserved namespace skeleton |
+| `worker/context/` | LOAD / SELECT / UPDATE / COMPRESS, replaceable cache stores, reference resolution and RAG services |
+| `worker/infer/` | `reasoning/`: sampling, trajectories, reflection and deliberation; `providers/`: model adapters; `cache/`: lookup/write/invalidate with replaceable storage |
 | `worker/interaction/` | ACT.TOOL directory, ACT.MCP, OBSERVE, OUTPUT, and leaf handler composition |
 | `runtime/graph.ts` | Immutable finite DAG definition, dependency validation, execution, and four predefined Context flows |
 | `runtime/loop.ts` | Graph selection, state transitions, stopping condition, and bounded repetition |
 | `runtime/runtime.ts` | `invoke` / `run` / `loop`, Worker registration, routing, and lifecycle |
-| `runtime/communication/` | InvokeTransport, HTTP, and asynchronous events; calls and events have separate semantics |
-| `runtime/sandbox/` | Permission checks, workspace file operations, and an isolated executor interface |
+| `runtime/communication/` | InvokeTransport, same-machine IPC, HTTP, and asynchronous events; calls and events have separate semantics |
+| `runtime/sandbox/` | Permission checks, workspace file operations, optional bounded host executor and replaceable isolation executor port |
 
-A Node represents an execution operation. Shared typed Node definitions live in `worker/node.ts`; operation contracts belong to their capability's `contracts.ts`. `createInteractionNodes` returns ACT.TOOL and optional ACT.MCP handlers. Graph construction, scheduling, and the four standard flow functions share `runtime/graph.ts`; repetition lives in `runtime/loop.ts`; registration and lifecycle share `runtime/runtime.ts`.
+A Node represents an execution operation. Shared typed Node definitions live in `worker/node.ts`; operation contracts belong to their capability's `contracts.ts`. `createInteractionNodes` returns configured ACT.TOOL/ACT.MCP/OUTPUT handlers and OBSERVE. Graph construction, scheduling, and the four standard flow functions share `runtime/graph.ts`; repetition lives in `runtime/loop.ts`; registration and lifecycle share `runtime/runtime.ts`.
 
 Memory and Context expose typed contracts while applications supply storage and retrieval strategies. Infer owns reasoning and replaceable Provider adapters. Interaction owns Tool/MCP execution, observation, and final output. Applications compose those capabilities into Graphs and Loops; no Worker owns a built-in Agent loop.
 
@@ -53,7 +53,7 @@ Memory and Context expose typed contracts while applications supply storage and 
 
 Concrete data types and Node-name mappings belong to the relevant Worker. For example, MemoryItem, MemoryGetInput, and MEMORY.GET are all declared in `worker/memory/contracts.ts`. Adding a Memory operation means adding its contract and handler within Memory, without modifying the Runtime or a central operation enum. These TypeScript types are erased during compilation; they do not participate in runtime routing or validate network input.
 
-MEMORY implements six validated nodes in `worker/memory/<operation>/node.ts` and injects external storage/search plugins through `createMemoryWorker`. Core supplies no database drivers. Context retains its contracts and leaf scaffolds.
+MEMORY implements six validated nodes in `worker/memory/<operation>/node.ts` and injects external storage/search plugins through `createMemoryWorker`. Core supplies no database drivers. CONTEXT executes four validated operations through createContext/createContextWorker. Leaf descriptors bind typed identities for custom composition; they are not missing implementations.
 
 ## Workers Contain Nodes
 

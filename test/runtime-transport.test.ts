@@ -87,3 +87,44 @@ test("router prefers local, same-host IPC, then cross-host HTTP without changing
     assert.deepEqual(selected, ["local", "same", "remote"]);
   } finally { await runtime.close(); }
 });
+
+test("HTTP transport rejects invalid IDs and deadlines before opening a connection", () => {
+  const options = { id: "worker", token: "token", url: "http://127.0.0.1:1/ditto/invoke" };
+  for (const timeoutMs of [0, -1, Infinity, 1.5, 2147483648]) assert.throws(() => createHttpTransport({ ...options, timeoutMs }));
+  assert.throws(() => createHttpTransport({ ...options, id: "" }));
+});
+
+test("HTTP reference payloads use the shared ArtifactStore and remain explicitly releasable", async () => {
+  const { createServer } = await import("node:http");
+  const { InMemoryArtifactStore, createWorkerHttpHandler } = await import("../src/index.js");
+  const storage = new InMemoryArtifactStore();
+  const references: { uri: string }[] = [];
+  const artifacts = {
+    async put(value: unknown) { const reference = await storage.put(value); references.push(reference); return reference; },
+    get: (reference: { uri: string }) => storage.get(reference),
+    delete: (reference: { uri: string }) => storage.delete(reference),
+  };
+  const receiver = createDitto({ hostId: "receiver", artifacts, inlineLimitBytes: 8 });
+  const worker = receiver.register(defineWorker({ type: "MEMORY", nodes: {
+    "MEMORY.GET": async input => ({ executionId: "artifact-read", node: "MEMORY.GET", status: "success", output: [{ id: "doc", content: input.ids![0] }] }),
+  } }));
+  const server = createServer(createWorkerHttpHandler(receiver, { token: "artifact-fixture" }));
+  server.listen(0, "127.0.0.1"); await once(server, "listening");
+  const address = server.address(); assert.ok(address && typeof address !== "string");
+  const transport = createHttpTransport({ id: "artifact", token: "artifact-fixture", url: `http://127.0.0.1:${address.port}/ditto/invoke` });
+  const sender = createDitto({ hostId: "sender", artifacts, inlineLimitBytes: 8, transports: [transport] });
+  sender.registerRemote({ address: worker.address, capabilities: ["MEMORY.GET"], transportId: transport.id });
+  try {
+    const text = "中文 payload ".repeat(100);
+    const result = await sender.invoke("MEMORY.GET", { ids: [text] });
+    assert.equal(result.output?.[0]?.content, text); assert.equal(references.length, 2);
+    for (const reference of references) {
+      assert.equal(await artifacts.delete(reference), true);
+      assert.equal(await artifacts.delete(reference), false);
+      await assert.rejects(artifacts.get(reference), /Artifact not found/);
+    }
+  } finally {
+    await sender.close(); await receiver.close();
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+  }
+});

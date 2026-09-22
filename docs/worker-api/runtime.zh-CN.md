@@ -181,10 +181,51 @@ app.registerRemote({ address: remoteAddress, capabilities: ["CONTEXT.LOAD"], tra
 // Server: createServer(createWorkerHttpHandler(workerRuntime, { token })).listen(...)
 ```
 
-HTTP handler 使用 `/ditto/invoke`；默认请求/响应上限 1 MiB，可用 maxBodyBytes 调整。服务端和调用端的 token 必须一致；跨机器生产部署使用 HTTPS。完整启动、地址交换、Graph 调用和关闭代码见 [placement.ts](../../examples/runtime/placement.ts)。`receive(envelope)` 是通信适配器的接收边界，校验目标身份与公开能力；应用业务调用应使用类型化的 invoke/run。
+HTTP transport 要求非空 id；timeoutMs 默认 30000，范围 1–2147483647，构造时校验。 HTTP handler 使用 `/ditto/invoke`；默认请求/响应上限 1 MiB，可用 maxBodyBytes 调整。服务端和调用端的 token 必须一致；跨机器生产部署使用 HTTPS。完整启动、地址交换、Graph 调用和关闭代码见 [placement.ts](../../examples/runtime/placement.ts)。`receive(envelope)` 是通信适配器的接收边界，校验目标身份与公开能力；应用业务调用应使用类型化的 invoke/run。
 
 Artifact 的 `InMemoryArtifactStore`、`PayloadCodec` 和可替换存储接口见[通信文档](../worker-communication.zh-CN.md#invokeemit-与-artifact)。现有 `runRagFlow/runSkillFlow/runToolCallFlow/runMcpFlow/runReactFlow` 的组合调用继续适用，见 [Interaction 使用 API](interaction.zh-CN.md)。
 
 ## 内置 Worker 的取消传递
 
 本地执行时，Runtime signal 传递到 INFER 模型 Provider、MEMORY 数据库适配器、CONTEXT 服务、RETRIEVAL 流水线及 INTERACTION 的工具/MCP 客户端。SDK 适配器需要继续将 signal 交给支持取消的底层实现。取消不会撤销已完成的副作用。Graph/Loop 关闭仍等待已接收的任务收尾；Worker 内部的 ctx.invoke 可在收尾期间完成既有委托。网络与 IPC 传输目前只取消调用方等待，不提供远端任务取消协议。
+
+## Sandbox API 与本地执行器
+
+从 `@ditto/core/runtime/sandbox` 或根包导入；这些是可执行实现及可替换接口，不要求额外进程管理依赖。
+
+| API | 参数与行为 |
+| --- | --- |
+| new Sandbox(workspace, policy?, executor?) | 工作目录转绝对路径；复制并冻结权限；默认全部拒绝。read/write/execute 必须为布尔值，tools/mcp/skills/network 为非空字符串数组 |
+| allows(kind, name) | 同步 boolean；四类命名权限支持精确匹配或 `*` |
+| assert(kind, name) | 不允许时抛 PermissionDeniedError |
+| readText(path, signal?) | UTF-8 读取；要求 read 权限，拒绝工作区外路径及指向区外的符号链接 |
+| writeText(path, content, signal?) | UTF-8 覆盖/创建文件；要求 write 权限及已有父目录，拒绝区外和悬空符号链接；不自动建目录 |
+| run({ command, args }, signal?) | 要求 execute=true 和注入执行器；复制参数、解析真实工作目录，执行前后检查取消，返回 stdout/stderr/exitCode |
+| createLocalSandboxExecutor(options) | 显式创建本地主机命令执行器，供 Sandbox 或 Runtime services 注入 |
+
+LocalSandboxExecutorOptions：commands 必填，为可执行文件名或绝对路径的精确白名单，空数组禁用所有命令；不接受相对路径命令。timeoutMs 默认 5000，范围 1–2147483647 ms；maxOutputBytes 默认 65536，范围 1–16777216，为 stdout 与 stderr 合计 UTF-8 字节数。env 是显式注入的字符串映射，默认只有 PATH=/usr/bin:/bin；不继承父进程凭据或隐式 Node 覆盖率配置，操作系统自身可能补充环境变量。构造时快照白名单、环境和限额。
+
+执行使用 spawn、shell=false、独立参数和关闭的 stdin；非零退出返回真实 exitCode。启动失败 reject；超时、取消、输出超限终止直接子进程并关闭输出流，等待其关闭后 reject。超过输出上限不会返回截断后的成功结果。已完成的写文件或外部副作用不会因取消自动回滚。
+
+```ts
+import { Sandbox, createLocalSandboxExecutor } from "@ditto/core/runtime/sandbox";
+import { loadRuntimeConfigFile } from "@ditto/core";
+const config = loadRuntimeConfigFile("ditto.yaml", process.env);
+const executor = createLocalSandboxExecutor({
+  commands: ["uname", "printf"], ...config.sandboxExecution,
+});
+const sandbox = new Sandbox(config.workspace, {
+  read: true, write: true, execute: true, tools: ["inspect"],
+}, executor);
+console.log(sandbox.allows("tools", "inspect")); // true
+sandbox.assert("tools", "inspect");
+const signal = AbortSignal.timeout(3000);
+await sandbox.writeText("example.txt", "hello", signal);
+console.log(await sandbox.readText("example.txt", signal));
+const result = await sandbox.run({ command: "printf", args: ["%s", "$(uname) stays literal"] }, signal);
+console.log(result); // { stdout: "$(uname) stays literal", stderr: "", exitCode: 0 }
+```
+
+Runtime 可使用 `createDitto({ config, sandbox: { execute: true }, sandboxExecutor: executor })`；每 Worker 也可通过 createRuntimeServices 注入不同执行器。容器/远端适配器继续实现 `SandboxExecutor.run(command, { workspace, signal? })`，无需改变 Graph/Tool。
+
+这是协作式能力边界；本地进程及其衍生进程不受 OS 文件/网络隔离，命令白名单也不限制命令参数可访问的文件。终止直接子进程不承诺终止它产生的整个进程树。不可信代码需由外部 OS/容器执行器提供真正隔离。可运行的 Linux/macOS 工具组合见 [interaction-tools.ts](../../examples/interaction-tools.ts)。

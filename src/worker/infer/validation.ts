@@ -105,7 +105,7 @@ export function errorInfo(error: unknown): { code: string; message: string } {
 /** Race even adapters that ignore AbortSignal; callers must still cooperate to stop their I/O. */
 export async function abortable<T>(operation: () => Promise<T>, signal: AbortSignal): Promise<T> {
   signal.throwIfAborted();
-  let onAbort: () => void = () => {};
+  let onAbort!: () => void;
   const cancelled = new Promise<never>((_, reject) => { onAbort = () => reject(signal.reason); signal.addEventListener("abort", onAbort, { once: true }); });
   try { return await Promise.race([Promise.resolve().then(() => { signal.throwIfAborted(); return operation(); }), cancelled]); }
   finally { signal.removeEventListener("abort", onAbort); }

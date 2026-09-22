@@ -52,3 +52,5 @@ INTERACTION tools, MCP clients, and output functions are injected through code. 
 | [infer.ts](examples/infer.ts) | Both factories, seven leaves, five strategies, three reflection/four deliberation modes, four streams, cache and model providers |
 | [interaction.ts](examples/interaction.ts) | Factories, registration/removal, four nodes, MCP, observations, receipts, handlers, Graph/Loop |
 | [retrieval.ts](examples/retrieval.ts) | Factories, SEARCH, registry, embedding, fusion/reranking, database adapters, Memory bridges |
+
+[Sandbox API](runtime.md#sandbox-api-and-local-execution): permissions, workspace I/O, replaceable executors and real local commands.

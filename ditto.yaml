@@ -3,6 +3,9 @@
 
 # Runtime / Graph orchestration (ReAct belongs here, not inside INFER).
 runtime:
+  sandbox:
+    timeoutMs: 5000
+    maxOutputBytes: 65536
   timeoutMs: 120000
   maxTurns: 8
   graphConcurrency: 8

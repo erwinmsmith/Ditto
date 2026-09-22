@@ -19,6 +19,10 @@ function checkOptions(token: string, bytes: number): void {
 export function createHttpTransport(options: HttpTransportOptions): InvokeTransport {
   const maxBodyBytes = options.maxBodyBytes ?? limit;
   checkOptions(options.token, maxBodyBytes);
+  const timeoutMs = options.timeoutMs ?? 30_000;
+  if (!options.id || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 2 ** 31 - 1) {
+    throw new Error("HTTP transport requires an ID and timeoutMs in 1..2147483647");
+  }
   const url = new URL(options.url);
   if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) throw new Error("Invalid Worker URL");
   return {
@@ -27,7 +31,7 @@ export function createHttpTransport(options: HttpTransportOptions): InvokeTransp
       const body = JSON.stringify(envelope);
       if (Buffer.byteLength(body) > maxBodyBytes) throw new Error("Worker request is too large");
       const response = await fetch(url, {
-        method: "POST", redirect: "error", signal: AbortSignal.any([AbortSignal.timeout(options.timeoutMs ?? 30_000),
+        method: "POST", redirect: "error", signal: AbortSignal.any([AbortSignal.timeout(timeoutMs),
           ...(invocationOptions?.signal ? [invocationOptions.signal] : [])]),
         headers: { authorization: `Bearer ${options.token}`, "content-type": "application/json", "x-ditto-protocol": "1" }, body,
       });

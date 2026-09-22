@@ -17,11 +17,11 @@ flowchart TB
     Entry[公开入口 Node] --> G[内部 Graph]
     G --> Think[模型 Node]
     G --> Tool[工具 / MCP Node]
-    G --> Skill[Skill Node]
+    G --> Context[Context Node]
   end
   Think --> Services[Runtime Services：Provider / Sandbox / Config]
   Tool --> Services
-  Skill --> Services
+  Context --> Services
 ```
 
 | 模块 | 职责 |
@@ -30,16 +30,16 @@ flowchart TB
 | `worker/node.ts`、`worker/execution-context.ts` | 共享 typed handler、`defineNode` 与执行上下文，不放领域操作 |
 | `worker/define-worker.ts` | `defineWorker` / `extendWorker`、公开能力与副本资源 |
 | `worker/memory/` | `contracts.ts`：Memory 实体与 GET / QUERY / SEARCH / WRITE / UPDATE / DELETE 契约 |
-| `worker/context/` | Context Contract 与叶子骨架，包括当前任务 RAG 和 Skill 激活 |
-| `worker/infer/` | `reasoning/`：推理 Contract/骨架；`providers/`：扁平的供应商中立适配器；`cache/`：预留命名空间骨架 |
+| `worker/context/` | LOAD / SELECT / UPDATE / COMPRESS、可替换缓存、引用解析与 RAG 服务 |
+| `worker/infer/` | `reasoning/`：采样、轨迹、反思和审议；`providers/`：模型适配器；`cache/`：查询、写入、失效和可替换存储 |
 | `worker/interaction/` | ACT.TOOL 目录、ACT.MCP、OBSERVE、OUTPUT 与叶子 handler 组合 |
 | `runtime/graph.ts` | 不可变有限 DAG 定义、依赖校验、执行与四个预定义 Context 流程 |
 | `runtime/loop.ts` | Graph 选择、状态推进、停止条件与有界重复执行 |
 | `runtime/runtime.ts` | `invoke` / `run` / `loop`、Worker 注册、路由与生命周期 |
-| `runtime/communication/` | InvokeTransport、HTTP、异步事件；调用与事件语义分离 |
-| `runtime/sandbox/` | 权限检查、工作区文件操作、隔离执行器接口 |
+| `runtime/communication/` | InvokeTransport、同机 IPC、HTTP、异步事件；调用与事件语义分离 |
+| `runtime/sandbox/` | 权限检查、工作区文件操作、可选有界本地执行器及可替换隔离执行器接口 |
 
-Node 表示执行操作。共享类型化 Node 定义位于 `worker/node.ts`，操作 Contract 归各能力模块的 `contracts.ts`。`createInteractionNodes` 返回 ACT.TOOL 与可选 ACT.MCP handler。Graph 构建、调度和四个标准流程函数位于 `runtime/graph.ts`；重复执行位于 `runtime/loop.ts`；注册与生命周期位于 `runtime/runtime.ts`。
+Node 表示执行操作。共享类型化 Node 定义位于 `worker/node.ts`，操作 Contract 归各能力模块的 `contracts.ts`。`createInteractionNodes` 返回已配置的 ACT.TOOL/ACT.MCP/OUTPUT handler 和 OBSERVE。Graph 构建、调度和四个标准流程函数位于 `runtime/graph.ts`；重复执行位于 `runtime/loop.ts`；注册与生命周期位于 `runtime/runtime.ts`。
 
 Memory 与 Context 提供类型化 Contract，存储和检索策略由应用实现。Infer 负责推理和可替换 Provider adapter。Interaction 负责 Tool/MCP 执行、观察和最终输出。应用将能力组合成 Graph 和 Loop；Worker 不拥有内置 Agent 循环。
 
@@ -53,7 +53,7 @@ Memory 与 Context 提供类型化 Contract，存储和检索策略由应用实�
 
 具体类型和 Node 名称的映射一起归属对应 Worker。例如 MemoryItem、MemoryGetInput 和 MEMORY.GET 的声明都在 `worker/memory/contracts.ts`。增加 Memory 的操作时，在 Memory 内补充契约及 handler；不需要修改 Runtime 或中央操作枚举。这些 TypeScript 类型在编译后擦除，不参与运行路由，也不提供网络输入校验。
 
-MEMORY 已在 `worker/memory/<operation>/node.ts` 实现六个节点的校验与执行，通过 createMemoryWorker 注入外部存储和搜索插件。Core 不集成数据库驱动。Context 保留契约与叶子 scaffold。
+MEMORY 已在 `worker/memory/<operation>/node.ts` 实现六个节点的校验与执行，通过 createMemoryWorker 注入外部存储和搜索插件。Core 不集成数据库驱动。CONTEXT 通过 createContext/createContextWorker 执行四个有校验的操作；叶子描述符用于自定义组合时绑定类型和身份，并非待实现业务代码。
 
 ## Worker 是 Node 的容器
 

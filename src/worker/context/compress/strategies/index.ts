@@ -1,2 +1,2 @@
-export * from "./types.js";
+export type { ContextCompressor } from "../../types.js";
 export * from "./deterministic.js";

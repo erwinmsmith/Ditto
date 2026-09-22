@@ -54,7 +54,7 @@ export async function runReactFlow(
       const request: SampleInput = { model: input.model, messages, generation: { ...input.generation,
         ...(Number.isFinite(remaining) ? { maxTokens: Math.min(input.generation?.maxTokens ?? remaining, remaining) } : {}) },
         ...(input.actions ? { actions: input.actions } : {}), ...(input.metadata ? { metadata: input.metadata } : {}) };
-      const { sample } = await abortable(() => runtime.run(sampleGraph, request), signal);
+      const { sample } = await abortable(() => runtime.run(sampleGraph, request, { signal }), signal);
       if (sample.status !== "success") throw new InferError(sample.error?.code ?? "MODEL_ERROR", sample.error?.message ?? "SAMPLE failed");
       validateSampleOutput(sample.output); const response = sample.output;
       output.samples.push(response); output.result = response.message; addUsage(output.usage, response.usage);
@@ -85,7 +85,7 @@ export async function runReactFlow(
         const actionGraph = graph<unknown>(graphId).node("action", target, [], value => value as InputOf<NodeType>);
         actionCalls++;
         try {
-          const { action: result } = await abortable(() => runtime.run(actionGraph, value), signal);
+          const { action: result } = await abortable(() => runtime.run(actionGraph, value, { signal }), signal);
           if (binding.kind === "node") {
             const envelope = result && typeof result === "object" && "status" in result ? result as unknown as Record<string, unknown> : undefined;
             if (envelope && ["failed", "cancelled", "timeout"].includes(String(envelope.status))) throw new InferError("DEPENDENCY_FAILED", "Action Node returned an unsuccessful result");
@@ -96,7 +96,7 @@ export async function runReactFlow(
           const external = binding.kind === "mcp" ? (result as { result: import("../contracts/common.js").ExternalResult }).result : result as import("../contracts/common.js").ExternalResult;
           if (external?.callId !== action.id) throw new InferError("DEPENDENCY_FAILED", "Action result callId mismatch");
           const observeGraph = graph<unknown>(graphId).node("observation", "INTERACTION.OBSERVE", [], () => ({ result: external }));
-          const { observation } = await abortable(() => runtime.run(observeGraph, undefined), signal);
+          const { observation } = await abortable(() => runtime.run(observeGraph, undefined, { signal }), signal);
           pending.delete(action.id); output.observations.push(observation);
           if (["cancelled", "timeout", "unknown"].includes(observation.status)) {
             if (observation.error) output.error = observation.error;
