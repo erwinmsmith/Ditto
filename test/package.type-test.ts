@@ -1,7 +1,8 @@
 import type { NodeType } from "@ditto/core";
 import { runRagFlow, runSkillFlow, runMcpFlow, runToolCallFlow,
   type McpFlowInput, type RuntimeFlowResult, type InteractionFlowResult } from "@ditto/core/runtime";
-import { createInteractionWorker, type InteractionMcpOutput } from "@ditto/core/worker/interaction";
+import { createInteractionWorker, createReadOnlyCommandTools, type InteractionMcpOutput,
+  type ReadOnlyCommandToolOptions, type RegisteredTool } from "@ditto/core/worker/interaction";
 import { inferTrajectoryNode } from "@ditto/core/worker/infer";
 import { ProviderRegistry } from "@ditto/core/worker/infer/providers";
 import type { MemoryGetInput } from "@ditto/core/worker/memory";
@@ -25,6 +26,9 @@ function checkMcpOverloads(runtime: Parameters<typeof runMcpFlow>[0], input: Mcp
   void union; void discover; void invoke;
 }
 void checkMcpOverloads;
+const commandOptions: ReadOnlyCommandToolOptions = { maxEntries: 200, maxOutputBytes: 32 * 1024 };
+const commandTools: readonly RegisteredTool[] = createReadOnlyCommandTools(commandOptions);
+void commandTools;
 void new ProviderRegistry();
 // @ts-expect-error Tool calls require a caller-owned correlation ID.
 const missingCallId: ToolCall = { name: "lookup", arguments: {} };
