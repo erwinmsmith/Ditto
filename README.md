@@ -35,7 +35,7 @@ Changing a model, database, tool Provider, deployment location, or replica count
 - `INTERACTION.ACT.TOOL` / `INTERACTION.ACT.MCP`: external actions;
 - `INTERACTION.OBSERVE` / `INTERACTION.OUTPUT`: normalized observations and final output.
 
-`INFER/PROVIDERS` is an implementation directory, not a Node. `INFER/REASONING` is also a source directory rather than a `REASONING` Node. Inject tools through `createInteractionWorker({ tools, mcp, output })`; individual tools and Linux commands do not create additional Node Types.
+`INFER/PROVIDERS` is an implementation directory, not a Node. `INFER/REASONING` is also a source directory rather than a `REASONING` Node. Inject tools through `createInteractionWorker({ tools, mcp, output })`; individual tools, Linux commands, and web search providers do not create additional Node Types. `createReadOnlyCommandTools()` offers 14 optional bounded search, reading, text-processing, metadata, disk-usage, and workspace-location commands. `createWebSearchTool()` accepts an application-injected provider; `createBraveWebSearchProvider()` is the first native-fetch adapter. Neither helper is registered or permitted by default.
 
 RETRIEVAL is an optional independently deployable search Worker exposing only `RETRIEVAL.SEARCH`. Import and register `@ditto/core/worker/retrieval` explicitly; Core does not load it by default. Existing direct MEMORY/CONTEXT providers remain available. See the [RETRIEVAL API](docs/worker-api/retrieval.md).
 

@@ -2,12 +2,12 @@
 
 [English](interaction.md) · **简体中文** · [Worker API](README.zh-CN.md)
 
-INTERACTION 执行外部动作、标准化观察并交付最终消息。Graph 定义调用顺序与数据依赖，Loop 管理迭代和停止条件，Worker 注入工具、MCP 客户端与输出接收端。没有独立 Agent 管理层、内置 Linux 工具目录或自动插件扫描器。
+INTERACTION 执行外部动作、标准化观察并交付最终消息。Graph 定义调用顺序与数据依赖，Loop 管理迭代和停止条件，Worker 注入工具、MCP 客户端与输出接收端。没有独立 Agent 管理层、命令自动注册或插件扫描器。
 
 ## 1. 入口与 API 清单
 
 ```ts
-import { createInteractionWorker, ToolRegistry, McpRegistry } from "@ditto/core/worker/interaction";
+import { createBraveWebSearchProvider, createInteractionWorker, createReadOnlyCommandTools, createWebSearchTool, ToolRegistry, McpRegistry } from "@ditto/core/worker/interaction";
 // Also exported by @ditto/core.
 ```
 
@@ -16,6 +16,9 @@ import { createInteractionWorker, ToolRegistry, McpRegistry } from "@ditto/core/
 | `createInteractionWorker(options?)` | WorkerDefinition；普通接入入口 |
 | `createInteractionNodes(options?)` | WorkerNodes；供自定义 defineWorker 使用 |
 | `ToolRegistry.register / list / call` | 注册/移除工具、列出可用工具、执行单次调用 |
+| `createReadOnlyCommandTools(options?)` | 返回 14 个可选只读命令注册项，使用结构化输入和有界输出 |
+| `createWebSearchTool({ provider })` | 返回可选、Provider 中立的 `web_search` 注册项，结果经过有界规范化 |
+| `createBraveWebSearchProvider(options)` | 基于原生 fetch 的 Brave Web Search 适配器；凭证由应用提供 |
 | `McpRegistry.register / execute` | 注册/移除客户端、发现或调用 MCP 工具 |
 | `createToolHandler / createMcpHandler / createOutputHandler` | 构建各叶子 NodeHandler |
 | `observeExternalResult(input)` | 同步返回 Observation；纯标准化函数 |
@@ -74,6 +77,53 @@ export const readTextTool: RegisteredTool = {
 ```
 
 context 提供 services.sandbox/config/providers、当前 Worker/执行域、invoke/emit，以及当前 Worker 内部 graph 执行能力。通过 Sandbox 做文件、命令和网络访问；Core 不能阻止任意应用 JS 绕过协作式权限服务。
+
+### createReadOnlyCommandTools(options?)
+
+该函数返回 14 个普通 RegisteredTool，不会替应用注册工具或创建进程执行器。输入只开放常见只读操作，不接收任意命令行参数：
+
+| Tool | 结构化参数 | 固定命令形式 |
+| --- | --- | --- |
+| `grep` | `pattern`、`paths`，可选 `recursive`、`ignoreCase`、`fixedStrings` | `grep -n ... -- pattern paths...` |
+| `ls` | 可选 `path`、`all` | `ls -1 [-a] -- path` |
+| `cat` | `path` | `cat -- path` |
+| `find` | 可选 `path`、`name`、`type`、`maxDepth` | `find path -maxdepth ... [-type ...] [-name ...] -print` |
+| `head` / `tail` | `path`，可选 `lines`（1–1,000，默认 20） | `head/tail -n lines -- path` |
+| `wc` | `path`，可选 `metric`（`lines / words / bytes`） | `wc -l/-w/-c -- path` |
+| `sort` | `path`，可选 `reverse`、`numeric`、`unique` | `sort [-r] [-n] [-u] -- path` |
+| `uniq` | `path`，可选 `count`、`ignoreCase` | `uniq [-c] [-i] -- path` |
+| `cut` | `path`、`fields`，可选单字符 `delimiter` | `cut [-d delimiter] -f fields -- path` |
+| `stat` / `file` | `path` | `stat/file -- path` |
+| `du` | `path`，可选 `maxDepth`（0–32，默认 1） | `du -k --max-depth=N -- path` |
+| `pwd` | 无字段 | `pwd` |
+
+路径必须是工作区相对 POSIX 路径；绝对路径、反斜杠、上级目录跳转、未知字段和原始 find 表达式都会在执行前拒绝。默认最多返回 1,000 行、64 KiB stdout 和 8 KiB stderr；配置的硬上限分别是 10,000 行、1 MiB 和 64 KiB。截断保持 UTF-8 完整，并在 `structuredContent.truncated` 中标记。
+
+```ts
+const commandTools = createReadOnlyCommandTools({ maxEntries: 200, maxOutputBytes: 32 * 1024 });
+const runtime = createDitto({
+  sandbox: { tools: commandTools.map(tool => tool.name), execute: true },
+  sandboxExecutor,
+  workers: [createInteractionWorker({ tools: commandTools })],
+});
+```
+
+每次调用只执行一次 `sandbox.run({ command, args })`。非零退出返回带 `COMMAND_EXIT_NONZERO` 的 `failed` ExternalResult；启动、权限、传输和执行器异常继续抛出，不自动重试。相对路径校验只是协作式 API 边界，不能防御恶意执行器或工作区符号链接；不可信任务仍需 OS 或容器隔离。
+
+### createWebSearchTool({ provider })
+
+`web_search` 接收 `{ query, limit? }`。query 必须是最多 600 字符、75 个词的非空单行文本；limit 默认 5、硬上限 20。Tool 最多规范化请求数量的结果，统一为 `title / url / snippet`；标题上限 256 字符，摘要上限 2,048 字符；URL 只允许不带内嵌账号密码的 HTTP(S)，每个 URL 同时作为 Reference 输出。
+
+```ts
+const provider = createBraveWebSearchProvider({ apiKey: process.env.BRAVE_SEARCH_API_KEY! });
+const webSearch = createWebSearchTool({ provider });
+const runtime = createDitto({
+  sandbox: { tools: [webSearch.name], network: [provider.origin] },
+  workers: [createInteractionWorker({ tools: [webSearch] })],
+});
+```
+
+Registry 先检查 Tool 权限，Tool 再在调用 Provider 前检查精确网络 origin。Provider 异常或不合规结果统一为脱敏的 `failed / WEB_SEARCH_FAILED`，只调用一次。凭证、配额、重试与生命周期由应用负责，不进入 ToolCall。Brave 适配器使用 `GET /res/v1/web/search`、`X-Subscription-Token`、原生 fetch 和可配置超时；Core 不会默认注册。
 
 ### OutputSink.deliver
 
