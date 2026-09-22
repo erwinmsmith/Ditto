@@ -1,9 +1,10 @@
 import type { CacheLookupInput, CacheLookupOutput, CacheWriteInput, CacheWriteOutput, CacheInvalidateInput, CacheInvalidateOutput } from "./index.js";
 import { number } from "../validation.js";
+export interface InferCacheCallOptions { readonly signal?: AbortSignal; }
 export interface InferCacheProvider {
-  lookup(input: CacheLookupInput): Promise<CacheLookupOutput>;
-  write(input: CacheWriteInput): Promise<CacheWriteOutput>;
-  invalidate(input: CacheInvalidateInput): Promise<CacheInvalidateOutput>;
+  lookup(input: CacheLookupInput, options?: InferCacheCallOptions): Promise<CacheLookupOutput>;
+  write(input: CacheWriteInput, options?: InferCacheCallOptions): Promise<CacheWriteOutput>;
+  invalidate(input: CacheInvalidateInput, options?: InferCacheCallOptions): Promise<CacheInvalidateOutput>;
 }
 interface Entry { input: CacheWriteInput; expiresAt: number }
 const keyOf = (k: CacheLookupInput["key"]): string => JSON.stringify([k.namespace ?? "", k.scope, k.key]);

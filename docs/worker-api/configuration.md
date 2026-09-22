@@ -174,3 +174,7 @@ workers:
 Factory defaults and root YAML agree. Loaders return immutable config.context / config.interaction. Explicitly pass the corresponding groups to createInMemoryContextStore, createContextOperationQueue, createReadOnlyCommandTools and createBraveWebSearchProvider. Loading parameters does not activate tools, caching or network permissions. See the [Context example](../../examples/worker/context-retrieval.ts) and [Interaction API](interaction.md#provider-cancellation-and-bounded-web-responses).
 
 Application code reads `DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY`. CONTEXT and MEMORY connection variables use `DITTO_WORKER_CONTEXT_*` and `DITTO_WORKER_MEMORY_*` in root .env.example. Environment holds credentials/connections; YAML holds behavior/capacity, with no plugin autoloading.
+
+## Runtime Sandbox execution settings
+
+Root YAML `runtime.sandbox.timeoutMs` (default 5000, range 1–2147483647) and `runtime.sandbox.maxOutputBytes` (default 65536, range 1–16777216) normalize to immutable `config.sandboxExecution`. Example: `createLocalSandboxExecutor({ commands: ["uname"], ...config.sandboxExecution })`. Loading settings neither grants execution permission nor constructs an executor. Applications explicitly supply executable allowlists, environment and backends; config.sandbox / Worker services still govern permissions. See the [Sandbox API](runtime.md#sandbox-api-and-local-execution).

@@ -480,3 +480,5 @@ const tools = [...createReadOnlyCommandTools(config.interaction.commands), creat
 ```
 
 `McpClient.listTools(params?, options?: McpCallOptions)` and `callTool(params, options?: McpCallOptions)` accept signal; McpRegistry.execute accepts it as the third argument. Discovery checks cancellation around every page. When adapting the neutral port to the official MCP SDK, listTools takes options second, while callTool takes options third: `client.callTool(params, undefined, options)`; the second argument is the result schema. See the [real MCP example](../../scripts/check-interaction-mcp-live.mjs). Custom RegisteredTool implementations can forward context.signal to Sandbox.run or their SDK.
+
+Use the public `createLocalSandboxExecutor` factory or replace it with an application SandboxExecutor; see [Sandbox API](runtime.md#sandbox-api-and-local-execution) for configuration, permissions and examples. ReAct forwards its signal to sampling, action and observation Graphs, so tools receive cancellation through context.signal.

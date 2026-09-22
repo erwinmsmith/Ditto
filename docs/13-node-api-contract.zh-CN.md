@@ -199,7 +199,7 @@ export type OutputOf<N extends NodeType> = NodeContractMap[N]["output"];
 
 ## 5. 实现规则
 
-- 每个已确定的叶子 Node 都有 `.ts` 骨架；骨架只固定语义身份和类型绑定，不预设业务实现。
+- 每个已确定的叶子 Node 均有可执行的 `.ts` 实现；类型化叶子描述符供自定义组合时绑定身份与 handler，不是待完成的业务空壳。
 - `INFER.CACHE` 是命名空间，已实现的叶子为 LOOKUP、WRITE、INVALIDATE。
 - Provider 位于 `src/worker/infer/providers/`。Runtime 与 INFER 统一使用 `ModelProvider.invoke/stream` 和 `ProviderRegistry`，详见 [Provider API](worker-api/providers.zh-CN.md)。ReAct 是 Runtime 的预定义 Graph 流程，不属于 INFER 策略。模型/供应商变化不产生 Node。
 - `INTERACTION.ACT.TOOL` 在源码中使用目录表示；应用在 Worker 内注册工具或命令实现，具体工具名不是 Node。

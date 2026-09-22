@@ -1,36 +1,15 @@
-import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
-import { promisify } from "node:util";
-import { createDitto, createInteractionWorker, createReadOnlyCommandTools, graph, loop, type RegisteredTool } from "@ditto/core";
-import type { SandboxExecutor } from "@ditto/core/runtime/sandbox";
+import { createDitto, createLocalSandboxExecutor, loadRuntimeConfigFile, createInteractionWorker, createReadOnlyCommandTools, graph, loop, type RegisteredTool } from "@ditto/core";
 
-const executeFile = promisify(execFile);
-const commands = new Set([
+const commands = [
   "uname", "printf", "false", "grep", "ls", "cat", "find", "head", "tail", "wc", "sort", "uniq", "cut", "stat", "file", "du", "pwd",
-]);
+];
 export const readOnlyCommandTools = createReadOnlyCommandTools();
 
 // Explicit, trusted local execution for this example; not an OS isolation boundary.
 // Replace this object with a container/SSH executor when deploying elsewhere.
-export const commandExecutor: SandboxExecutor = {
-  async run({ command, args }, { workspace, signal }) {
-    if (!commands.has(command)) throw new Error("Command not enabled in this example");
-    try {
-      const result = await executeFile(command, [...args], {
-        cwd: workspace, env: { PATH: "/usr/bin:/bin" }, shell: false,
-        encoding: "utf8", timeout: 5_000, maxBuffer: 64 * 1024,
-        ...(signal ? { signal } : {}),
-      });
-      return { ...result, exitCode: 0 };
-    } catch (error) {
-      // A program's nonzero exit is a tool outcome. Startup/timeout failures still throw.
-      const result = error as { code?: unknown; stdout?: unknown; stderr?: unknown };
-      if (typeof result.code !== "number" || typeof result.stdout !== "string" || typeof result.stderr !== "string") throw error;
-      return { stdout: result.stdout, stderr: result.stderr, exitCode: result.code };
-    }
-  },
-};
+export const commandExecutor = createLocalSandboxExecutor({ commands, ...loadRuntimeConfigFile("ditto.yaml", {}).sandboxExecution });
 
 export const linuxTool: RegisteredTool = {
   name: "linux", description: "Run an enabled Linux/macOS command with literal arguments",

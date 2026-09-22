@@ -22,6 +22,7 @@ export interface InferSettings {
 /** Non-secret application defaults. Credentials and deployment bindings belong in env. */
 export interface RuntimeSettings {
   readonly runtime?: {
+    readonly sandbox?: { readonly timeoutMs?: number; readonly maxOutputBytes?: number };
     readonly timeoutMs?: number;
     readonly maxTurns?: number;
     readonly graphConcurrency?: number;
@@ -83,7 +84,8 @@ const branch = [1, 16] as const;
 export function validateRuntimeSettings(value: unknown): RuntimeSettings {
   const v = record(value, "config", ["runtime", "workers", "shared"]);
   if (v.runtime !== undefined) {
-    const { react, ...runtime } = record(v.runtime, "runtime", ["timeoutMs", "maxTurns", "graphConcurrency", "loopMaxIterations", "react"]);
+    const { react, sandbox, ...runtime } = record(v.runtime, "runtime", ["sandbox", "timeoutMs", "maxTurns", "graphConcurrency", "loopMaxIterations", "react"]);
+    if (sandbox !== undefined) integers(sandbox, "runtime.sandbox", { timeoutMs: timeout, maxOutputBytes: [1, 16 * 1024 * 1024] });
     integers(runtime, "runtime", { timeoutMs: timeout, maxTurns: positive, graphConcurrency: positive, loopMaxIterations: positive });
     if (react !== undefined) integers(react, "runtime.react", { maxActionCalls: [0, Number.MAX_SAFE_INTEGER], maxTotalTokens: positive });
   }

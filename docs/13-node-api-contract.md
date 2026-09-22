@@ -200,7 +200,7 @@ export type OutputOf<N extends NodeType> = NodeContractMap[N]["output"];
 
 ## 5. Implementation rules
 
-- One `.ts` scaffold exists for every agreed leaf Node. A scaffold fixes identity and type binding without inventing business logic.
+- Every agreed leaf Node has an executable `.ts` implementation. Typed leaf descriptors support custom composition by binding identity and handlers; descriptors are not unfinished business implementations.
 - INFER.CACHE is a namespace; LOOKUP, WRITE and INVALIDATE are implemented leaves.
 - Providers live in `src/worker/infer/providers/`. Runtime and INFER share ModelProvider.invoke/stream and ProviderRegistry; see [Provider API](worker-api/providers.md). ReAct is a predefined Runtime graph flow, not an INFER strategy. Model/vendor changes do not create Nodes.
 - `INTERACTION.ACT.TOOL` is represented by a source directory. Applications register tool or command implementations inside Workers; individual tool names are not Nodes.

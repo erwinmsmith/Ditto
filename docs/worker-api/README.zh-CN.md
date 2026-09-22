@@ -14,6 +14,8 @@
 
 [Runtime / Graph / Loop 详细 API](runtime.zh-CN.md)：节点连接、Worker 分配、独立 Sandbox、本地 IPC 与跨机 HTTP。
 
+[Sandbox API](runtime.zh-CN.md#sandbox-api-与本地执行器)：权限、工作区读写、可替换执行器与真实本地命令执行。
+
 ## 从哪里开始
 
 1. 定义 Agent Graph：选择语义 Node、数据映射及失败时是否继续；不要把数据库连接、客户端或凭据放进 Graph。

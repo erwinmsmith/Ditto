@@ -51,7 +51,7 @@ linux tool → OBSERVE → sha256 tool → OBSERVE → OUTPUT
 
 | 导出 | 做什么 |
 | --- | --- |
-| `commandExecutor` | 使用 Node execFile 执行命令，分开传递 command/args；设置工作目录、超时和输出上限 |
+| `commandExecutor` | 使用 createLocalSandboxExecutor 执行命令，分开传递 command/args；设置工作目录、超时和输出上限 |
 | `readOnlyCommandTools` | Core 提供的 14 个可选、有界只读命令注册项 |
 | `linuxTool` | 校验命令参数，通过 SandboxExecutor 执行；返回 stdout、stderr、exitCode，非零退出码转为 failed |
 | `sha256Tool` | 对前一个工具输出的文本计算 SHA-256 |
@@ -152,3 +152,5 @@ try {
 ## CONTEXT 与 RETRIEVAL 组合
 
 [worker/context-retrieval.ts](worker/context-retrieval.ts) 使用真实 SQLite FTS5，比较普通 CONTEXT 内联检索与可选 RETRIEVAL Worker，包含本地缓存、队列、引用解析及 LOAD → SELECT Graph。运行 `npm run example:worker:context-retrieval`；无外部凭据，详细说明见 [Worker 示例](worker/README.zh-CN.md#context-缓存与可选检索)。
+
+`interaction-tools.ts` 的 commandExecutor 复用 Core 的 `createLocalSandboxExecutor`，timeoutMs/maxOutputBytes 来自根 YAML 的 runtime.sandbox；示例不再维护另一套进程执行实现。运行 `npm run example:tools` 可验证命令 → OBSERVE → SHA-256 → OUTPUT 的 Graph/Loop。

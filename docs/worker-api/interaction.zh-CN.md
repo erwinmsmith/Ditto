@@ -480,3 +480,5 @@ const tools = [...createReadOnlyCommandTools(config.interaction.commands), creat
 ```
 
 `McpClient.listTools(params?, options?: McpCallOptions)` 和 `callTool(params, options?: McpCallOptions)` 同样接收 signal；McpRegistry.execute 的第三个参数也接受它。discover 在每页前后检查取消。中立接口适配到官方 MCP SDK 时，listTools 使用第二参数，callTool 使用第三参数：`client.callTool(params, undefined, options)`；第二参数是结果 schema。完整接线见 [真实 MCP 示例](../../scripts/check-interaction-mcp-live.mjs)。自定义 RegisteredTool 可直接将 context.signal 传给 Sandbox.run 或 SDK。
+
+本地执行器已提供正式工厂 `createLocalSandboxExecutor`，可替换为自有 SandboxExecutor；参数、权限、取消和完整例子见 [Sandbox API](runtime.zh-CN.md#sandbox-api-与本地执行器)。ReAct 的 signal 同时传入采样、动作和观察 Graph，工具可通过 context.signal 接收取消。
