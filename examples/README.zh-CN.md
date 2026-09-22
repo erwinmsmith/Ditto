@@ -81,14 +81,14 @@ npm run example:tools
 | [API 示例说明](../docs/worker-api/examples/README.md) | MEMORY、INFER、INTERACTION、可选 RETRIEVAL；逐个函数说明用途 | 注入应用资源后调用需要的函数；不是自动执行的完整应用 |
 | [MCP 实测脚本](../scripts/check-interaction-mcp-live.mjs) | 真实命令 → MCP 文件读取 → SHA-256 → OUTPUT | 按下方 [MCP](#mcp) 说明安装可选 SDK，并运行 `npm run check:interaction:mcp:live -- <依赖目录>` |
 | [INFER 实测脚本](../scripts/check-infer-live.ts) | 对配置的真实模型验证采样和推理策略 | 按下方 [INFER](#infer) 说明配置 `.env`，再运行 `npm run check:infer:live -- --provider <名称>` |
-| [Web search 实测脚本](../scripts/check-interaction-web-search-live.mjs) | Brave Search → ACT.TOOL → OBSERVE → CONTEXT.UPDATE | 设置 `BRAVE_SEARCH_API_KEY`，再运行 `npm run check:interaction:web-search:live -- "查询"` |
+| [Web search 实测脚本](../scripts/check-interaction-web-search-live.mjs) | Brave Search → ACT.TOOL → OBSERVE → CONTEXT.UPDATE | 设置 `DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY`，再运行 `npm run check:interaction:web-search:live -- "查询"` |
 
 ### Web search
 
 实测脚本显式创建 Brave 适配器和 `web_search` Tool，开放该 Tool 与 Brave 精确 origin，并检查真实结果已生成 Observation 和一条 Context item。脚本只打印规范化结果，不打印 API key。Core 本身不会读取这个环境变量；脚本作为应用层负责注入。
 
 ```bash
-BRAVE_SEARCH_API_KEY="..." npm run check:interaction:web-search:live -- "Ditto agent runtime"
+DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY="..." npm run check:interaction:web-search:live -- "Ditto agent runtime"
 ```
 
 ### MCP
@@ -148,3 +148,7 @@ try {
 ```
 
 [每个 CONTEXT 示例的说明](../docs/worker-api/examples/README.md#contextts) · [完整 API](../docs/worker-api/context.zh-CN.md)
+
+## CONTEXT 与 RETRIEVAL 组合
+
+[worker/context-retrieval.ts](worker/context-retrieval.ts) 使用真实 SQLite FTS5，比较普通 CONTEXT 内联检索与可选 RETRIEVAL Worker，包含本地缓存、队列、引用解析及 LOAD → SELECT Graph。运行 `npm run example:worker:context-retrieval`；无外部凭据，详细说明见 [Worker 示例](worker/README.zh-CN.md#context-缓存与可选检索)。

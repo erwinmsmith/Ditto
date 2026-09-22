@@ -131,7 +131,7 @@ const search = new RemoteRetrievalSearchProvider({
 runtime.register(createMemoryWorker({ store: applicationMemoryStore, search }));
 ```
 
-RemoteRetrievalSearchOptions requires `runtime: Pick<RuntimeClient, "invoke">` and a fixed target. mapOutput is optional when candidate.content contains a complete MemoryItem; otherwise provide an explicit mapper. The mapper receives the complete RetrievalSearchOutput and may return MemorySearchOutput synchronously or asynchronously, enabling batch hydration. The adapter does not infer memory IDs, open storage connections or perform per-candidate SQL GETs.
+RemoteRetrievalSearchOptions requires a fixed target and accepts optional `runtime?: Pick<RuntimeClient, "invoke">`. mapOutput is optional when candidate.content contains a complete MemoryItem; otherwise provide an explicit mapper. The mapper receives the complete RetrievalSearchOutput and may return MemorySearchOutput synchronously or asynchronously, enabling batch hydration. The adapter does not infer memory IDs, open storage connections or perform per-candidate SQL GETs.
 
 It maps MemorySearchInput.query to query.content and forwards strategy/filter/limit/options. Failed SEARCH results never reach the mapper. It invokes the public node through Runtime and imports only MEMORY types, preserving MEMORY.SEARCH's API. The name also works with a local registered retrieval Worker. Without it, continue injecting the existing MemorySearchProvider.
 
@@ -311,3 +311,9 @@ export function remoteContextRetrieval(runtime: import("@ditto/core").RuntimeCli
 ```
 
 [Complete imports and source](examples/context.ts).
+
+## Worker call context
+
+The built-in RETRIEVAL Worker forwards the current Runtime signal in the provider's RetrievalExecutionContext; embedding, database, fusion and reranking adapters propagate it. Example: `await runtime.invoke("RETRIEVAL.SEARCH", { query: { content: "question" }, target: { name: "docs" } }, { signal: AbortSignal.timeout(5000) })`. MEMORY and CONTEXT delegation adapters inherit their parent invocation context; see the [Context provider bridge](retrieval-providers.md#context-retrieval-adapter). HTTP/IPC cancellation does not imply that a server-side database operation was canceled.
+
+For `RemoteRetrievalSearchProvider`, omit construction-time runtime inside a MEMORY Worker to inherit its invocation-bound Runtime. An explicit runtime always takes precedence; standalone SDK delegation requires it. Example: `new RemoteRetrievalSearchProvider({ target: { name: "memories" } })` for Worker-owned delegation.

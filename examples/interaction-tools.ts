@@ -42,7 +42,7 @@ export const linuxTool: RegisteredTool = {
     }
   },
   async execute(args, context) {
-    const result = await context.services.sandbox.run({ command: args.command as string, args: args.args as string[] });
+    const result = await context.services.sandbox.run({ command: args.command as string, args: args.args as string[] }, context.signal);
     return { status: result.exitCode === 0 ? "success" : "failed", content: result.stdout, structuredContent: result,
       ...(result.exitCode === 0 ? {} : { error: { code: "COMMAND_EXIT_NONZERO", message: `Command exited with code ${result.exitCode}` } }),
     };

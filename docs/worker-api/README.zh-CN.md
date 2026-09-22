@@ -6,7 +6,7 @@
 
 | Worker | 详细 API | 操作与示例 |
 | --- | --- | --- |
-| CONTEXT | [中文 API](context.zh-CN.md) · [English](context.md) | LOAD / SELECT / UPDATE / COMPRESS; Redis / stateStore / RAG |
+| CONTEXT | [中文 API](context.zh-CN.md) · [English](context.md) | LOAD / SELECT / UPDATE / COMPRESS; Redis / TTL-LRU / stateStore / RAG / ReferenceResolver |
 | INFER | [中文 API](infer.zh-CN.md) · [English](infer.md) | SAMPLE / TRAJECTORY / REFLECT / DELIBERATE / CACHE LOOKUP, WRITE, INVALIDATE; SDK + stream |
 | MEMORY | [中文 API](memory.zh-CN.md) · [English](memory.md) | GET / QUERY / SEARCH / WRITE / UPDATE / DELETE; store / search |
 | INTERACTION | [中文 API](interaction.zh-CN.md) · [English](interaction.md) | ACT.TOOL / ACT.MCP / OBSERVE / OUTPUT; ToolRegistry / McpRegistry / OutputSink |
@@ -41,7 +41,7 @@ INFER 轨迹还有内层 output.status，外层 success 不等于轨迹 complete
 - [检索 Provider：embedding、vector/text、RRF、rerank、SQL/Milvus 和 MEMORY 双向转接](retrieval-providers.zh-CN.md)
 - [统一配置：根目录 ditto.yaml / .env 的字段、分组和优先级](configuration.zh-CN.md)
 
-INTERACTION 的工具、MCP 实例与输出函数通过代码注入；当前 YAML 不支持 workers.interaction 或任意插件名的自动加载。数据库 SDK 与模型 SDK 生命周期由应用拥有，不逐请求创建或自动关闭。
+INTERACTION 的工具、MCP 实例与输出函数通过代码注入；YAML 支持 `workers.interaction.commands/webSearch` 行为参数；插件实例仍显式注入，不按插件名自动加载。数据库 SDK 与模型 SDK 生命周期由应用拥有，不逐请求创建或自动关闭。
 
 ## 示例目录
 

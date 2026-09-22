@@ -81,14 +81,14 @@ The example runs only when invoked directly. Importing its exported executor, to
 | [API example guide](../docs/worker-api/examples/README.md) | MEMORY, INFER, INTERACTION, and optional RETRIEVAL; individual function explanations | Inject application resources and call the chosen function; these are not automatically executed applications |
 | [MCP live script](../scripts/check-interaction-mcp-live.mjs) | Real command → MCP file read → SHA-256 → OUTPUT | Install optional SDKs using the [MCP](#mcp) instructions below, then run `npm run check:interaction:mcp:live -- <dependency-directory>` |
 | [INFER live script](../scripts/check-infer-live.ts) | Validate sampling and reasoning against configured real models | Configure `.env` using the [INFER](#infer) instructions below, then run `npm run check:infer:live -- --provider <name>` |
-| [Web search live script](../scripts/check-interaction-web-search-live.mjs) | Brave Search → ACT.TOOL → OBSERVE → CONTEXT.UPDATE | Set `BRAVE_SEARCH_API_KEY`, then run `npm run check:interaction:web-search:live -- "query"` |
+| [Web search live script](../scripts/check-interaction-web-search-live.mjs) | Brave Search → ACT.TOOL → OBSERVE → CONTEXT.UPDATE | Set `DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY`, then run `npm run check:interaction:web-search:live -- "query"` |
 
 ### Web search
 
 The live script explicitly creates the Brave adapter and `web_search` Tool, grants the Tool plus the exact Brave origin, and verifies that real results become an Observation and one Context item. It prints normalized results but never the API key. Core does not read this environment variable; the script is the application layer that injects it.
 
 ```bash
-BRAVE_SEARCH_API_KEY="..." npm run check:interaction:web-search:live -- "Ditto agent runtime"
+DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY="..." npm run check:interaction:web-search:live -- "Ditto agent runtime"
 ```
 
 ### MCP
@@ -148,3 +148,7 @@ try {
 ```
 
 [CONTEXT example functions](../docs/worker-api/examples/README.md#contextts) · [Complete API](../docs/worker-api/context.md)
+
+## CONTEXT and RETRIEVAL composition
+
+[worker/context-retrieval.ts](worker/context-retrieval.ts) compares inline CONTEXT retrieval and an optional RETRIEVAL Worker using real SQLite FTS5. It includes local cache/queue resources, reference resolution and a LOAD → SELECT Graph. Run `npm run example:worker:context-retrieval` without external credentials; see the [Worker example guide](worker/README.md#context-caching-and-optional-retrieval).

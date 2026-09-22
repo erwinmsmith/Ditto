@@ -6,7 +6,7 @@ These references follow current public exports and cover factories, SDK methods,
 
 | Worker | Reference | Operations and examples |
 | --- | --- | --- |
-| CONTEXT | [中文 API](context.zh-CN.md) · [English](context.md) | LOAD / SELECT / UPDATE / COMPRESS; Redis / stateStore / RAG |
+| CONTEXT | [中文 API](context.zh-CN.md) · [English](context.md) | LOAD / SELECT / UPDATE / COMPRESS; Redis / TTL-LRU / stateStore / RAG / ReferenceResolver |
 | INFER | [API](infer.md) · [中文](infer.zh-CN.md) | SAMPLE / TRAJECTORY / REFLECT / DELIBERATE / CACHE LOOKUP, WRITE, INVALIDATE; SDK + stream |
 | MEMORY | [API](memory.md) · [中文](memory.zh-CN.md) | GET / QUERY / SEARCH / WRITE / UPDATE / DELETE; store / search |
 | INTERACTION | [API](interaction.md) · [中文](interaction.zh-CN.md) | ACT.TOOL / ACT.MCP / OBSERVE / OUTPUT; ToolRegistry / McpRegistry / OutputSink |
@@ -41,7 +41,7 @@ INFER trajectories also expose output.status: outer success does not imply compl
 - [Retrieval providers: embedding, vector/text, RRF, reranking, SQL/Milvus, and Memory bridges](retrieval-providers.md)
 - [Shared configuration: root ditto.yaml / .env fields, groups, and precedence](configuration.md)
 
-INTERACTION tools, MCP clients, and output functions are injected through code. YAML currently supports neither workers.interaction nor arbitrary plugin autoloading. Applications own database/model SDK lifecycle.
+INTERACTION tools, MCP clients, and output functions are injected through code. YAML supports `workers.interaction.commands/webSearch` behavior defaults; plugin instances are still explicitly injected and are never autoloaded. Applications own database/model SDK lifecycle.
 
 ## Examples
 

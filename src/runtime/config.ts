@@ -26,6 +26,7 @@ export interface RuntimeConfig {
   readonly loopMaxIterations: number;
   readonly infer: InferSettings;
   readonly context: NonNullable<NonNullable<RuntimeSettings["workers"]>["context"]>;
+  readonly interaction: NonNullable<NonNullable<RuntimeSettings["workers"]>["interaction"]>;
   readonly memory: NonNullable<NonNullable<RuntimeSettings["workers"]>["memory"]>;
   readonly retrieval: NonNullable<NonNullable<RuntimeSettings["workers"]>["retrieval"]>;
   readonly react: NonNullable<NonNullable<RuntimeSettings["runtime"]>["react"]>;
@@ -85,6 +86,7 @@ export function loadRuntimeConfig(env: NodeJS.ProcessEnv = process.env, settings
     loopMaxIterations: settings.runtime?.loopMaxIterations ?? 32,
     infer: settings.workers?.infer ?? Object.freeze({}),
     context: settings.workers?.context ?? Object.freeze({}),
+    interaction: settings.workers?.interaction ?? Object.freeze({}),
     memory: settings.workers?.memory ?? Object.freeze({}),
     retrieval: settings.workers?.retrieval ?? Object.freeze({}),
     react: settings.runtime?.react ?? Object.freeze({}),

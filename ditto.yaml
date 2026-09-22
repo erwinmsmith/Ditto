@@ -32,7 +32,20 @@ shared:
 
 # Worker-specific behavior; add sections only when a Worker consumes them.
 workers:
+  interaction:
+    commands:
+      maxEntries: 1000
+      maxOutputBytes: 65536
+      maxErrorBytes: 8192
+    webSearch:
+      timeoutMs: 30000
+      maxResponseBytes: 1048576
   context:
+    localCache:
+      ttlMs: 3600000
+      maxEntries: 1000
+    queue:
+      maxPending: 1024
     policy:
       maxInlineBytes: 65536
       maxItems: 256

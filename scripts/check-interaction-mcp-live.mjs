@@ -23,9 +23,9 @@ try {
   await writeFile(file, expected);
   await client.connect(transport);
   const mcp = {
-    listTools: params => client.listTools(params),
-    async callTool(params) {
-      const result = await client.callTool(params);
+    listTools: (params, options) => client.listTools(params, options),
+    async callTool(params, options) {
+      const result = await client.callTool(params, undefined, options);
       return { content: result.content,
         ...(result.structuredContent === undefined ? {} : { structuredContent: result.structuredContent }),
         ...(result.isError === undefined ? {} : { isError: result.isError }),

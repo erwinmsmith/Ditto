@@ -176,3 +176,7 @@ app.registerRemote({ address: remoteAddress, capabilities: ["CONTEXT.LOAD"], tra
 The HTTP endpoint is `/ditto/invoke`; default request/response limit is 1 MiB, configurable with maxBodyBytes. Both ends must use the same token; use HTTPS between production hosts. [placement.ts](../../examples/runtime/placement.ts) includes startup, address exchange, graph execution and cleanup. `receive(envelope)` is the adapter-facing receiver with target/capability validation; business code should use typed invoke/run.
 
 For `InMemoryArtifactStore`, `PayloadCodec` and external stores, see [communication](../worker-communication.md). Existing `runRagFlow/runSkillFlow/runToolCallFlow/runMcpFlow/runReactFlow` remain available; see [Interaction API](interaction.md).
+
+## Cancellation through built-in Workers
+
+For local execution, the Runtime signal reaches INFER model providers, MEMORY database adapters, CONTEXT services, RETRIEVAL pipelines and INTERACTION tools/MCP clients. SDK adapters must forward it to an underlying implementation that supports cancellation. Cancellation does not undo completed side effects. Shutdown drains already accepted Graph/Loop work, including nested ctx.invoke delegation. HTTP and IPC currently cancel the caller's wait without a remote task cancellation protocol.

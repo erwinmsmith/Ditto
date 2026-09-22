@@ -22,7 +22,7 @@ function startMemory(resources: MemoryResources) {
 }
 ```
 
-`createMemory(options)` 提供 `execute(node, input)` 以及 `get/query/search/write/update/delete(input)`。它与 `runtime.invoke(node, input)` 返回同一种 `NodeResult`。`createMemoryWorker(options)` 注册全部六个节点，支持已有 Graph、`ctx.invoke` 和 HTTP transport。
+`createMemory(options)` 提供 `execute(node, input, options?)` 以及 `get/query/search/write/update/delete(input, options?)`。它与 `runtime.invoke(node, input)` 返回同一种 `NodeResult`。`createMemoryWorker(options)` 注册全部六个节点，支持已有 Graph、`ctx.invoke` 和 HTTP transport。
 
 `MemoryOptions` 是 `{ store, search?, defaults?, concurrency? }`。`concurrency` 只限制 Runtime Worker 的并发入口；直接 SDK 不调度并发。`defaults` 为 `{ queryLimit?, searchLimit? }`。
 
@@ -30,14 +30,14 @@ function startMemory(resources: MemoryResources) {
 
 ```ts
 interface MemoryStore {
-  get(input: MemoryGetInput): Promise<MemoryGetOutput>;
-  query(input: MemoryQueryInput): Promise<MemoryQueryOutput>;
-  write(input: MemoryWriteInput): Promise<MemoryWriteOutput>;
-  update(input: MemoryUpdateInput): Promise<MemoryUpdateOutput>;
-  delete(input: MemoryDeleteInput): Promise<MemoryDeleteOutput>;
+  get(input: MemoryGetInput, options?: MemoryCallOptions): Promise<MemoryGetOutput>;
+  query(input: MemoryQueryInput, options?: MemoryCallOptions): Promise<MemoryQueryOutput>;
+  write(input: MemoryWriteInput, options?: MemoryCallOptions): Promise<MemoryWriteOutput>;
+  update(input: MemoryUpdateInput, options?: MemoryCallOptions): Promise<MemoryUpdateOutput>;
+  delete(input: MemoryDeleteInput, options?: MemoryCallOptions): Promise<MemoryDeleteOutput>;
 }
 interface MemorySearchProvider {
-  search(input: MemorySearchInput): Promise<MemorySearchOutput>;
+  search(input: MemorySearchInput, options?: MemoryCallOptions): Promise<MemorySearchOutput>;
 }
 interface MemoryResources {
   readonly store: MemoryStore & Partial<MemorySearchProvider>;
@@ -387,13 +387,13 @@ export function adaptDatabase(database: MemoryStore & Partial<MemorySearchProvid
   // These methods are the application's SDK adapter, not raw SQL/Milvus SDK methods.
   // Explicit calls retain the SDK adapter's receiver and connection pool.
   const store: MemoryStore = {
-    get: input => database.get(input),
-    query: input => database.query(input),
-    write: input => database.write(input),
-    update: input => database.update(input),
-    delete: input => database.delete(input),
+    get: (input, options) => database.get(input, options),
+    query: (input, options) => database.query(input, options),
+    write: (input, options) => database.write(input, options),
+    update: (input, options) => database.update(input, options),
+    delete: (input, options) => database.delete(input, options),
   };
-  const search = database.search ? { search: (input: Parameters<MemorySearchProvider["search"]>[0]) => database.search!(input) } : undefined;
+  const search = database.search ? { search: (input: Parameters<MemorySearchProvider["search"]>[0], options?: Parameters<MemorySearchProvider["search"]>[1]) => database.search!(input, options) } : undefined;
   return { store, ...(search ? { search } : {}) };
 }
 ```
@@ -443,3 +443,16 @@ export const customGet = memoryGetNode.define("MEMORY", async () => ({
 ```
 
 可直接运行的数据库接入示例：[examples/worker](../../examples/worker/README.zh-CN.md)，包含 SDK 安装、env 配置、调用及资源清理。
+
+## 取消与数据库 SDK
+
+get/query/search/write/update/delete 的第二个参数为可选 `MemoryCallOptions`：`{ signal?: AbortSignal, runtime?: Pick<RuntimeClient, "invoke"> }`。execute 的第三个参数接受 MemoryDefaults 与 MemoryCallOptions。signal 传给对应 MemoryStore/MemorySearchProvider 方法的第二个参数；适配器应传入数据库 SDK 支持的取消选项，不能默认假设每个数据库都能中断执行。
+
+```ts
+const result = await memory.search({ query: "database", limit: 5 }, { signal: AbortSignal.timeout(5000) });
+if (result.status === "cancelled") console.log(result.error?.code); // MEMORY_CANCELLED
+```
+
+直接 SDK 检测到取消时返回 cancelled NodeResult；Runtime 调用还会根据自身取消语义 reject。取消不回滚已完成的数据库写入，不自动重试。Runtime Worker 自动提供当前 signal 和绑定本次执行的 runtime；MEMORY → RETRIEVAL 转接器复用这两者，普通应用无需设置 runtime。数据库/embedding Provider 仍可直接使用原生 SDK；仅需独立执行时才委托 RETRIEVAL。
+
+在 MEMORY Worker 内构造 `RemoteRetrievalSearchProvider` 时，可省略 runtime，继承本次执行绑定的 Runtime；显式 runtime 始终优先，独立 SDK 委托则必须提供它。例如 Worker 内可用 `new RemoteRetrievalSearchProvider({ target: { name: "memories" } })`。

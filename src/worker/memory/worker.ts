@@ -4,7 +4,7 @@ import type { WorkerContext } from "../execution-context.js";
 import type { NodeResult } from "../../contracts/node-result.js";
 import type { MemoryResources } from "./providers/store.js";
 import type { MemoryNode, MemoryInput, MemoryOutput } from "./contracts.js";
-import type { MemoryDefaults } from "./types.js";
+import type { MemoryDefaults, MemoryCallOptions } from "./types.js";
 import { MemoryError, validateInput, validateOutput, integer } from "./validation.js";
 import { getNode } from "./get/node.js";
 import { queryNode } from "./query/node.js";
@@ -29,10 +29,11 @@ export function createMemory(options: MemoryOptions) {
   const resources: MemoryResources = { store: options.store, ...(options.search === undefined ? {} : { search: options.search }) };
 
   async function execute<N extends MemoryNode>(
-    node: N, input: MemoryInput<N>, defaults: MemoryDefaults = {},
+    node: N, input: MemoryInput<N>, defaults: MemoryDefaults & MemoryCallOptions = {},
   ): Promise<NodeResult<MemoryOutput<N>>> {
     const base = { executionId: randomUUID(), node };
     try {
+      defaults.signal?.throwIfAborted();
       if (!Object.hasOwn(handlers, node)) throw new MemoryError("UNKNOWN_NODE", "Unknown MEMORY node");
       const op = node.slice(7).toLowerCase();
       if (node === "MEMORY.QUERY" || node === "MEMORY.SEARCH") {
@@ -44,11 +45,13 @@ export function createMemory(options: MemoryOptions) {
         input = { ...input, limit: (input as { limit?: number }).limit ?? limit };
       }
       // Type erasure is confined to the heterogeneous handler dispatch.
-      const handler = handlers[node] as (value: MemoryInput<N>, resources: MemoryResources) => Promise<MemoryOutput<N>>;
-      const output = await handler(input, resources);
+      const handler = handlers[node] as (value: MemoryInput<N>, resources: MemoryResources, options: MemoryCallOptions) => Promise<MemoryOutput<N>>;
+      const output = await handler(input, resources, { ...(defaults.runtime ? { runtime: defaults.runtime } : {}), ...(defaults.signal ? { signal: defaults.signal } : {}) });
+      defaults.signal?.throwIfAborted();
       validateOutput(op, output, input);
       return { ...base, status: "success", output };
     } catch (error) {
+      if (defaults.signal?.aborted) return { ...base, status: "cancelled", error: { code: "MEMORY_CANCELLED", message: "Memory operation cancelled" } };
       return { ...base, status: "failed", error: error instanceof MemoryError
         ? { code: error.code, message: error.message }
         : { code: "MEMORY_BACKEND_ERROR", message: "Memory backend operation failed" } };
@@ -56,12 +59,12 @@ export function createMemory(options: MemoryOptions) {
   }
   return {
     execute,
-    get: (input: MemoryInput<"MEMORY.GET">) => execute("MEMORY.GET", input),
-    query: (input: MemoryInput<"MEMORY.QUERY">) => execute("MEMORY.QUERY", input),
-    search: (input: MemoryInput<"MEMORY.SEARCH">) => execute("MEMORY.SEARCH", input),
-    write: (input: MemoryInput<"MEMORY.WRITE">) => execute("MEMORY.WRITE", input),
-    update: (input: MemoryInput<"MEMORY.UPDATE">) => execute("MEMORY.UPDATE", input),
-    delete: (input: MemoryInput<"MEMORY.DELETE">) => execute("MEMORY.DELETE", input),
+    get: (input: MemoryInput<"MEMORY.GET">, options: MemoryCallOptions = {}) => execute("MEMORY.GET", input, options),
+    query: (input: MemoryInput<"MEMORY.QUERY">, options: MemoryCallOptions = {}) => execute("MEMORY.QUERY", input, options),
+    search: (input: MemoryInput<"MEMORY.SEARCH">, options: MemoryCallOptions = {}) => execute("MEMORY.SEARCH", input, options),
+    write: (input: MemoryInput<"MEMORY.WRITE">, options: MemoryCallOptions = {}) => execute("MEMORY.WRITE", input, options),
+    update: (input: MemoryInput<"MEMORY.UPDATE">, options: MemoryCallOptions = {}) => execute("MEMORY.UPDATE", input, options),
+    delete: (input: MemoryInput<"MEMORY.DELETE">, options: MemoryCallOptions = {}) => execute("MEMORY.DELETE", input, options),
   };
 }
 
@@ -73,7 +76,7 @@ export function createMemoryWorker(options: MemoryOptions): WorkerDefinition {
     ...(options.concurrency === undefined ? {} : { concurrency: options.concurrency }),
     nodes: Object.fromEntries(Object.keys(handlers).map(node => [node,
       (input: never, ctx: WorkerContext<typeof memory>) =>
-        ctx.resources.execute(node as MemoryNode, input, ctx.services.config.memory),
+        ctx.resources.execute(node as MemoryNode, input, { ...ctx.services.config.memory, runtime: ctx, ...(ctx.signal ? { signal: ctx.signal } : {}) }),
     ])),
   });
 }

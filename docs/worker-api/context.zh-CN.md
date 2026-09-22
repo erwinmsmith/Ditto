@@ -41,11 +41,11 @@ interface ContextSelection {
 
 | SDK / Node | 输入 | 输出与行为 |
 | --- | --- | --- |
-| load / CONTEXT.LOAD | `{ sources: (Message \| Reference \| ContextItem)[] }` | Context；Message/Reference 用规范化内容生成稳定 ID；Message.role/name 放 metadata；Reference 保持引用，不自动拉取内容 |
+| load / CONTEXT.LOAD | `{ sources: (Message \| Reference \| ContextItem)[], resolveReferences?: boolean }` | Context；Message/Reference 用规范化内容生成稳定 ID；Message.role/name 放 metadata；Reference 默认保持引用，resolveReferences=true 时解析内容 |
 | update / CONTEXT.UPDATE | `{ context, removeIds?, add?, ingress? }` | Context；依次删除、添加、接收跨 Worker ingress；ingress 含 id/sourceNode/content/reference?/metadata?，sourceNode 写入 metadata |
 | select / CONTEXT.SELECT | `{ context, purpose, query?, limit?, maxTokens?, strategy? }` | ContextSelection；按顺序去重、限制条数和预算；不写缓存、Memory 或模型 |
 | compress / CONTEXT.COMPRESS | `{ context, maxItems?, maxTokens? }` | Context；默认按组删减，不调用模型生成摘要 |
-| execute | `execute(node, input)` | 四个叶子的通用调用入口；按节点推导输入/返回类型 |
+| execute | `execute(node, input, options?)` | 四个叶子的通用调用入口；按节点推导输入/返回类型 |
 
 输出是独立、深度冻结的快照。条目 ID 非空，重复输入 Context ID 无效，内容必须是有限、无循环的 JSON。请求 limit/maxItems/maxTokens 可为 0，最大 1000000；policy 数值必须为正整数且不超过 1000000。请求不能放宽 policy 限制。
 
@@ -73,8 +73,8 @@ Redis 默认 keyPrefix=`ditto:context:`、ttlMs=3600000。key 后缀是标识元
 
 ```ts
 interface ContextStateStore {
-  get(scope: ContextScope): Promise<StoredContext | undefined>;
-  compareAndSet(scope: ContextScope, expectedVersion: string | undefined, next: Context): Promise<StoredContext>;
+  get(scope: ContextScope, options?: ContextCallOptions): Promise<StoredContext | undefined>;
+  compareAndSet(scope: ContextScope, expectedVersion: string | undefined, next: Context, options?: ContextCallOptions): Promise<StoredContext>;
 }
 interface StoredContext { version: string; context: Context }
 interface RedisContextClient {
@@ -85,7 +85,7 @@ interface RedisContextClient {
 
 `compareAndSet(..., undefined, ...)` 只创建缺失记录；指定版本必须与现存版本一致，否则抛 STATE_CONFLICT。外部插件必须原子实现版本比较和写入，新版本不能复用以免过期后发生 ABA。`createRedisContextStore(client, options?)` 可单独调用；node-redis 的已连接 client 直接符合接口，其他 SDK 可用 get/eval 两个转发函数适配。
 
-可选 `ContextOperationQueue.enqueue(scope, operation)` 只包裹缓存请求，用于应用已有的串行队列。跨进程一致性仍依赖存储 CAS；Core 不创建本地队列或分布式调度器。
+可选 `ContextOperationQueue.enqueue(scope, operation, options?)` 包裹缓存请求。可注入自有队列，或使用 `createContextOperationQueue()` 创建有容量上限的进程内串行队列。跨进程一致性仍依赖存储 CAS。
 
 ## 选择、RAG 与压缩插件
 
@@ -99,7 +99,7 @@ interface RedisContextClient {
 | retrieve.retrieve({ query?, items, corpus?, options?, embedding? }) | 返回 `{ item: ContextItem, score?, metadata? }[]` |
 | rank.rank({ query?, items, corpus?, options?, candidates }) | 返回候选数组，顺序就是选择优先级 |
 | compressor.compress(input) | 返回符合相同 ID、保护项、关联组和预算规则的 Context |
-| referenceResolver.resolve(reference) | 保留的服务接口；当前节点不自动调用，应用按需解析后再 LOAD/UPDATE |
+| referenceResolver.resolve(reference) | LOAD 设置 resolveReferences=true 时调用；默认只保存引用 |
 
 RAG 的 candidate.score/metadata 不自动合并到 item.metadata；如需后续默认选择使用分数，适配器显式写入 relevance。SELECT 只返回选取视图；想持久加入工作集时显式 UPDATE。普通检索直接复用数据库/Provider；高计算量可在 retrieve 中委托独立 RETRIEVAL，先检查 NodeResult，再映射完整 ContextItem。MEMORY 查询结果和检索候选的 content 是 unknown，适配器应明确转换成 JSON/文本。
 
@@ -413,3 +413,39 @@ export function remoteContextRetrieval(runtime: import("@ditto/core").RuntimeCli
 ```
 
 可直接运行的数据库接入示例：[examples/worker](../../examples/worker/README.zh-CN.md)，包含 SDK 安装、env 配置、调用及资源清理。
+
+## 本地缓存、队列与引用加载
+
+`createInMemoryContextStore({ ttlMs?, maxEntries?, now? })` 实现与 Redis 相同的 get/CAS 接口，默认 TTL 3600000 ms、最多 1000 个 scope。ttlMs 范围 1–2147483647，maxEntries 为正安全整数；now 可注入毫秒时钟。读取更新 LRU 次序但不延长 TTL，写入刷新 TTL；容量不足时清理过期项，再淘汰最久未使用项。返回不可变快照，无连接和后台定时器，进程结束后数据消失。
+
+`createContextOperationQueue({ maxPending? })` 默认最多 1024 个等待中/运行中操作。同 scope 串行，不同 scope 独立执行；达到总容量时抛 QUEUE_FULL，失败后释放容量且不阻塞后续操作。入队和开始执行时检查取消；已取消的等待项仍占容量直到前面的任务结束。共享状态的本地副本应共享同一 store/queue 实例。它不是分布式锁。
+
+`load({ sources, resolveReferences: true })` 按输入顺序调用 `services.referenceResolver.resolve(reference, options?)` 解析单独的 Reference。开关默认 false，启用时必须提供 sources 和 resolver；Message/ContextItem 不额外解析。结果保留原稳定 ID 和 source URI，必须是有限、无环 JSON，并满足 maxInlineBytes。缺少服务、无效内容、超限分别抛 RESOLVER_UNAVAILABLE、INVALID_PROVIDER_OUTPUT、INLINE_LIMIT_EXCEEDED。URI 授权和有界 I/O 由 resolver 实现，Core 不默认开放任何协议或网络权限。
+
+```ts
+import { createContext, createInMemoryContextStore, createContextOperationQueue,
+  loadRuntimeConfigFile } from "@ditto/core";
+const config = loadRuntimeConfigFile("ditto.yaml", process.env);
+const store = createInMemoryContextStore(config.context.localCache);
+const queue = createContextOperationQueue(config.context.queue);
+const context = createContext({ services: {
+  stateStore: store, operationQueue: queue,
+  referenceResolver: { async resolve(reference, options) {
+    options?.signal?.throwIfAborted();
+    if (reference.uri !== "urn:goal") throw new Error("Unknown reference");
+    return "Explain the retrieval pipeline";
+  } },
+} });
+const scope = { sessionId: "example" };
+await context.load({ scope, sources: [{ uri: "urn:goal" }], resolveReferences: true });
+await Promise.all(["a", "b"].map(id => context.update({ scope, add: [{ id, content: id }] })));
+const selected = await context.select({ scope, purpose: "infer", limit: 2 },
+  { signal: AbortSignal.timeout(5000) });
+const snapshot = await store.get(scope);
+if (snapshot) await store.compareAndSet(scope, snapshot.version, snapshot.context);
+await queue.enqueue(scope, async () => "application operation");
+```
+
+所有 SDK 方法在 input 后接受可选 `ContextCallOptions`；execute 是第三个参数。signal 传递至 selector、RAG 各阶段、compressor、tokenEstimator、referenceResolver、stateStore 和 operationQueue；各端口在原参数之后接收 options，compareAndSet 为第四个参数。SDK 取消时 reject，持久化前取消不会提交 CAS，但无法撤回外部已完成的写入。Runtime Worker 自动提供当前 signal 和绑定本次执行的 runtime 以委托其他 Worker；应用通常只需设置 signal。
+
+数据库检索可以直接复用 [Context 检索适配器](retrieval-providers.zh-CN.md#context-检索适配器)，完整可运行代码见 [SQLite 示例](../../examples/worker/context-retrieval.ts)。

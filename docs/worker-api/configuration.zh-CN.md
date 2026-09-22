@@ -148,3 +148,30 @@ workers:
 | cache.keyPrefix | ditto:context: | Nonempty string |
 
 Redis URL 和凭据放 `.env` 的 `DITTO_WORKER_CONTEXT_REDIS_URL`，应用直接交给 SDK；行为参数放 YAML。安装、调用及插件接口见 [CONTEXT API](context.zh-CN.md)。
+
+## CONTEXT 本地资源与 INTERACTION
+
+```yaml
+workers:
+  context:
+    localCache: { ttlMs: 3600000, maxEntries: 1000 }
+    queue: { maxPending: 1024 }
+  interaction:
+    commands: { maxEntries: 1000, maxOutputBytes: 65536, maxErrorBytes: 8192 }
+    webSearch: { timeoutMs: 30000, maxResponseBytes: 1048576 }
+```
+
+| 配置项 | 默认值 / 合法范围 |
+| --- | --- |
+| workers.context.localCache.ttlMs | 3600000 / 1–2147483647 ms |
+| workers.context.localCache.maxEntries | 1000 / 正安全整数 |
+| workers.context.queue.maxPending | 1024 / 正安全整数 |
+| workers.interaction.commands.maxEntries | 1000 / 1–10000 |
+| workers.interaction.commands.maxOutputBytes | 65536 / 1–1048576 |
+| workers.interaction.commands.maxErrorBytes | 8192 / 1–65536 |
+| workers.interaction.webSearch.timeoutMs | 30000 / 1–2147483647 ms |
+| workers.interaction.webSearch.maxResponseBytes | 1048576 / 1–16777216 |
+
+以上默认值在工厂与根 YAML 中一致；加载器输出不可变 config.context / config.interaction。显式传给 createInMemoryContextStore、createContextOperationQueue、createReadOnlyCommandTools、createBraveWebSearchProvider，参数加载不会自动启用工具、缓存或网络权限。[Context 示例](../../examples/worker/context-retrieval.ts) 与 [Interaction API](interaction.zh-CN.md#provider-取消和有界网页响应) 给出完整接线。
+
+Brave 密钥由应用读取 `DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY`；CONTEXT 与 MEMORY 连接信息分别使用 `DITTO_WORKER_CONTEXT_*`、`DITTO_WORKER_MEMORY_*`，见根 .env.example。env 放连接/密钥，YAML 放行为/容量；没有隐式加载插件。

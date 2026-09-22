@@ -41,11 +41,11 @@ interface ContextSelection {
 
 | SDK / Node | Input | Result and semantics |
 | --- | --- | --- |
-| load / CONTEXT.LOAD | `{ sources: (Message \| Reference \| ContextItem)[] }` | Context; canonical hashes supply stable Message/Reference IDs; Message role/name become metadata; references are not fetched |
+| load / CONTEXT.LOAD | `{ sources: (Message \| Reference \| ContextItem)[], resolveReferences?: boolean }` | Context; canonical hashes supply stable Message/Reference IDs; Message role/name become metadata; references are only fetched when resolveReferences=true |
 | update / CONTEXT.UPDATE | `{ context, removeIds?, add?, ingress? }` | Context; remove, add, then ingress in that order; ingress has id/sourceNode/content/reference?/metadata? and records sourceNode in metadata |
 | select / CONTEXT.SELECT | `{ context, purpose, query?, limit?, maxTokens?, strategy? }` | ContextSelection; deduplicate, cap items and tokens; no state/Memory/model mutation |
 | compress / CONTEXT.COMPRESS | `{ context, maxItems?, maxTokens? }` | Context; deterministic group removal, no model summarization by default |
-| execute | `execute(node, input)` | Typed dispatch to the four leaves |
+| execute | `execute(node, input, options?)` | Typed dispatch to the four leaves |
 
 Results are independent, deeply frozen snapshots. IDs must be nonempty; explicit Context IDs must be unique; content must be finite, acyclic JSON. Request limit/maxItems/maxTokens allow 0 through 1000000. Numeric policy values are positive and at most 1000000. Requests cannot relax policy caps.
 
@@ -73,8 +73,8 @@ Redis defaults: keyPrefix=`ditto:context:`, ttlMs=3600000. Keys append the ident
 
 ```ts
 interface ContextStateStore {
-  get(scope: ContextScope): Promise<StoredContext | undefined>;
-  compareAndSet(scope: ContextScope, expectedVersion: string | undefined, next: Context): Promise<StoredContext>;
+  get(scope: ContextScope, options?: ContextCallOptions): Promise<StoredContext | undefined>;
+  compareAndSet(scope: ContextScope, expectedVersion: string | undefined, next: Context, options?: ContextCallOptions): Promise<StoredContext>;
 }
 interface StoredContext { version: string; context: Context }
 interface RedisContextClient {
@@ -85,7 +85,7 @@ interface RedisContextClient {
 
 Undefined expectedVersion means create only if missing; a supplied version must match or throw STATE_CONFLICT. External stores must implement atomic CAS and fresh versions to avoid ABA after expiration. `createRedisContextStore(client, options?)` also works independently. Connected node-redis clients match this port; other SDKs need get/eval forwarding functions.
 
-Optional `ContextOperationQueue.enqueue(scope, operation)` wraps cached calls for an application's existing queue. Storage CAS still enforces cross-process consistency. Core adds no local queue or distributed scheduler.
+Optional `ContextOperationQueue.enqueue(scope, operation, options?)` wraps cached calls. Use `createContextOperationQueue()` for bounded process-local serialization, or inject your own implementation. Storage CAS still enforces cross-process consistency.
 
 ## Strategy services
 
@@ -99,7 +99,7 @@ Optional `ContextOperationQueue.enqueue(scope, operation)` wraps cached calls fo
 | retrieve.retrieve({ query?, items, corpus?, options?, embedding? }) | Returns `{ item: ContextItem, score?, metadata? }[]` |
 | rank.rank({ query?, items, corpus?, options?, candidates }) | Returns candidates in selection priority order |
 | compressor.compress(input) | Context preserving permitted IDs, protected items, correlated groups and budgets |
-| referenceResolver.resolve(reference) | Reserved service port; current nodes do not call it automatically; resolve in the application before LOAD/UPDATE |
+| referenceResolver.resolve(reference) | Used by LOAD with resolveReferences=true; otherwise references remain unresolved |
 
 Candidate score/metadata are not automatically copied into item.metadata; explicitly map score to relevance if needed. SELECT returns a view; use UPDATE to persist additions. Reuse database search directly or delegate retrieve to an independent RETRIEVAL Worker, checking NodeResult and mapping complete ContextItems. Map unknown Memory/retrieval content explicitly into text/JSON.
 
@@ -413,3 +413,39 @@ export function remoteContextRetrieval(runtime: import("@ditto/core").RuntimeCli
 ```
 
 Runnable database integration examples: [examples/worker](../../examples/worker/README.md), including SDK installation, env settings, invocation and cleanup.
+
+## Local cache, queues and reference loading
+
+`createInMemoryContextStore({ ttlMs?, maxEntries?, now? })` implements the same get/CAS port as Redis. Defaults are 3600000 ms and 1000 scopes. TTL must be 1–2147483647; maxEntries is a positive safe integer. `now` is an injectable millisecond clock. Reads update LRU order without extending TTL; writes refresh TTL, remove expired entries under capacity pressure, then evict the least recently used scope if needed. Values are immutable snapshots. There are no connections or background timers; state disappears with the process.
+
+`createContextOperationQueue({ maxPending? })` defaults to 1024 pending/running operations across all scopes. Same-scope operations serialize; different scopes progress independently. Capacity exhaustion rejects with QUEUE_FULL. Failed jobs release capacity and do not block later jobs. Cancellation is checked before enqueue and at execution; canceled waiting jobs retain their slot until earlier jobs drain. Share the same queue/store instances across local replicas when they share state. A queue is not a distributed lock.
+
+`load({ sources, resolveReferences: true })` resolves bare Reference entries in input order through `services.referenceResolver.resolve(reference, options?)`. The flag defaults to false and requires sources and a resolver. Existing Message/ContextItem values are unchanged. Resolved items retain the original stable ID and source URI, must be finite acyclic JSON and fit maxInlineBytes. Missing resolver raises RESOLVER_UNAVAILABLE; invalid output raises INVALID_PROVIDER_OUTPUT; excessive content raises INLINE_LIMIT_EXCEEDED. Resolver implementations own URI authorization and bounded I/O. No scheme or network access is enabled implicitly.
+
+```ts
+import { createContext, createInMemoryContextStore, createContextOperationQueue,
+  loadRuntimeConfigFile } from "@ditto/core";
+const config = loadRuntimeConfigFile("ditto.yaml", process.env);
+const store = createInMemoryContextStore(config.context.localCache);
+const queue = createContextOperationQueue(config.context.queue);
+const context = createContext({ services: {
+  stateStore: store, operationQueue: queue,
+  referenceResolver: { async resolve(reference, options) {
+    options?.signal?.throwIfAborted();
+    if (reference.uri !== "urn:goal") throw new Error("Unknown reference");
+    return "Explain the retrieval pipeline";
+  } },
+} });
+const scope = { sessionId: "example" };
+await context.load({ scope, sources: [{ uri: "urn:goal" }], resolveReferences: true });
+await Promise.all(["a", "b"].map(id => context.update({ scope, add: [{ id, content: id }] })));
+const selected = await context.select({ scope, purpose: "infer", limit: 2 },
+  { signal: AbortSignal.timeout(5000) });
+const snapshot = await store.get(scope);
+if (snapshot) await store.compareAndSet(scope, snapshot.version, snapshot.context);
+await queue.enqueue(scope, async () => "application operation");
+```
+
+All SDK methods accept optional `ContextCallOptions` after input; execute accepts it as the third argument. `signal` propagates to selectors, RAG stages, compressors, token estimation, reference resolution, cache and queue ports. These ports accept options after their existing arguments (fourth for compareAndSet). Cancellation rejects the SDK call; cancellation before persistence prevents CAS. Cancellation cannot undo a completed external write. Runtime Workers supply the current signal and an invocation-bound `runtime` for nested delegation; applications normally only set signal.
+
+For reusable inline or delegated database retrieval, see [Context retrieval adapter](retrieval-providers.md#context-retrieval-adapter) and the runnable [SQLite example](../../examples/worker/context-retrieval.ts).

@@ -131,3 +131,13 @@ const hits = await runtime.invoke("MEMORY.SEARCH", {
 QUERY 支持 `{ key }` 过滤及 limit，是有界查询；本示例不实现游标和排序，显式传入会报错。GET 超过 10000 条时要求拆分请求。payload 受 65535 字节限制，业务 key 受 255 字节限制。
 
 Milvus 适配展示单写入方 collection 的读改写，Worker concurrency=1 只约束本副本。UPDATE 的读改写和批量修改没有 SQL 事务保证；共享 collection 的多写入方需由应用协调。发生部分写入或删除数不符时明确失败，应对账后决定如何恢复，不能假定整批回滚。[Milvus Node SDK](https://github.com/milvus-io/milvus-sdk-node) · [向量搜索接口](https://milvus.io/api-reference/node/v2.6.x/Vector/search.md)。
+
+## CONTEXT 缓存与可选检索
+
+[context-retrieval.ts](context-retrieval.ts)：实际 SQLite FTS5 建表、参数化查询与 BM25 排序；同一 Provider 分别在 CONTEXT 内直接运行和经 RETRIEVAL Worker 执行。Graph 显式连接 LOAD → SELECT，部署位置由 runtime.run 的 workers 映射决定。还展示本地 TTL/LRU 缓存、共享有界队列、ReferenceResolver 读取 README，以及 SELECT 不覆盖原缓存的行为。例子断言两种检索模式结果一致，关闭 Runtime 后释放数据库；无需密钥或额外 SDK。
+
+```sh
+npm run example:worker:context-retrieval
+```
+
+参数来自根 ditto.yaml 的 workers.context.localCache/queue；若要替换 Redis，替换 stateStore 即可。真实 SQL/Milvus 的连接池仍由应用持有，检索 Provider 可原样用于内联或独立 Worker。

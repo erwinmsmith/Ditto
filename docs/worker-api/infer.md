@@ -663,3 +663,16 @@ export async function contextToInfer(context: WorkingContext, infer: InferClient
 ```
 
 [Complete imports and source](examples/context.ts).
+
+## Runtime cancellation
+
+Cancellation from `runtime.invoke(node, input, { signal })` and `runtime.run(graph, input, { signal })` flows through the built-in INFER Worker into its executor and model provider, matching direct SDK behavior. Providers should use their HTTP/SDK cancellation mechanism. For example:
+
+```ts
+await runtime.invoke("INFER.REASONING.SAMPLE", {
+  model: { provider: "openai", model: "configured-model" },
+  messages: [{ role: "user", content: "Explain caching" }],
+}, { signal: AbortSignal.timeout(5000) });
+```
+
+HTTP and IPC cancellation currently stops the caller's wait without automatically interrupting remote execution. Configure model deadlines on the serving Worker as well.

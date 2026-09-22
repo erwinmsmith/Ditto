@@ -428,3 +428,42 @@ export function mapTextCandidates(output: RetrievalSearchOutput) {
 ## 与 CONTEXT 组合
 
 数据库检索、embedding、融合与重排 Provider 可注入 createRagStrategy 的 retrieve 步骤。CONTEXT 不要求单独启动 RETRIEVAL；检索后端生命周期仍由应用管理。 [完整 CONTEXT API 与调用示例](context.zh-CN.md)。
+
+## Context 检索适配器
+
+从 `@ditto/core/worker/retrieval/adapters/context` 导入 `createRetrievalContextStrategy` 和 `mapContextCandidates`；Core 不导入这个可选模块。
+
+`createRetrievalContextStrategy(options)` 返回 ContextRagStrategy。provider 与 runtime 不能同时设置：provider 在本地执行 RetrievalSearchProvider，可复用 SQL、Milvus、向量/embedding、hybrid 流水线；runtime 调用 RETRIEVAL.SEARCH；在 CONTEXT Worker 内可同时省略二者以继承本次执行的 Runtime，显式 runtime 始终优先。需预先注册本地或远端 RETRIEVAL Worker，按现有 direct/IPC/HTTP 方式部署。
+
+| 参数 | 行为 |
+| --- | --- |
+| target | 必填逻辑 RetrievalTarget，构造时快照 |
+| strategy | 可选检索策略名称 |
+| defaults | RetrievalDefaults；用于本地流水线，也为两种模式提供缺省 limit；委托计算采用目标 Worker 配置 |
+| mapInput(input) | 可选 ContextSelectInput → RetrievalSearchInput；显式处理 corpus、租户 namespace、filter 和授权 |
+| mapOutput(output) | 可选完整 RetrievalSearchOutput → ContextItem[] 或 Promise；默认 mapContextCandidates |
+
+默认映射要求 query，将 strategy.options 转为检索 options；limit 使用请求值、searchLimit 或 10，并限制最多 10000。显式提供 corpus 时必须配置 mapInput，避免丢失范围。limit=0 不调用后端；检索后仍由 Context 执行条数和 token 预算。
+
+`mapContextCandidates(output)` 要求内容为 JSON。ID 由 target.name/type/namespace 及候选 ID 生成稳定哈希；无 ID 时用 source.ref，再回退 content。source.ref 映射为 source.uri，保留 metadata 和 score，补充 retrievalTarget。内容不合法抛 INVALID_PROVIDER_OUTPUT；业务记录需自定义 mapOutput。Context.SELECT 负责去重和预算，不覆盖缓存。例如 `mapContextCandidates({ target: { name: "docs" }, candidates: [{ id: "1", content: "Evidence", score: 0.8 }] })` 返回一个稳定 ContextItem，含对应内容和 score 元数据。
+
+```ts
+import { createContext, type RuntimeClient } from "@ditto/core";
+import type { RetrievalSearchProvider } from "@ditto/core/worker/retrieval";
+import { createRetrievalContextStrategy, mapContextCandidates } from "@ditto/core/worker/retrieval/adapters/context";
+export function contextSearch(provider: RetrievalSearchProvider, runtime: RuntimeClient) {
+  const inline = createContext({ services: { ragStrategy: createRetrievalContextStrategy({
+    provider, target: { name: "documents" }, strategy: "vector",
+  }) } });
+  const delegated = createContext({ services: { ragStrategy: createRetrievalContextStrategy({
+    runtime, target: { name: "documents" }, strategy: "vector", mapOutput: mapContextCandidates,
+  }) } });
+  const input = { context: { items: [] }, purpose: "infer" as const, query: "agent runtime",
+    strategy: { kind: "rag" as const }, limit: 5 };
+  return Promise.all([inline.select(input), delegated.select(input)]);
+}
+```
+
+将策略注入 Context services.ragStrategy。每次调用的 signal 传入本地 Provider 或委托调用；未显式设置 runtime 时，内置 Worker 使用绑定当前执行的 Runtime，使已接收的 Graph 可以在关闭期间正常完成。网络取消目前停止调用方等待，不会终止远端数据库操作。[可运行 SQLite FTS5 示例](../../examples/worker/context-retrieval.ts)。
+
+在 MEMORY Worker 内构造 `RemoteRetrievalSearchProvider` 时，可省略 runtime，继承本次执行绑定的 Runtime；显式 runtime 始终优先，独立 SDK 委托则必须提供它。例如 Worker 内可用 `new RemoteRetrievalSearchProvider({ target: { name: "memories" } })`。

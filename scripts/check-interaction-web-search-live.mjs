@@ -1,16 +1,17 @@
 import {
   createBraveWebSearchProvider, createContextWorker, createDitto, createInteractionWorker,
-  createWebSearchTool, runToolCallFlow,
+  createWebSearchTool, runToolCallFlow, loadRuntimeConfigFile,
 } from "../dist/index.js";
 
 const origin = "https://api.search.brave.com";
 
 async function main() {
-  const apiKey = process.env.BRAVE_SEARCH_API_KEY;
-  if (!apiKey) throw new Error("BRAVE_SEARCH_API_KEY is required for the live web search check");
-  const provider = createBraveWebSearchProvider({ apiKey });
+  const apiKey = process.env.DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY;
+  if (!apiKey) throw new Error("DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY is required for the live web search check");
+  const config = loadRuntimeConfigFile("ditto.yaml", process.env);
+  const provider = createBraveWebSearchProvider({ apiKey, ...config.interaction.webSearch });
   const tool = createWebSearchTool({ provider });
-  const runtime = createDitto({
+  const runtime = createDitto({ config,
     sandbox: { tools: [tool.name], network: [origin] },
     workers: [createInteractionWorker({ tools: [tool] }), createContextWorker()],
   });
