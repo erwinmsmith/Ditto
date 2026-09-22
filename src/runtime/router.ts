@@ -1,5 +1,6 @@
 import type { NodeType } from "../contracts/index.js";
 import type { WorkerExecutor } from "../worker/define-worker.js";
+import type { RuntimeServices } from "./services.js";
 import type { WorkerAddress } from "./communication/transport.js";
 
 export interface WorkerEntry {
@@ -7,6 +8,7 @@ export interface WorkerEntry {
   readonly capabilities: readonly NodeType[];
   readonly nodeTypes?: readonly NodeType[];
   readonly executor?: WorkerExecutor;
+  readonly services?: RuntimeServices;
   readonly transportId?: string;
   available: boolean;
   readonly concurrency: number;
@@ -25,10 +27,11 @@ export class NoWorkerAvailableError extends Error {
 export class WorkerRouter {
   readonly #next = new Map<NodeType, number>();
 
-  select(node: NodeType, entries: Iterable<WorkerEntry>, hostId: string): WorkerEntry {
+  select(node: NodeType, entries: Iterable<WorkerEntry>, hostId: string, workerId?: string): WorkerEntry {
     let priority = Infinity;
     const pool: WorkerEntry[] = [];
     for (const entry of entries) {
+      if (workerId !== undefined && entry.address.workerId !== workerId) continue;
       if (!entry.available || entry.active >= entry.concurrency || !entry.capabilities.includes(node)) continue;
       const rank = entry.executor ? 0 : entry.address.hostId === hostId ? 1 : 2;
       if (rank < priority) { priority = rank; pool.length = 0; }

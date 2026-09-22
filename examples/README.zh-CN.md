@@ -10,6 +10,7 @@
 | --- | --- | --- | --- |
 | [graph-loop-worker.ts](graph-loop-worker.ts) | 用 Graph 编排读取、观察、输出；用 Loop 处理两个文件；在 Worker 内定义文件统计工具 | `npm run example:agent` | Node 24+、npm 11+；无需模型、数据库或 MCP |
 | [interaction-tools.ts](interaction-tools.ts) | 将 Linux/macOS 命令作为单个 tool，与 SHA-256 工具组合，并循环执行两组命令 | `npm run example:tools` | 同上；Linux 或 macOS，系统提供 uname / printf |
+| [runtime/](runtime/README.zh-CN.md) | 多 Graph Loop、独立 Worker Sandbox、同机 IPC 与跨机 HTTP | `npm run example:runtime` / `npm run example:runtime:placement` | 无额外 SDK 或服务 |
 | [worker/](worker/README.zh-CN.md) | CONTEXT 接 Redis；MEMORY 接 SQLite/PostgreSQL/MySQL/Milvus | 见子目录运行命令 | 按需安装 SDK、配置数据库 |
 
 所有命令都在**项目根目录**运行。首次使用先安装依赖：
@@ -18,7 +19,7 @@
 npm ci
 ```
 
-两个 npm 示例命令都会先构建包，再执行对应 TypeScript 文件。两个示例均通过代码显式配置 Worker 和 Sandbox，不读取 `.env` 或 `ditto.yaml`，不需要在线模型密钥。
+前两个 npm 示例命令都会先构建包，再执行对应 TypeScript 文件。两个示例均通过代码显式配置 Worker 和 Sandbox，不读取 `.env` 或 `ditto.yaml`，不需要在线模型密钥。
 
 ## graph-loop-worker.ts：最小 Agent 执行流程
 

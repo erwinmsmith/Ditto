@@ -11,7 +11,7 @@ flowchart TB
   App[应用状态 / Graph 定义] --> Loop[Loop：选图、更新状态、停止]
   Loop --> Runtime[Runtime：配置、调度、路由、通信]
   Runtime --> A
-  Runtime --> Transport[HTTP / 自定义 IPC 或 RPC]
+  Runtime --> Transport[IPC / HTTP / 自定义 RPC]
   Transport --> B[另一 Runtime 的 Worker]
   subgraph A[Worker 副本：资源、并发上限、生命周期]
     Entry[公开入口 Node] --> G[内部 Graph]
@@ -85,7 +85,7 @@ Graph 中没有 Provider Key、物理地址或副本数量；`bind` 是 TypeScri
 
 `loop({ graph, bind, update, done, maxIterations })` 定义重复执行。`graph` 可以是固定 DAG 或 `(state) => graph`：每轮根据最新状态选图，映射输入，等待 `runtime.run`，更新状态，再用新状态与输出检查 `done`。不同轮可使用不同 Node、依赖和分支结构。选中的 Graph 共用 Loop 声明的输入／输出边界；结果结构不同时可显式声明联合类型。Graph 自身始终无环。
 
-`runtime.loop(definition, initialState)` 返回最终状态。回调均为同步函数，默认最多执行 32 轮，上限必须为正整数。失败或耗尽上限时直接拒绝，不重试。每次选中的 Graph 获得新的 run ID，并使用普通能力路由，所以任务和轮次之间可能切换副本。状态在调用方应用中，Loop 不固定 Worker，也不持久化对话。只有应用显式将 `config.maxTurns` 传为 `maxIterations` 时才使用该配置。
+`runtime.loop(definition, initialState)` 返回最终状态。回调均为同步函数，默认最多执行 32 轮，上限必须为正整数。失败或耗尽上限时直接拒绝，不重试。每次选中的 Graph 获得新的 run ID，并使用普通能力路由，所以任务和轮次之间可能切换副本。状态在调用方应用中，Loop 不固定 Worker，也不持久化对话。默认轮数可由 YAML `runtime.loopMaxIterations` 配置；运行选项可按 Graph ID 指定节点到 Worker 的映射。
 
 ## 扩容与生命周期
 
@@ -98,7 +98,7 @@ Graph 中没有 Provider Key、物理地址或副本数量；`bind` 是 TypeScri
 - `setAvailable(false)`：暂停接收新的路由。
 - `unregister()`：仅移除路由，不中断已接受调用；资源继续保留，之后调用 handle/runtime 的 `close()` 回收。
 - `await handle.close()`：停止路由，等待本副本已接受的调用，释放资源一次。
-- `await runtime.close()`：拒绝新调用并关闭所持有的 Worker；释放失败以 AggregateError 返回。
+- `await runtime.close()`：拒绝新调用，等待已接受的 Graph/Loop/调用和事件处理，再关闭所持有的 Worker；释放失败以 AggregateError 返回。
 
 Handler 必须 await 自己启动的工作。关闭 Runtime 时未开始的 Graph 下游或新的跨 Worker 请求可能被拒绝，因此应用应先停止接收请求、等待顶层任务，再关闭 Runtime。调用自身 handle.close 并等待会等待自己，不应在本 Worker handler 内这样做。EventFabric、外部 Provider/MCP 客户端与 HTTP Server 的生命周期由应用所有者管理。
 
@@ -127,3 +127,5 @@ Router 用一次遍历筛选能力、容量与位置，保留同级轮询；没�
 ## 可选 RETRIEVAL 扩展
 
 四个 Core Worker 的 21 个叶子保持不变。可选入口 `@ditto/core/worker/retrieval` 增加 `RETRIEVAL.SEARCH` 的契约与实现，仅在应用显式导入/注册时启用。它通过 Target/Strategy Registry 调用用户 Provider，不拥有数据、不执行 RAG，也不要求 MEMORY/CONTEXT 经由它检索。需要独立执行资源或水平扩容时，可使用现有 Runtime/HTTP 部署多个副本。[详细 API 与部署边界](worker-api/retrieval.zh-CN.md)。
+
+[Runtime API](worker-api/runtime.zh-CN.md) 提供并发与取消、节点部署绑定、独立 services/Sandbox 和 IPC 的完整调用示例。

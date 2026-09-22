@@ -77,7 +77,9 @@
     "check:context:redis:live": "npm run build && node scripts/check-context-redis-live.mjs",
     "example:worker:redis": "npm run build && node --env-file-if-exists=.env examples/worker/context-redis.ts",
     "example:worker:sql": "npm run build && node --env-file-if-exists=.env examples/worker/memory-sql.ts",
-    "example:worker:milvus": "npm run build && node --env-file-if-exists=.env examples/worker/memory-milvus.ts"
+    "example:worker:milvus": "npm run build && node --env-file-if-exists=.env examples/worker/memory-milvus.ts",
+    "example:runtime": "npm run build && node examples/runtime/graph-loop.ts",
+    "example:runtime:placement": "npm run build && node examples/runtime/placement.ts"
   },
   "engines": {
     "node": ">=24.0.0",

@@ -12,6 +12,7 @@ Start with the architecture and development guides, then follow the references f
 | Architecture | [Read](architecture.md) | [阅读](architecture.zh-CN.md) | Worker ownership, internal Nodes, Graph/Loop execution, scaling, and module boundaries |
 | Development and Integration | [Read](getting-started.md) | [阅读](getting-started.zh-CN.md) | Installation, checks, package entry points, and custom Workers and Nodes |
 | Implemented Worker APIs | [Read](worker-api/README.md) | [阅读](worker-api/README.zh-CN.md) | CONTEXT, INFER, MEMORY, INTERACTION and optional RETRIEVAL APIs |
+| Runtime / Graph / Loop | [Read](worker-api/runtime.md) | [阅读](worker-api/runtime.zh-CN.md) | Graph bindings, loops, worker services, IPC / HTTP |
 | Worker Communication | [Read](worker-communication.md) | [阅读](worker-communication.zh-CN.md) | Local and remote calls, HTTP deployment, lifecycle, events, and artifacts |
 | Interaction and Runtime Configuration | [Read](interaction-runtime.md) | [阅读](interaction-runtime.zh-CN.md) | Providers, models, credentials, tools, MCP, Skills, and Sandbox permissions |
 | Node Taxonomy and API Contract | [Read](13-node-api-contract.md) | [阅读](13-node-api-contract.zh-CN.md) | Final capability tree, common public types, 21 executable leaf Contracts, and Runtime predefined flows |
