@@ -166,3 +166,17 @@ test("Context behavior settings are immutable and reject invalid cache or policy
     assert.throws(() => loadRuntimeConfig({}, { workers: { context } } as never));
   }
 });
+
+
+test("Context and Interaction resource settings are bounded, immutable and do not instantiate plugins", () => {
+  const config = loadRuntimeConfigFile("ditto.yaml", {});
+  assert.equal(config.context.localCache?.maxEntries, 1000);
+  assert.equal(config.context.queue?.maxPending, 1024);
+  assert.equal(config.interaction.webSearch?.maxResponseBytes, 1048576);
+  assert.ok(Object.isFrozen(config.interaction.webSearch));
+  for (const workers of [
+    { context: { localCache: { ttlMs: 0 } } }, { context: { queue: { maxPending: 0 } } },
+    { interaction: { webSearch: { maxResponseBytes: 16777217 } } },
+    { interaction: { commands: { maxEntries: 10001 } } },
+  ]) assert.throws(() => loadRuntimeConfig({}, { workers }));
+});

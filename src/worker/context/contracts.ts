@@ -11,7 +11,7 @@ export type * from "./compress/types.js";
 export type * from "./types.js";
 
 export interface ContextContractMap {
-  "CONTEXT.LOAD": { input: ContextLoadInput | (ContextStateInput & { readonly sources?: ContextLoadInput["sources"] }); output: ContextLoadOutput };
+  "CONTEXT.LOAD": { input: ContextLoadInput | (ContextStateInput & { readonly sources?: ContextLoadInput["sources"]; readonly resolveReferences?: boolean }); output: ContextLoadOutput };
   "CONTEXT.SELECT": { input: ContextRequest<ContextSelectInput>; output: ContextSelectOutput };
   "CONTEXT.UPDATE": { input: ContextRequest<ContextUpdateInput>; output: ContextUpdateOutput };
   "CONTEXT.COMPRESS": { input: ContextRequest<ContextCompressInput>; output: ContextCompressOutput };

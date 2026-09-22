@@ -151,7 +151,7 @@ export function createInferWorker(options: InferWorkerOptions = {}): WorkerDefin
     ...(options.concurrency !== undefined ? { concurrency: options.concurrency } : {}),
     nodes: Object.fromEntries(Object.keys(handlers).map(node => [node,
       (input: unknown, ctx: WorkerContext<ReturnType<typeof createExecutor>>) =>
-        ctx.resources(node, input, {}, undefined, ctx.services),
+        ctx.resources(node, input, ctx.signal ? { signal: ctx.signal } : {}, undefined, ctx.services),
     ])),
   });
 }

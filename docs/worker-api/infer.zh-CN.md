@@ -682,3 +682,16 @@ export async function contextToInfer(context: WorkingContext, infer: InferClient
 ```
 
 [完整 imports 和代码](examples/context.ts)。
+
+## Runtime 取消
+
+`runtime.invoke(node, input, { signal })`、`runtime.run(graph, input, { signal })` 的取消信号经内置 INFER Worker 传入执行器和模型 Provider，与直接 SDK 的取消选项一致。Provider 应使用其 HTTP/SDK 的取消机制。例如：
+
+```ts
+await runtime.invoke("INFER.REASONING.SAMPLE", {
+  model: { provider: "openai", model: "configured-model" },
+  messages: [{ role: "user", content: "Explain caching" }],
+}, { signal: AbortSignal.timeout(5000) });
+```
+
+跨机器 HTTP 或同机 IPC 的信号当前只控制调用方等待，不自动中断远端执行；服务端仍应配置模型超时。

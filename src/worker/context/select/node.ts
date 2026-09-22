@@ -12,7 +12,7 @@ async function candidates(input: ContextSelectInput, execution: ContextExecution
   if (kind === "default") return defaultSelect(input);
   const selector = kind === "rag" ? execution.services.ragStrategy : execution.services.selector;
   if (!selector) throw new ContextError("STRATEGY_UNAVAILABLE", `${kind} Context selection is not configured`);
-  return selector.select(input);
+  return selector.select(input, execution);
 }
 
 export async function selectNode(input: ContextSelectInput, execution: ContextExecution): Promise<ContextSelectOutput> {

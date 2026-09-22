@@ -65,7 +65,7 @@ loadRuntimeConfigFile(path = "ditto.yaml", env = process.env): RuntimeConfig
 loadRuntimeConfig(env = process.env, settings: RuntimeSettings = {}): RuntimeConfig
 ```
 
-The file loader reads UTF-8 YAML relative to the current working directory. The second loader takes an object without file access. Both loaders return a normalized immutable snapshot containing environment, workspace, model, providers, timeoutMs, maxTurns, graphConcurrency, loopMaxIterations, infer, context, memory, retrieval, react and sandbox. Workers access it through ctx.services.config and may receive independent services at registration. Reload and recreate the Runtime after editing YAML; there is no per-call file I/O or hot reload.
+The file loader reads UTF-8 YAML relative to the current working directory. The second loader takes an object without file access. Both loaders return a normalized immutable snapshot containing environment, workspace, model, providers, timeoutMs, maxTurns, graphConcurrency, loopMaxIterations, infer, context, interaction, memory, retrieval, react and sandbox. Workers access it through ctx.services.config and may receive independent services at registration. Reload and recreate the Runtime after editing YAML; there is no per-call file I/O or hot reload.
 
 Missing/empty files, non-object roots, unknown keys, duplicate keys, aliases and invalid values fail at startup. YAML does not interpolate environment variables or accept deployment fields such as apiKey/baseUrl. Provider options are request parameters, never a place for credentials. Custom createDitto({ providers }) skips HTTP provider construction from config.
 
@@ -147,3 +147,30 @@ workers:
 | cache.keyPrefix | ditto:context: | Nonempty string |
 
 Store the Redis URL/credentials in `.env` as `DITTO_WORKER_CONTEXT_REDIS_URL` for the application SDK; behavior belongs in YAML. See [CONTEXT API](context.md) for setup, invocation and plugin ports.
+
+## CONTEXT local resources and INTERACTION
+
+```yaml
+workers:
+  context:
+    localCache: { ttlMs: 3600000, maxEntries: 1000 }
+    queue: { maxPending: 1024 }
+  interaction:
+    commands: { maxEntries: 1000, maxOutputBytes: 65536, maxErrorBytes: 8192 }
+    webSearch: { timeoutMs: 30000, maxResponseBytes: 1048576 }
+```
+
+| Setting | Default / allowed range |
+| --- | --- |
+| workers.context.localCache.ttlMs | 3600000 / 1–2147483647 ms |
+| workers.context.localCache.maxEntries | 1000 / positive safe integer |
+| workers.context.queue.maxPending | 1024 / positive safe integer |
+| workers.interaction.commands.maxEntries | 1000 / 1–10000 |
+| workers.interaction.commands.maxOutputBytes | 65536 / 1–1048576 |
+| workers.interaction.commands.maxErrorBytes | 8192 / 1–65536 |
+| workers.interaction.webSearch.timeoutMs | 30000 / 1–2147483647 ms |
+| workers.interaction.webSearch.maxResponseBytes | 1048576 / 1–16777216 |
+
+Factory defaults and root YAML agree. Loaders return immutable config.context / config.interaction. Explicitly pass the corresponding groups to createInMemoryContextStore, createContextOperationQueue, createReadOnlyCommandTools and createBraveWebSearchProvider. Loading parameters does not activate tools, caching or network permissions. See the [Context example](../../examples/worker/context-retrieval.ts) and [Interaction API](interaction.md#provider-cancellation-and-bounded-web-responses).
+
+Application code reads `DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY`. CONTEXT and MEMORY connection variables use `DITTO_WORKER_CONTEXT_*` and `DITTO_WORKER_MEMORY_*` in root .env.example. Environment holds credentials/connections; YAML holds behavior/capacity, with no plugin autoloading.

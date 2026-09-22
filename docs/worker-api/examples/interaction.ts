@@ -156,9 +156,9 @@ export const observationDefinition = interactionObserveNode.define("INTERACTION"
 // example: mcpAdapter
 export function mcpClientAdapter(client: McpClient): McpClient {
   return {
-    listTools: params => client.listTools(params),
-    async callTool(params) {
-      const result = await client.callTool(params);
+    listTools: (params, options) => client.listTools(params, options),
+    async callTool(params, options) {
+      const result = await client.callTool(params, options);
       return {
         ...(result.content === undefined ? {} : { content: result.content }),
         ...(result.structuredContent === undefined ? {} : { structuredContent: result.structuredContent }),

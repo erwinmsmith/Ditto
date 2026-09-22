@@ -120,3 +120,13 @@ The handcrafted 3D vectors demonstrate database operations, not semantic embeddi
 QUERY supports key filtering and limit as a bounded query; this example rejects cursor/orderBy. GET rejects more than 10000 results instead of truncating. Payload is limited to 65535 bytes and business keys to 255 bytes.
 
 This is a single-writer collection example. Worker concurrency=1 only covers its replica. Milvus read-modify-upsert and batch mutations have no SQL transaction guarantee; multiple writers need application coordination. Partial write or mismatched deletion counts fail explicitly and require reconciliation before retry, not an assumption of rollback. [Milvus Node SDK](https://github.com/milvus-io/milvus-sdk-node) · [Vector search](https://milvus.io/api-reference/node/v2.6.x/Vector/search.md).
+
+## CONTEXT caching and optional retrieval
+
+[context-retrieval.ts](context-retrieval.ts) uses real SQLite FTS5 with parameterized queries and BM25 ordering. The same provider executes inline in CONTEXT and through a RETRIEVAL Worker. A Graph connects LOAD → SELECT; runtime.run workers mappings choose placement. It also demonstrates local TTL/LRU state, a shared bounded queue, ReferenceResolver loading README, and SELECT leaving cached state unchanged. Assertions compare both retrieval modes; Runtime and database resources are closed. No key or additional SDK is required.
+
+```sh
+npm run example:worker:context-retrieval
+```
+
+Resource defaults come from workers.context.localCache/queue in root ditto.yaml. Replace stateStore to use Redis. Applications still own real SQL/Milvus connection pools; the retrieval provider can run inline or in a separate Worker.

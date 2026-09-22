@@ -48,6 +48,6 @@ export function createRetrievalWorker(options: RetrievalOptions): WorkerDefiniti
   return defineWorker({
     type: "RETRIEVAL", resources: () => retrieval,
     ...(options.concurrency === undefined ? {} : { concurrency: options.concurrency }),
-    nodes: { "RETRIEVAL.SEARCH": (input, ctx) => ctx.resources.search(input, ctx.services.config.retrieval) },
+    nodes: { "RETRIEVAL.SEARCH": (input, ctx) => ctx.resources.search(input, ctx.services.config.retrieval, ctx.signal ? { signal: ctx.signal } : {}) },
   });
 }

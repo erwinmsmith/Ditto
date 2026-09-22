@@ -50,7 +50,7 @@ async function validateCompressed(
 export async function compressNode(input: ContextCompressInput, execution: ContextExecution): Promise<ContextCompressOutput> {
   validateCompress(input);
   const output = execution.services.compressor
-    ? await execution.services.compressor.compress(input)
+    ? await execution.services.compressor.compress(input, execution)
     : await deterministicCompress(input, execution);
   return validateCompressed(input, output, execution);
 }

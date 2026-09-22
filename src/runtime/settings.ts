@@ -33,6 +33,12 @@ export interface RuntimeSettings {
     readonly context?: {
       readonly policy?: Partial<ContextPolicy>;
       readonly cache?: { readonly ttlMs?: number; readonly keyPrefix?: string };
+      readonly localCache?: { readonly ttlMs?: number; readonly maxEntries?: number };
+      readonly queue?: { readonly maxPending?: number };
+    };
+    readonly interaction?: {
+      readonly commands?: { readonly maxEntries?: number; readonly maxOutputBytes?: number; readonly maxErrorBytes?: number };
+      readonly webSearch?: { readonly timeoutMs?: number; readonly maxResponseBytes?: number };
     };
     readonly memory?: MemoryDefaults;
     // Data-only settings keep the optional retrieval implementation out of Core's import graph.
@@ -81,9 +87,11 @@ export function validateRuntimeSettings(value: unknown): RuntimeSettings {
     integers(runtime, "runtime", { timeoutMs: timeout, maxTurns: positive, graphConcurrency: positive, loopMaxIterations: positive });
     if (react !== undefined) integers(react, "runtime.react", { maxActionCalls: [0, Number.MAX_SAFE_INTEGER], maxTotalTokens: positive });
   }
-  const workers = v.workers === undefined ? {} : record(v.workers, "workers", ["infer", "memory", "retrieval", "context"]);
+  const workers = v.workers === undefined ? {} : record(v.workers, "workers", ["infer", "memory", "retrieval", "context", "interaction"]);
   if (workers.context !== undefined) {
-    const settings = record(workers.context, "workers.context", ["policy", "cache"]);
+    const settings = record(workers.context, "workers.context", ["policy", "cache", "localCache", "queue"]);
+    if (settings.localCache !== undefined) integers(settings.localCache, "workers.context.localCache", { ttlMs: timeout, maxEntries: positive });
+    if (settings.queue !== undefined) integers(settings.queue, "workers.context.queue", { maxPending: positive });
     if (settings.policy !== undefined) {
       const policy = record(settings.policy, "workers.context.policy", ["maxInlineBytes", "maxItems", "maxTokens", "duplicate", "missingRemoval"]);
       validatePolicy({ ...DEFAULT_CONTEXT_POLICY, ...policy });
@@ -93,6 +101,15 @@ export function validateRuntimeSettings(value: unknown): RuntimeSettings {
       integers(cache, "workers.context.cache", { ttlMs: timeout });
       if (keyPrefix !== undefined && (typeof keyPrefix !== "string" || keyPrefix.length === 0)) throw new Error("Invalid workers.context.cache.keyPrefix");
     }
+  }
+  if (workers.interaction !== undefined) {
+    const settings = record(workers.interaction, "workers.interaction", ["commands", "webSearch"]);
+    if (settings.commands !== undefined) integers(settings.commands, "workers.interaction.commands", {
+      maxEntries: [1, 10000], maxOutputBytes: [1, 1024 * 1024], maxErrorBytes: [1, 64 * 1024],
+    });
+    if (settings.webSearch !== undefined) integers(settings.webSearch, "workers.interaction.webSearch", {
+      timeoutMs: timeout, maxResponseBytes: [1, 16 * 1024 * 1024],
+    });
   }
   if (workers.retrieval !== undefined) {
     const { embedding, hybrid, rerank, ...retrieval } = record(workers.retrieval, "workers.retrieval", ["searchLimit", "embedding", "hybrid", "rerank"]);

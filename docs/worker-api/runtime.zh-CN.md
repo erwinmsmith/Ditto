@@ -184,3 +184,7 @@ app.registerRemote({ address: remoteAddress, capabilities: ["CONTEXT.LOAD"], tra
 HTTP handler 使用 `/ditto/invoke`；默认请求/响应上限 1 MiB，可用 maxBodyBytes 调整。服务端和调用端的 token 必须一致；跨机器生产部署使用 HTTPS。完整启动、地址交换、Graph 调用和关闭代码见 [placement.ts](../../examples/runtime/placement.ts)。`receive(envelope)` 是通信适配器的接收边界，校验目标身份与公开能力；应用业务调用应使用类型化的 invoke/run。
 
 Artifact 的 `InMemoryArtifactStore`、`PayloadCodec` 和可替换存储接口见[通信文档](../worker-communication.zh-CN.md#invokeemit-与-artifact)。现有 `runRagFlow/runSkillFlow/runToolCallFlow/runMcpFlow/runReactFlow` 的组合调用继续适用，见 [Interaction 使用 API](interaction.zh-CN.md)。
+
+## 内置 Worker 的取消传递
+
+本地执行时，Runtime signal 传递到 INFER 模型 Provider、MEMORY 数据库适配器、CONTEXT 服务、RETRIEVAL 流水线及 INTERACTION 的工具/MCP 客户端。SDK 适配器需要继续将 signal 交给支持取消的底层实现。取消不会撤销已完成的副作用。Graph/Loop 关闭仍等待已接收的任务收尾；Worker 内部的 ctx.invoke 可在收尾期间完成既有委托。网络与 IPC 传输目前只取消调用方等待，不提供远端任务取消协议。

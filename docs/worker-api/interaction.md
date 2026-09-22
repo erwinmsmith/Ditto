@@ -115,7 +115,7 @@ Each invocation calls `sandbox.run({ command, args })` once. A nonzero exit beco
 `web_search` accepts `{ query, limit? }`; query is a nonempty single line of at most 600 characters and 75 words, and limit defaults to 5 with a hard maximum of 20. The Tool normalizes at most the requested results to `title / url / snippet`, bounds titles to 256 characters and snippets to 2,048 characters, accepts only HTTP(S) URLs without embedded credentials, and emits each URL as a Reference.
 
 ```ts
-const provider = createBraveWebSearchProvider({ apiKey: process.env.BRAVE_SEARCH_API_KEY! });
+const provider = createBraveWebSearchProvider({ apiKey: process.env.DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY! });
 const webSearch = createWebSearchTool({ provider });
 const runtime = createDitto({
   sandbox: { tools: [webSearch.name], network: [provider.origin] },
@@ -203,11 +203,11 @@ type InteractionMcpOutput =
   | { operation: "discover"; capabilities: readonly McpCapability[] }
   | { operation: "invoke"; result: ExternalResult };
 interface McpClient {
-  listTools(params?: { cursor?: string }): Promise<{
+  listTools(params?: { cursor?: string }, options?: McpCallOptions): Promise<{
     tools: readonly { name: string; description?: string; inputSchema: JsonObject; outputSchema?: JsonObject }[];
     nextCursor?: string;
   }>;
-  callTool(params: { name: string; arguments: JsonObject }): Promise<McpToolResult>;
+  callTool(params: { name: string; arguments: JsonObject }, options?: McpCallOptions): Promise<McpToolResult>;
 }
 interface McpToolResult {
   content?: MessageContent; structuredContent?: JsonValue;
@@ -252,9 +252,9 @@ export async function mcpRegistryApis(client: McpClient, absoluteFilePath: strin
 ```ts
 export function mcpClientAdapter(client: McpClient): McpClient {
   return {
-    listTools: params => client.listTools(params),
-    async callTool(params) {
-      const result = await client.callTool(params);
+    listTools: (params, options) => client.listTools(params, options),
+    async callTool(params, options) {
+      const result = await client.callTool(params, options);
       return {
         ...(result.content === undefined ? {} : { content: result.content }),
         ...(result.structuredContent === undefined ? {} : { structuredContent: result.structuredContent }),
@@ -373,9 +373,9 @@ Public error.code is at most 64 characters using letters, digits, underscores, d
 | `tools / mcp / read / write / execute / network` | createDitto({ sandbox }) or explicitly loaded shared Sandbox env |
 | `SDK endpoint / token` | Application env and connection code, not Graph input |
 | `MCP discovery limits` | new McpRegistry({ maxDiscoveryPages, maxCapabilities }) |
-| `workers.interaction YAML` | Not supported by the current schema; do not add unsupported fields |
+| `workers.interaction YAML` | commands/webSearch behavior settings; explicitly pass config.interaction groups to factories |
 
-INTERACTION has no universal Node-level timeoutMs/signal option. Executors/applications own timeouts, cancellation, retries, and SDK cleanup. Stopping Runtime waiting does not imply stopping an external action. The Linux example explicitly injects SandboxExecutor; it is not a default Core capability. See the [Linux/macOS tool example](../../examples/interaction-tools.ts).
+Cancellation comes from Runtime call options through WorkerContext to tools/MCP/WebSearch providers, rather than from Node payload fields. Executors/applications own deadlines, retries and SDK cleanup. Stopping Runtime waiting does not imply stopping an external action. The Linux example explicitly injects SandboxExecutor; it is not a default Core capability. See the [Linux/macOS tool example](../../examples/interaction-tools.ts).
 
 ## 8. Lower-level composition
 
@@ -462,3 +462,21 @@ export async function toolToCachedContext(
 ```
 
 [Complete imports and source](examples/context.ts).
+
+## Provider cancellation and bounded web responses
+
+`WebSearchProvider.search(input, options?: WebSearchCallOptions)` accepts `{ signal?: AbortSignal }`; the tool supplies WorkerContext.signal. Brave's maxResponseBytes defaults to 1048576 and accepts 1–16777216. Streaming byte accounting stops oversized bodies and closes the stream before JSON parsing. timeoutMs defaults to 30000 and accepts 1–2147483647. Tool errors are sanitized: WEB_SEARCH_CANCELLED for cancellation, WEB_SEARCH_FAILED otherwise. Credentials and network permissions remain explicit.
+
+```ts
+import { createBraveWebSearchProvider, createReadOnlyCommandTools, createWebSearchTool } from "@ditto/core/worker/interaction";
+import { loadRuntimeConfigFile } from "@ditto/core";
+const config = loadRuntimeConfigFile("ditto.yaml", process.env);
+const provider = createBraveWebSearchProvider({
+  apiKey: process.env.DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY!,
+  ...config.interaction.webSearch,
+});
+const tools = [...createReadOnlyCommandTools(config.interaction.commands), createWebSearchTool({ provider })];
+// Pass tools to createInteractionWorker and explicitly configure Sandbox permissions/executor.
+```
+
+`McpClient.listTools(params?, options?: McpCallOptions)` and `callTool(params, options?: McpCallOptions)` accept signal; McpRegistry.execute accepts it as the third argument. Discovery checks cancellation around every page. When adapting the neutral port to the official MCP SDK, listTools takes options second, while callTool takes options third: `client.callTool(params, undefined, options)`; the second argument is the result schema. See the [real MCP example](../../scripts/check-interaction-mcp-live.mjs). Custom RegisteredTool implementations can forward context.signal to Sandbox.run or their SDK.

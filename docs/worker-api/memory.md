@@ -21,20 +21,20 @@ function startMemory(resources: MemoryResources) {
 }
 ```
 
-Supply resources from an application-owned adapter package. `MemoryOptions` contains `{ store, search?, defaults?, concurrency? }`; defaults are `{ queryLimit?, searchLimit? }`. `createMemory` exposes `execute(node, input)` and `get/query/search/write/update/delete(input)`, all returning the same NodeResult as Runtime invocation. `createMemoryWorker` registers all six nodes for Graphs, `ctx.invoke` and existing HTTP transport. Concurrency limits apply only to Runtime Worker entry calls; the standalone SDK does not schedule calls.
+Supply resources from an application-owned adapter package. `MemoryOptions` contains `{ store, search?, defaults?, concurrency? }`; defaults are `{ queryLimit?, searchLimit? }`. `createMemory` exposes `execute(node, input, options?)` and `get/query/search/write/update/delete(input, options?)`, all returning the same NodeResult as Runtime invocation. `createMemoryWorker` registers all six nodes for Graphs, `ctx.invoke` and existing HTTP transport. Concurrency limits apply only to Runtime Worker entry calls; the standalone SDK does not schedule calls.
 
 ## Replaceable plugin ports
 
 ```ts
 interface MemoryStore {
-  get(input: MemoryGetInput): Promise<MemoryGetOutput>;
-  query(input: MemoryQueryInput): Promise<MemoryQueryOutput>;
-  write(input: MemoryWriteInput): Promise<MemoryWriteOutput>;
-  update(input: MemoryUpdateInput): Promise<MemoryUpdateOutput>;
-  delete(input: MemoryDeleteInput): Promise<MemoryDeleteOutput>;
+  get(input: MemoryGetInput, options?: MemoryCallOptions): Promise<MemoryGetOutput>;
+  query(input: MemoryQueryInput, options?: MemoryCallOptions): Promise<MemoryQueryOutput>;
+  write(input: MemoryWriteInput, options?: MemoryCallOptions): Promise<MemoryWriteOutput>;
+  update(input: MemoryUpdateInput, options?: MemoryCallOptions): Promise<MemoryUpdateOutput>;
+  delete(input: MemoryDeleteInput, options?: MemoryCallOptions): Promise<MemoryDeleteOutput>;
 }
 interface MemorySearchProvider {
-  search(input: MemorySearchInput): Promise<MemorySearchOutput>;
+  search(input: MemorySearchInput, options?: MemoryCallOptions): Promise<MemorySearchOutput>;
 }
 interface MemoryResources {
   readonly store: MemoryStore & Partial<MemorySearchProvider>;
@@ -374,13 +374,13 @@ export function adaptDatabase(database: MemoryStore & Partial<MemorySearchProvid
   // These methods are the application's SDK adapter, not raw SQL/Milvus SDK methods.
   // Explicit calls retain the SDK adapter's receiver and connection pool.
   const store: MemoryStore = {
-    get: input => database.get(input),
-    query: input => database.query(input),
-    write: input => database.write(input),
-    update: input => database.update(input),
-    delete: input => database.delete(input),
+    get: (input, options) => database.get(input, options),
+    query: (input, options) => database.query(input, options),
+    write: (input, options) => database.write(input, options),
+    update: (input, options) => database.update(input, options),
+    delete: (input, options) => database.delete(input, options),
   };
-  const search = database.search ? { search: (input: Parameters<MemorySearchProvider["search"]>[0]) => database.search!(input) } : undefined;
+  const search = database.search ? { search: (input: Parameters<MemorySearchProvider["search"]>[0], options?: Parameters<MemorySearchProvider["search"]>[1]) => database.search!(input, options) } : undefined;
   return { store, ...(search ? { search } : {}) };
 }
 ```
@@ -430,3 +430,16 @@ export const customGet = memoryGetNode.define("MEMORY", async () => ({
 ```
 
 Runnable database integration examples: [examples/worker](../../examples/worker/README.md), including SDK installation, env settings, invocation and cleanup.
+
+## Cancellation and database SDKs
+
+get/query/search/write/update/delete accept optional `MemoryCallOptions` as the second argument: `{ signal?: AbortSignal, runtime?: Pick<RuntimeClient, "invoke"> }`. execute accepts MemoryDefaults & MemoryCallOptions as its third argument. The signal reaches the matching MemoryStore/MemorySearchProvider method's second argument. Adapters should forward it using their database SDK's supported cancellation mechanism; interruption is not guaranteed by every SDK.
+
+```ts
+const result = await memory.search({ query: "database", limit: 5 }, { signal: AbortSignal.timeout(5000) });
+if (result.status === "cancelled") console.log(result.error?.code); // MEMORY_CANCELLED
+```
+
+The direct SDK returns a cancelled NodeResult when it detects cancellation. Runtime invocation also enforces its own rejection semantics. Cancellation cannot roll back completed database writes and never triggers retries. Runtime Workers supply their signal and invocation-bound runtime; the MEMORY → RETRIEVAL bridge preserves both. Applications normally omit runtime. Database/embedding providers can still execute directly through their SDKs, delegating to RETRIEVAL only when separate execution is needed.
+
+For `RemoteRetrievalSearchProvider`, omit construction-time runtime inside a MEMORY Worker to inherit its invocation-bound Runtime. An explicit runtime always takes precedence; standalone SDK delegation requires it. Example: `new RemoteRetrievalSearchProvider({ target: { name: "memories" } })` for Worker-owned delegation.

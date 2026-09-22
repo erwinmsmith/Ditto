@@ -31,6 +31,9 @@
       ],
       "@ditto/core/worker/retrieval/adapters/memory": [
         "./src/worker/retrieval/adapters/memory.ts"
+      ],
+      "@ditto/core/worker/retrieval/adapters/context": [
+        "./src/worker/retrieval/adapters/context.ts"
       ]
     },
     "types": [
