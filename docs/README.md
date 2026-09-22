@@ -16,7 +16,10 @@ Start with the architecture and development guides, then follow the references f
 | Worker Communication | [Read](worker-communication.md) | [阅读](worker-communication.zh-CN.md) | Local and remote calls, HTTP deployment, lifecycle, events, and artifacts |
 | Interaction and Runtime Configuration | [Read](interaction-runtime.md) | [阅读](interaction-runtime.zh-CN.md) | Providers, models, credentials, tools, MCP, Skills, and Sandbox permissions |
 | Node Taxonomy and API Contract | [Read](13-node-api-contract.md) | [阅读](13-node-api-contract.zh-CN.md) | Final capability tree, common public types, 21 executable leaf Contracts, and Runtime predefined flows |
-| Node Coverage | [Read](node-coverage.md) | [阅读](node-coverage.zh-CN.md) | Six existing cases remapped to the final taxonomy with evidence boundaries |
+| Node Coverage | [Read](node-coverage.md) | [阅读](node-coverage.zh-CN.md) | Current 21 Core leaves, optional retrieval and practical call chains |
+| Worker composition / 组合 | [Read](worker-api/composition.md) | [阅读](worker-api/composition.zh-CN.md) | Node/Worker、resources/dispose、EventFabric、ArtifactStore、PayloadCodec |
+| Predefined flows / 预定义流程 | [Read](worker-api/flows.md) | [阅读](worker-api/flows.zh-CN.md) | RAG / Skill / Tool / MCP / ReAct |
+| Configuration / 配置 | [Read](worker-api/configuration.md) | [阅读](worker-api/configuration.zh-CN.md) | YAML/env、参数分组、优先级、显式加载 |
 
 The [environment variable template](../.env.example) uses bilingual comments.
 

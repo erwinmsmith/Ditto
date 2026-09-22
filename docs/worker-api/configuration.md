@@ -7,15 +7,17 @@ The root [`ditto.yaml`](../../ditto.yaml) contains versioned behavior defaults. 
 ```ts
 import { createDitto, createInfer, createInferWorker, loadRuntimeConfigFile } from "@ditto/core";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
-const runtime = createDitto({ config, workers: [createInferWorker()] });
-const infer = createInfer({ runtime });
 if (!config.model) throw new Error("Configure the default model in .env");
-const result = await infer.reasoning.trajectory({
-  model: config.model,
-  messages: [{ role: "user", content: "Compute 17 * 23. Return only the integer." }],
-  strategy: { name: "tot" }, // breadth, depth and beamWidth come from YAML
-});
-await runtime.close();
+const runtime = createDitto({ config, workers: [createInferWorker()] });
+try {
+  const infer = createInfer({ runtime });
+  const result = await infer.reasoning.trajectory({
+    model: config.model,
+    messages: [{ role: "user", content: "Compute 17 * 23. Return only the integer." }],
+    strategy: { name: "tot" }, // breadth, depth and beamWidth come from YAML
+  });
+  console.log(result);
+} finally { await runtime.close(); }
 ```
 
 ## Groups
@@ -65,9 +67,23 @@ loadRuntimeConfigFile(path = "ditto.yaml", env = process.env): RuntimeConfig
 loadRuntimeConfig(env = process.env, settings: RuntimeSettings = {}): RuntimeConfig
 ```
 
-The file loader reads UTF-8 YAML relative to the current working directory. The second loader takes an object without file access. Both loaders return a normalized immutable snapshot containing environment, workspace, model, providers, timeoutMs, maxTurns, graphConcurrency, loopMaxIterations, infer, context, interaction, memory, retrieval, react and sandbox. Workers access it through ctx.services.config and may receive independent services at registration. Reload and recreate the Runtime after editing YAML; there is no per-call file I/O or hot reload.
+The file loader reads UTF-8 YAML relative to the current working directory. The second loader takes an object without file access. Both loaders return a normalized immutable snapshot containing environment, workspace, model, providers, timeoutMs, maxTurns, graphConcurrency, loopMaxIterations, infer, context, interaction, memory, retrieval, react, sandbox and sandboxExecution. Workers access it through ctx.services.config and may receive independent services at registration. Reload and recreate the Runtime after editing YAML; there is no per-call file I/O or hot reload.
 
 Missing/empty files, non-object roots, unknown keys, duplicate keys, aliases and invalid values fail at startup. YAML does not interpolate environment variables or accept deployment fields such as apiKey/baseUrl. Provider options are request parameters, never a place for credentials. Custom createDitto({ providers }) skips HTTP provider construction from config.
+
+For embedded use without file or environment reads, the second argument accepts the same RuntimeSettings shape as YAML. Root YAML remains the recommended shared application configuration.
+
+```ts
+import { createDitto, loadRuntimeConfig } from "@ditto/core/runtime";
+
+const config = loadRuntimeConfig({}, {
+  runtime: { timeoutMs: 15_000, graphConcurrency: 2, loopMaxIterations: 4 },
+  workers: { memory: { queryLimit: 20, searchLimit: 5 } },
+});
+const runtime = createDitto({ config });
+try { console.log(runtime.services.config.graphConcurrency); }
+finally { await runtime.close(); }
+```
 
 ## YAML fields
 

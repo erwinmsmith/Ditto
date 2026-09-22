@@ -22,7 +22,7 @@ Local IPC / network HTTP are deployment modes. Separately, `invoke` means reques
 import { createDitto, createContextWorker, loadRuntimeConfigFile } from "@ditto/core";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 const runtime = createDitto({ config, hostId: "machine-a", processId: "agent" });
-const context = runtime.register(createContextWorker(), "context-a");
+const context = runtime.register(createContextWorker({ policy: config.context.policy ?? {} }), "context-a");
 try {
   console.log(runtime.workers());
   console.log(await runtime.invoke("CONTEXT.LOAD", {
@@ -221,3 +221,5 @@ console.log(result); // { stdout: "$(uname) stays literal", stderr: "", exitCode
 Inject with `createDitto({ config, sandbox: { execute: true }, sandboxExecutor: executor })`, or provide independent executors per Worker using createRuntimeServices. Container/remote adapters implement `SandboxExecutor.run(command, { workspace, signal? })` without changing Graphs/Tools.
 
 This is a cooperative capability boundary. Local commands and their descendants have no OS-level filesystem/network isolation; executable allowlists do not constrain files accessible through arguments. Terminating the direct child does not guarantee termination of its entire process tree. Untrusted code needs an external OS/container isolation executor. See the runnable [Linux/macOS tool composition](../../examples/interaction-tools.ts).
+
+See [composition](composition.md) for custom nodes/Workers, resources, events and Artifacts; see [flows](flows.md) for predefined compositions.

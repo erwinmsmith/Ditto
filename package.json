@@ -85,7 +85,10 @@
     "example:worker:milvus": "npm run build && node --env-file-if-exists=.env examples/worker/memory-milvus.ts",
     "example:runtime": "npm run build && node examples/runtime/graph-loop.ts",
     "example:runtime:placement": "npm run build && node examples/runtime/placement.ts",
-    "example:worker:context-retrieval": "npm run build && node examples/worker/context-retrieval.ts"
+    "example:worker:context-retrieval": "npm run build && node examples/worker/context-retrieval.ts",
+    "example:runtime:quickstart": "npm run build && node examples/runtime/quickstart.ts",
+    "example:runtime:api": "npm run build && node examples/runtime/api.ts",
+    "example:runtime:flows": "npm run build && node examples/runtime/flows.ts"
   },
   "engines": {
     "node": ">=24.0.0",

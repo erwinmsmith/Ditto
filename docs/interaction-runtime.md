@@ -17,7 +17,7 @@ Provider adapters live in `src/worker/infer/providers/`. Runtime and INFER share
 - `INTERACTION.OBSERVE` normalizes returned environment information.
 - `INTERACTION.OUTPUT` submits the final task result.
 
-There is no `INTERACTION.COMMUNICATE`. Application input is supplied at the application/Runtime boundary. Worker-to-Worker `invoke` and `emit` are Runtime communication primitives, not Interaction Nodes.
+Application input is supplied at the application/Runtime boundary. Worker-to-Worker `invoke` and `emit` are Runtime communication primitives, not Interaction Nodes.
 
 `INTERACTION.ACT.TOOL` remains one routable Node, while its implementation is a directory:
 
@@ -25,6 +25,8 @@ There is no `INTERACTION.COMMUNICATE`. Application input is supplied at the appl
 src/worker/interaction/act/tool/
 ├── node.ts
 ├── registry.ts
+├── read-only-commands.ts
+├── web-search.ts
 └── index.ts
 ```
 
@@ -39,7 +41,7 @@ tools.register({
   validate: (args) => {
     if (typeof args.path !== "string") throw new Error("path must be a string");
   },
-  execute: async (args, context) => ({ status: "success", content: await context.services.sandbox.readText(args.path as string) }),
+  execute: async (args, context) => ({ status: "success", content: await context.services.sandbox.readText(args.path as string, context.signal) }),
 });
 ```
 
@@ -91,7 +93,7 @@ Run the complete [command and tool composition example](../examples/interaction-
 
 ## Four Predefined Flows
 
-The public functions live directly in `src/runtime/graph.ts` and are exported from `@ditto/core/runtime`. They are reusable Runtime compositions, not Node Types. There is no `src/presets` package.
+The public functions live directly in `src/runtime/graph.ts` and are exported from `@ditto/core/runtime`. They are reusable Runtime compositions, not Node Types.
 
 | Function | Fixed flow |
 | --- | --- |
@@ -125,7 +127,7 @@ Applications resolve Skill content and pass sources to runSkillFlow, which invok
 
 ## Sandbox and Deployment
 
-File, command, tool, MCP, Skill, and network access remain deny-by-default. The Sandbox is a cooperative permission service; untrusted implementations must run in an OS process or container with appropriate isolation.
+Sandbox file, command, tool, MCP and network permissions default to deny. The skills category requires an explicit application assert; runSkillFlow does not check permissions or execute Skills. The Sandbox is a cooperative permission service; untrusted implementations must run in an OS process or container with appropriate isolation.
 
 Graph definitions and Node Contracts do not contain provider keys, host addresses, or Worker IDs. Runtime routing therefore allows the same Graph to move from local execution to remote Workers without changing its semantic Node calls.
 
@@ -133,24 +135,21 @@ Graph definitions and Node Contracts do not contain provider keys, host addresse
 
 ReAct lives in src/runtime/react.ts as a predefined Graph execution flow: SAMPLE → declared actions → observation feedback → next SAMPLE. It is neither an INFER Node nor a TRAJECTORY strategy. Runtime owns loop state, budgets and cross-Worker scheduling; SAMPLE owns model computation.
 
+Configure model bindings, allowed network origins, read and read_text permissions in .env, then load it with Node --env-file=.env. The relative import below assumes a file inside docs/; adjust it for another location. The tool reads a real workspace file.
+
 ```ts
-import { runReactFlow, createInferWorker, defineWorker, observeExternalResult } from "@ditto/core";
-runtime.register(createInferWorker());
-runtime.register(defineWorker({ type: "INTERACTION", nodes: {
-  "INTERACTION.ACT.TOOL": async ({ call }) => ({
-    callId: call.id, source: `tool:${call.name}`, status: "success", content: { found: true },
-  }),
-  "INTERACTION.OBSERVE": async ({ result }) => observeExternalResult({ result }),
-} }));
-const result = await runReactFlow(runtime, {
-  model: { provider: "primary", model: "your-model-id" },
-  messages: [{ role: "user", content: "Search and answer." }],
-  actions: [{ name: "search", inputSchema: {
-    type: "object", properties: { query: { type: "string" } }, required: ["query"],
-  } }],
-  constraints: { maxSteps: 8, maxActionCalls: 4, maxTotalTokens: 16_000 },
-}, { graphId: "search-agent", timeoutMs: 20_000 });
-console.log(result.status, result.result, result.observations);
+import { createDitto, createInferWorker, createInteractionWorker, loadRuntimeConfigFile } from "@ditto/core";
+import { readTextTool, reactFlow } from "../examples/runtime/flows.ts";
+
+const config = loadRuntimeConfigFile("ditto.yaml", process.env);
+if (!config.model) throw new Error("Configure DITTO_WORKER_INFER_MODEL_PROVIDER and DITTO_WORKER_INFER_MODEL");
+const runtime = createDitto({
+  config,
+  workers: [createInferWorker(), createInteractionWorker({ tools: [readTextTool] })],
+});
+try {
+  console.log(await reactFlow(runtime, config.model));
+} finally { await runtime.close(); }
 ```
 
 ```ts
@@ -186,14 +185,16 @@ ReactFlowInput inherits SAMPLE model/messages/generation/actions/metadata. Upstr
 | maxActionCalls | Runtime config.react.maxActionCalls, fallback 16, nonnegative; zero preserves requests without executing actions |
 | maxTotalTokens | Runtime config.react.maxTotalTokens, otherwise unlimited; accumulated usage limits subsequent sampling, not a hard per-request billing cap |
 | timeoutMs | Minimum of constraints and options/Runtime config.timeoutMs; library fallback 30 seconds, root YAML 120 seconds |
-| signal | Stops waiting/scheduling; already dispatched remote work may continue |
+| signal | Passes cooperative cancellation to local model/actions and stops scheduling; remote work may continue |
 
 Caller-owned `ActionDescriptor.target` selects a direct tool, an MCP server/tool pair, or a public Node. Missing targets default to direct TOOL. Runtime fixes MCP operation to `invoke`; model arguments cannot select a server or route. TOOL/MCP results pass through OBSERVE before SAMPLE feedback. Actions execute sequentially. A structured `failed` result reaches the next SAMPLE; `cancelled`, `timeout`, and `unknown` stop new actions. Infrastructure exceptions stop the flow without inventing an observation. Core never automatically retries an operation that may affect an external system.
 
 Completion returns completed. Budget/timeout/error stops return partial when a SAMPLE exists, otherwise failed. actionRequests contains unresolved requests. A timed-out action remains pending because its outcome is unknown; this does not mean the action had no external impact. Successful observations feed the next tool message, preserving vendor metadata. No new actions start if the model step budget cannot consume their observations.
 
-Missing usage produces USAGE_UNAVAILABLE. Duplicate action IDs, undeclared actions and invalid model outputs stop the flow. Runtime has no cross-Worker cancellation protocol; deadlines stop local waiting and scheduling only. Planning belongs in an upstream SAMPLE Graph step, with its plan supplied to this flow; there is no duplicate plan-and-act strategy.
+Missing usage produces USAGE_UNAVAILABLE. Duplicate action IDs, undeclared actions and invalid model outputs stop the flow. Local deadlines/signals reach model and action handlers; cross-process invocations have no remote cancellation protocol. Planning belongs in an upstream SAMPLE Graph step, with its plan supplied to this flow.
 
 Shared generation and budget defaults: [configuration API](worker-api/configuration.md).
 
 Use MEMORY.SEARCH for durable recall; the Graph checks NodeResult and maps results to CONTEXT.UPDATE. See [MEMORY API](worker-api/memory.md).
+
+See the [predefined flow API](worker-api/flows.md) for input fields, return values and each flow’s call examples.

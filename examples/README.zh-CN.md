@@ -10,6 +10,7 @@
 | --- | --- | --- | --- |
 | [graph-loop-worker.ts](graph-loop-worker.ts) | 用 Graph 编排读取、观察、输出；用 Loop 处理两个文件；在 Worker 内定义文件统计工具 | `npm run example:agent` | Node 24+、npm 11+；无需模型、数据库或 MCP |
 | [interaction-tools.ts](interaction-tools.ts) | 注册可选只读命令和一个底层命令示例，再把命令输出与 SHA-256 工具组合 | `npm run example:tools` | 同上；Linux 或 macOS，系统提供 grep / uname / printf |
+| [runtime/quickstart.ts](runtime/quickstart.ts)、[api.ts](runtime/api.ts)、[flows.ts](runtime/flows.ts) | 入门与公共 API：自定义节点、生命周期、事件/Artifact、预定义流程 | `npm run example:runtime:quickstart` / `example:runtime:api` / `example:runtime:flows` | 本地入口无需外部服务；MCP/ReAct 函数需注入服务 |
 | [runtime/](runtime/README.zh-CN.md) | 多 Graph Loop、独立 Worker Sandbox、同机 IPC 与跨机 HTTP | `npm run example:runtime` / `npm run example:runtime:placement` | 无额外 SDK 或服务 |
 | [worker/](worker/README.zh-CN.md) | CONTEXT 接 Redis；MEMORY 接 SQLite/PostgreSQL/MySQL/Milvus | 见子目录运行命令 | 按需安装 SDK、配置数据库 |
 

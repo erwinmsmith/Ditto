@@ -7,14 +7,17 @@
 ```ts
 import { createDitto, createInfer, createInferWorker, loadRuntimeConfigFile } from "@ditto/core";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
+if (!config.model) throw new Error("Configure the default model in .env");
 const runtime = createDitto({ config, workers: [createInferWorker()] });
-const infer = createInfer({ runtime });
-const result = await infer.reasoning.trajectory({
-  model: { provider: config.model!.provider, model: config.model!.model },
-  messages: [{ role: "user", content: "计算 17 × 23，只返回整数。" }],
-  strategy: { name: "tot" }, // 使用 YAML 中的 breadth / depth / beamWidth
-});
-await runtime.close();
+try {
+  const infer = createInfer({ runtime });
+  const result = await infer.reasoning.trajectory({
+    model: { provider: config.model!.provider, model: config.model!.model },
+    messages: [{ role: "user", content: "计算 17 × 23，只返回整数。" }],
+    strategy: { name: "tot" }, // 使用 YAML 中的 breadth / depth / beamWidth
+  });
+  console.log(result);
+} finally { await runtime.close(); }
 ```
 
 ## 分组结构
@@ -68,9 +71,23 @@ loadRuntimeConfigFile(path = "ditto.yaml", env = process.env): RuntimeConfig
 loadRuntimeConfig(env = process.env, settings: RuntimeSettings = {}): RuntimeConfig
 ```
 
-第一个接口读取 UTF-8 YAML；相对路径基于当前工作目录。第二个是纯配置解析，供测试、嵌入式应用传对象使用，不访问文件。加载后返回不可变配置快照，包含 `environment/workspace/model/providers/timeoutMs/maxTurns/graphConcurrency/loopMaxIterations/infer/context/memory/retrieval/react/sandbox`。配置只读取一次；修改 YAML 后需重新加载并创建 Runtime。Worker 通过 `ctx.services.config` 访问所属 services 的配置快照。
+第一个接口读取 UTF-8 YAML；相对路径基于当前工作目录。第二个是纯配置解析，供测试、嵌入式应用传对象使用，不访问文件。加载后返回不可变配置快照，包含 `environment/workspace/model/providers/timeoutMs/maxTurns/graphConcurrency/loopMaxIterations/infer/context/interaction/memory/retrieval/react/sandbox/sandboxExecution`。配置只读取一次；修改 YAML 后需重新加载并创建 Runtime。Worker 通过 `ctx.services.config` 访问所属 services 的配置快照。
 
 缺失文件、空文件、非对象、未知字段、重复键、YAML alias、非法数字在启动时抛错，不静默退回默认值。只使用标准 YAML 数据结构，不使用自定义 tag 或 merge key。显式自定义 `providers` Registry 时，Runtime 不再从配置构建 HTTP Provider。
+
+不读取 YAML 或环境变量的嵌入式调用：第二个参数使用与 YAML 相同的 RuntimeSettings 结构；实际应用仍推荐根目录统一 YAML。
+
+```ts
+import { createDitto, loadRuntimeConfig } from "@ditto/core/runtime";
+
+const config = loadRuntimeConfig({}, {
+  runtime: { timeoutMs: 15_000, graphConcurrency: 2, loopMaxIterations: 4 },
+  workers: { memory: { queryLimit: 20, searchLimit: 5 } },
+});
+const runtime = createDitto({ config });
+try { console.log(runtime.services.config.graphConcurrency); }
+finally { await runtime.close(); }
+```
 
 ## YAML 字段
 

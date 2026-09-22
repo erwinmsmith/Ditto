@@ -41,7 +41,7 @@ flowchart TB
 
 A Node represents an execution operation. Shared typed Node definitions live in `worker/node.ts`; operation contracts belong to their capability's `contracts.ts`. `createInteractionNodes` returns configured ACT.TOOL/ACT.MCP/OUTPUT handlers and OBSERVE. Graph construction, scheduling, and the four standard flow functions share `runtime/graph.ts`; repetition lives in `runtime/loop.ts`; registration and lifecycle share `runtime/runtime.ts`.
 
-Memory and Context expose typed contracts while applications supply storage and retrieval strategies. Infer owns reasoning and replaceable Provider adapters. Interaction owns Tool/MCP execution, observation, and final output. Applications compose those capabilities into Graphs and Loops; no Worker owns a built-in Agent loop.
+Memory and Context provide executable nodes and typed contracts. Applications inject databases; Context includes default selection/compression and replaceable caches, with optional external retrieval services. Infer owns reasoning and replaceable Provider adapters. Interaction owns Tool/MCP execution, observation, and final output. Applications compose those capabilities into Graphs and Loops; no Worker owns a built-in Agent loop.
 
 ## What Belongs in contracts
 
@@ -100,7 +100,7 @@ Routing filters public capabilities, availability, and local concurrency capacit
 - `await handle.close()`: stop routing, await accepted calls on that replica, and release resources once.
 - `await runtime.close()`: reject new calls, drain accepted graphs/loops/calls and event handlers, then close owned Workers. Cleanup failures are returned as an AggregateError.
 
-Handlers must await work they start. Closing a Runtime may reject Graph descendants that have not started or new cross-Worker requests, so applications should stop accepting requests and await top-level work before closing it. A handler must not await its own handle.close: that would wait for the handler itself. Applications own EventFabric, external Provider/MCP clients, and HTTP Server lifecycles.
+Handlers must await work they start. Runtime.close rejects new top-level work but drains accepted Graphs/Loops and their subsequent internal calls before disposing Workers. Stop application ingress before closing. A handler must not await its own handle.close: that would wait for the handler itself. Applications own EventFabric, external Provider/MCP clients, and HTTP Server lifecycles.
 
 ## Contracts and the Final Node Taxonomy
 
@@ -110,7 +110,7 @@ Custom capabilities still use declaration merging without hard-coding a Node enu
 
 Provider adaptation remains flat under `worker/infer/providers/`, not in Node names or Graph input. Core depends only on `ModelProvider.invoke(SampleInput, { signal })` and optional `stream`. Credentials, base URLs, model selection, timeouts, and optional vendor SDKs remain Runtime configuration or adapter concerns.
 
-Four directly callable standard flows live in `runtime/graph.ts`: RAG, Skill, MCP, and Tool Call. They invoke existing leaf Nodes and route results into `CONTEXT.UPDATE`; they do not extend `NodeContractMap`.
+Four directly callable standard flows live in `runtime/graph.ts`: RAG, Skill, MCP, and Tool Call. Tool/MCP invoke pass observations to UPDATE; Skill optionally merges, RAG only SELECTs, and MCP discovery leaves Context unchanged. They do not extend NodeContractMap.
 
 Use `resources: () => ({ ... })` so each registration creates its own resources. Factory semantics prevent accidentally sharing mutable state through a resource object. Graphs continue to use `.node(id, type, dependencies, bind)` for explicit input mapping, rather than passing raw retrieval results into a reasoning Node that expects messages.
 

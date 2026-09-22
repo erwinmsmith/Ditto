@@ -22,7 +22,7 @@ Runtime 先筛选公开能力、可用状态、并发容量，然后优先同进
 import { createDitto, createContextWorker, loadRuntimeConfigFile } from "@ditto/core";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 const runtime = createDitto({ config, hostId: "machine-a", processId: "agent" });
-const context = runtime.register(createContextWorker(), "context-a");
+const context = runtime.register(createContextWorker({ policy: config.context.policy ?? {} }), "context-a");
 try {
   console.log(runtime.workers()); // address, capabilities, available, active, concurrency
   const output = await runtime.invoke("CONTEXT.LOAD", {
@@ -229,3 +229,5 @@ console.log(result); // { stdout: "$(uname) stays literal", stderr: "", exitCode
 Runtime 可使用 `createDitto({ config, sandbox: { execute: true }, sandboxExecutor: executor })`；每 Worker 也可通过 createRuntimeServices 注入不同执行器。容器/远端适配器继续实现 `SandboxExecutor.run(command, { workspace, signal? })`，无需改变 Graph/Tool。
 
 这是协作式能力边界；本地进程及其衍生进程不受 OS 文件/网络隔离，命令白名单也不限制命令参数可访问的文件。终止直接子进程不承诺终止它产生的整个进程树。不可信代码需由外部 OS/容器执行器提供真正隔离。可运行的 Linux/macOS 工具组合见 [interaction-tools.ts](../../examples/interaction-tools.ts)。
+
+自定义 Worker/节点、资源生命周期、事件和 Artifact 详见 [组合 API](composition.zh-CN.md)；预定义流程详见 [流程 API](flows.zh-CN.md)。

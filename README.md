@@ -156,3 +156,5 @@ Use [GitHub Issues](https://github.com/erwinmsmith/Ditto/issues) for concrete us
 Behavior defaults live in root [`ditto.yaml`](ditto.yaml); credentials and deployment bindings use [`.env.example`](.env.example). All Workers share Runtime services; see the [configuration API](docs/worker-api/configuration.md). See the [INFER example guide](examples/README.md#infer) for setup and commands.
 
 See the [MEMORY API](docs/worker-api/memory.md) for plugin wiring, six node contracts and configuration.
+
+More public APIs and examples: [Worker composition / events / Artifacts](docs/worker-api/composition.md), [predefined flows](docs/worker-api/flows.md), and the [local quickstart](examples/runtime/quickstart.ts).

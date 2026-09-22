@@ -10,6 +10,7 @@ This directory contains complete executable flows. Start with `graph-loop-worker
 | --- | --- | --- | --- |
 | [graph-loop-worker.ts](graph-loop-worker.ts) | Compose file inspection, observation, and output in a Graph; iterate over two files with a Loop; implement the tool inside a Worker | `npm run example:agent` | Node 24+, npm 11+; no model, database, or MCP setup |
 | [interaction-tools.ts](interaction-tools.ts) | Register the optional read-only commands plus a low-level command example, then compose command output with SHA-256 | `npm run example:tools` | Same runtime; Linux or macOS with grep / uname / printf |
+| [runtime/quickstart.ts](runtime/quickstart.ts), [api.ts](runtime/api.ts), [flows.ts](runtime/flows.ts) | Starter and public APIs: custom nodes, lifecycle, events/artifacts and flows | `npm run example:runtime:quickstart` / `example:runtime:api` / `example:runtime:flows` | Local entrypoints need no external service; MCP/ReAct functions need injected services |
 | [runtime/](runtime/README.md) | Multiple graphs, independent Worker sandboxes, local IPC and cross-host HTTP | `npm run example:runtime` / `npm run example:runtime:placement` | No additional SDK or service |
 | [worker/](worker/README.md) | CONTEXT with Redis; MEMORY with SQLite/PostgreSQL/MySQL/Milvus | See subfolder commands | Optional SDKs and database connections |
 

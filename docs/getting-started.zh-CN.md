@@ -2,90 +2,97 @@
 
 [English](getting-started.md) · **简体中文**
 
-## 环境与检查
+## 安装与第一次运行
 
-使用 Node.js 24+、npm 11+，`.nvmrc` 固定主版本 24。项目的第三方运行时依赖仅有 `yaml` 解析器；TypeScript 与 Node 类型仅用于开发。
+要求 Node.js 24+、npm 11+，`.nvmrc` 指定 Node 24。在仓库根目录执行：
 
 ```bash
 nvm use
 npm ci
+npm run example:runtime:quickstart
 npm run check
 ```
 
-`check` 执行严格类型检查、行为测试和构建，CI 执行相同检查。`dist/` 是公开包的编译输出，包目前 private，未发布至 npm。
-
-## 配置与后续示例
-
-复制 `.env.example` 为 `.env`，按 [Agent 与运行配置](interaction-runtime.zh-CN.md) 设置 Provider、模型、Key 和权限。库本身不会隐式加载环境文件；由应用启动代码显式加载并调用 `loadRuntimeConfigFile("ditto.yaml", process.env)`。
-
-完整的 [Graph + Loop + Worker 示例](../examples/graph-loop-worker.ts)通过包入口运行，执行 `npm run example:agent` 即可。示例读取本地文件并输出观察结果，无需模型或数据库配置。包目前尚未发布。
-
-公开入口：`@ditto/core`、`contracts`、`worker`、`worker/node`、`worker/memory`、`worker/context`、`worker/infer`、`worker/infer/providers`、`worker/interaction`、`runtime`、`runtime/sandbox`。不保留顶层 `node` / `agent` / `providers` / `presets` / `sandbox` 旧入口；根入口仍提供通用导出，包括四个 Runtime 流程函数。
-
-内置或已声明扩展的命名空间可用短操作名初始化：
+`npm ci` 的 prepare 构建 dist；示例命令也会先构建。check 执行严格类型检查、构建和行为测试。首次示例只执行本地 Context，不需要 `.env`、模型密钥、Redis 或数据库。完整代码为 [quickstart.ts](../examples/runtime/quickstart.ts)：
 
 ```ts
-import { extendWorker } from "@ditto/core/worker";
-const memory = extendWorker("MEMORY", {
-  nodes: { RETRIEVE: async (_input) => [] },
-});
+import assert from "node:assert/strict";
+import { createDitto, graph, loadRuntimeConfigFile } from "@ditto/core/runtime";
+import { createContextWorker } from "@ditto/core/worker/context";
 ```
-
-此处空结果仅演示契约；实际检索逻辑与数据库连接由 Memory Worker 的资源和 handler 提供。`extendWorker` 创建新定义，不自动补齐其余操作，也不修改已部署 Worker。
-
-## 创建 Node 与 Worker 副本
-
-`defineNode(workerType, nodeType, handler)` 创建不可变的 `{ workerType, type, execute }` 定义，第一个参数必填。例如 `defineNode("MEMORY", "MEMORY.GET", handler)` 声明该 Node 归属 MEMORY Worker 类型。将它挂到其他类型的 Worker，会在定义阶段、创建资源之前报错。原有两个参数的写法不再支持。
-
-直接写在 `Worker.nodes` 中的函数会自动绑定当前 Worker。Node 的语义名称与所属 Worker 的部署角色仍然独立：自定义的 `assistant` Worker 可以显式拥有一个 REASONING Node。归属必须匹配实际挂载它的 Worker，不要求匹配 Node 名称的前缀。
-
-创建 Worker 分为两步：
-
-1. `defineWorker({ type, nodes, ... })`，或使用短操作名的 `extendWorker(type, { nodes, ... })`，创建 Worker 定义。定义必须至少包含一个已实现 Node，并公开至少一个已实现入口。
-2. `runtime.register(worker)` 创建副本及其资源；再次注册得到独立副本，使用返回 handle 的 `close()` 等待执行收尾并释放资源。
-
-定义 Node 或 Worker 不会自动注册。Runtime 执行始终经过已注册 Worker，内部 Graph 也绑定当前 Worker；没有独立注册 Node 的入口。归属以 Worker 类型为单位，同类型的多个副本可以使用同一份不可变定义。这是 API 组合约束，不是对直接调用 JavaScript 函数的操作系统隔离。
-
-新增语义 Node 时，在 NodeContractMap 声明输入输出并提供 handler。下面创建一个自定义 Worker，包含新的 SEARCH.QUERY Node：
-
-## 自定义 Worker 和 Node
-
 ```ts
-import { createDitto, defineWorker, defineNode, type NodeContract } from "@ditto/core";
-
-declare module "@ditto/core/contracts" {
-  interface NodeContractMap {
-    "SEARCH.QUERY": NodeContract<{ query: string }, readonly { title: string }[]>;
-  }
-}
-
-const search = defineWorker({
-  type: "research-assistant",
-  concurrency: 4,
-  expose: ["SEARCH.QUERY"],
-  resources: () => ({ queries: 0 }),
-  nodes: {
-    "SEARCH.QUERY": defineNode<"SEARCH.QUERY", { queries: number }>(
-      "research-assistant", "SEARCH.QUERY",
-      async (input, ctx) => {
-        ctx.resources.queries++;
-        return [{ title: input.query }];
-      },
-    ),
-  },
-});
-
-const runtime = createDitto({ workers: [search] });
-try {
-  runtime.register(search); // 新副本、新资源
-  console.log(await runtime.invoke("SEARCH.QUERY", { query: "hello" }));
-} finally {
-  await runtime.close();
+export async function quickstart() {
+  const config = loadRuntimeConfigFile("ditto.yaml", {});
+  const runtime = createDitto({ config, workers: [createContextWorker({ policy: config.context.policy ?? {} })] });
+  const plan = graph<string>("first-context")
+    .node("loaded", "CONTEXT.LOAD", [], text => ({ sources: [{ role: "user", content: text }] }))
+    .node("selected", "CONTEXT.SELECT", ["loaded"], (_input, { loaded }) => ({
+      context: loaded, purpose: "infer", limit: 1,
+    }));
+  try {
+    const output = await runtime.run(plan, "Hello Ditto", { concurrency: 2 });
+    assert.equal(output.selected.context.items[0]?.content, "Hello Ditto");
+    return output.selected;
+  } finally { await runtime.close(); }
 }
 ```
 
-增加 Node 通过声明合并和 handler 完成；更换模型通过 Provider/模型配置完成。不要在固定业务输入里添加 Key、host、transport 或 sandbox 字段。
+返回 ContextSelection，包含 purpose、context、selectedItemIds。SELECT 不直接返回 messages；接模型时按 [Context API](worker-api/context.zh-CN.md) 映射。这个调用使用显式 Context；缓存模式需要注入 Redis 或其他 ContextStateStore 并使用 scope。
 
-组合 Worker 内部 Graph 使用 `ctx.run`；跨 Worker 调用使用 `ctx.invoke`。两者的示例和语义见 [架构](architecture.zh-CN.md)。
+## 外部项目引用
 
-行为参数统一放根目录 `ditto.yaml`；配置字段与覆盖顺序见 [统一配置 API](worker-api/configuration.zh-CN.md)。
+包名 `@ditto/core`，当前 private，未发布 npm。在已经初始化 package.json 的应用目录使用本地依赖：
+
+```bash
+npm install /absolute/path/to/Ditto
+```
+
+先在 Ditto 仓库运行 npm ci/build。应用采用 ESM（package.json 设置 type=module）；TypeScript 可用 module/moduleResolution=NodeNext，target=ES2024。只从以下公开入口导入，不引用 src/dist 内部路径。业务自定义 Node 通过 [NodeContractMap 声明合并](worker-api/composition.zh-CN.md) 获得调用类型。
+
+## 公开包入口
+
+| Import | API |
+| --- | --- |
+| `@ditto/core` | Core Runtime + Worker factories + contracts + Sandbox |
+| `@ditto/core/contracts` | NodeContract / NodeContractMap / InputOf / OutputOf / shared types |
+| `@ditto/core/worker` | defineWorker / extendWorker / defineNode / createNodeScaffold / core factories |
+| `@ditto/core/worker/node` | defineNode / NodeHandler / WorkerContext / RuntimeClient |
+| `@ditto/core/runtime` | createDitto / graph / loop / flows / config / services / transports / events / artifacts |
+| `@ditto/core/runtime/sandbox` | Sandbox / PermissionDeniedError / createLocalSandboxExecutor |
+| `@ditto/core/worker/context` | CONTEXT SDK / factory / stores / strategies / resolver |
+| `@ditto/core/worker/infer` | INFER SDK / factory / reasoning / cache / providers |
+| `@ditto/core/worker/infer/providers` | ModelProvider / ProviderRegistry / HTTP adapters |
+| `@ditto/core/worker/memory` | MEMORY SDK / factory / store and search interfaces |
+| `@ditto/core/worker/interaction` | Factory / tool and MCP registries / handlers / command and web tools |
+| `@ditto/core/worker/retrieval` | Optional RETRIEVAL SDK / factory / embedding / retrieval providers |
+| `@ditto/core/worker/retrieval/adapters/memory` | MEMORY ↔ RETRIEVAL adapters |
+| `@ditto/core/worker/retrieval/adapters/context` | CONTEXT RAG ↔ RETRIEVAL adapters |
+
+根入口不会自动导入可选 RETRIEVAL 实现。显式导入子路径后，仍需配置 Provider 并注册 Worker 才能执行；定义、类型声明和注册是不同步骤。
+
+## 配置与接入顺序
+
+1. 定义 Graph 的语义节点、依赖和 bind；需要重复执行时用 Loop 指定状态更新和停止条件。
+2. 选择 Worker 实现：模型 Provider、MemoryStore/search、ContextStateStore、Tool/MCP/OutputSink。
+3. 显式读取根目录 ditto.yaml 的行为参数和环境变量，创建 Runtime services，注册 Worker。
+4. 调用 invoke、run 或 loop；检查对应结果类型，使用 finally 关闭 Runtime 和应用拥有的 SDK。
+
+`createDitto()` 默认不读取 process.env 或 YAML。`loadRuntimeConfigFile("ditto.yaml", process.env)` 读取 YAML 和传入环境；Node `--env-file=.env` 或应用 loader 才负责读取 .env。只在需要外部连接时复制 .env.example 并填写；统一参数与分组见 [configuration](worker-api/configuration.zh-CN.md)。Worker 专项配置需按文档显式传入工厂，示例中的 Context policy 就是如此。
+
+根入口还导出 `NODE_API_VERSION`（当前为 `2.0-rc.1`），可用于日志中的契约版本标识；它不执行协议协商。`Infer` 是仅类型命名空间，运行时工厂仍使用 createInfer/createInferWorker。
+
+```ts
+import { NODE_API_VERSION } from "@ditto/core";
+console.log(NODE_API_VERSION);
+```
+
+## 下一步
+
+| 用途 | 文档与可运行调用 |
+| --- | --- |
+| 多轮 Agent，真实工具与输出 | [Graph + Loop + Worker](../examples/graph-loop-worker.ts)：`npm run example:agent` |
+| 自定义节点、私有 Graph、副本资源、事件、Artifact | [组合 API](worker-api/composition.zh-CN.md)：`npm run example:runtime:api` |
+| RAG / Skill / Tool / MCP / ReAct | [流程 API](worker-api/flows.zh-CN.md)：`npm run example:runtime:flows` |
+| Graph/Loop、独立 Sandbox、同机/跨机通信 | [Runtime](worker-api/runtime.zh-CN.md)：`npm run example:runtime:placement` |
+| Context Redis、Memory SQL/Milvus、独立 Retrieval | [数据库示例](../examples/worker/README.zh-CN.md) |
+| 全部 Worker、Provider 和具体 API | [API 索引](worker-api/README.zh-CN.md) |
