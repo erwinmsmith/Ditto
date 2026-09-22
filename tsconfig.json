@@ -35,7 +35,8 @@
     },
     "types": [
       "node"
-    ]
+    ],
+    "rewriteRelativeImportExtensions": true
   },
   "include": [
     "src/**/*.ts",

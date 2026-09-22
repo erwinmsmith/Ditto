@@ -411,3 +411,5 @@ export function remoteContextRetrieval(runtime: import("@ditto/core").RuntimeCli
   } }, target);
 }
 ```
+
+Runnable database integration examples: [examples/worker](../../examples/worker/README.md), including SDK installation, env settings, invocation and cleanup.

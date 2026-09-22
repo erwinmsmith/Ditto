@@ -143,3 +143,5 @@ For a complete executable local flow use `npm run example:agent` or `npm run exa
 | [`contextToMemory`](context.ts) | 写入长期 MEMORY。 |
 | [`toolToCachedContext`](context.ts) | 工具观察写入缓存。 |
 | [`remoteContextRetrieval`](context.ts) | 委托独立 RETRIEVAL。 |
+
+真实数据库接入的完整入口见 [examples/worker](../../../examples/worker/README.zh-CN.md)：CONTEXT + Redis、MEMORY + SQL / Milvus；本目录保留逐 API 函数示例。
