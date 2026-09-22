@@ -15,6 +15,11 @@ export interface ExecutionScope {
   readonly nodeId: string;
 }
 
+export interface InvokeOptions {
+  readonly workerId?: string;
+  readonly signal?: AbortSignal;
+}
+
 export interface InvocationEnvelope {
   readonly id: string;
   readonly source?: WorkerAddress;
@@ -32,11 +37,13 @@ export interface InvocationResult {
 /** Adapter owns IPC/RPC encoding, network errors and authentication. */
 export interface InvokeTransport {
   readonly id: string;
-  invoke(envelope: InvocationEnvelope): Promise<InvocationResult>;
+  invoke(envelope: InvocationEnvelope, options?: { signal?: AbortSignal }): Promise<InvocationResult>;
 }
 
 export interface RemoteWorker {
   readonly address: WorkerAddress;
   readonly capabilities: readonly NodeType[];
   readonly transportId: string;
+  /** Caller-side concurrency limit; the receiver enforces its own limit too. */
+  readonly concurrency?: number;
 }

@@ -4,12 +4,12 @@ import type { RuntimeClient, WorkerContext } from "../worker/node.js";
 import type { WorkerDefinition } from "../worker/define-worker.js";
 import { PayloadCodec, type ArtifactStore } from "./artifact.js";
 import { LocalEventFabric, type EventFabric, type EventHandler, type RuntimeEvent } from "./communication/events.js";
-import { graph, runGraph, type ExecutionGraph } from "./graph.js";
+import { graph, runGraph, type ExecutionGraph, type GraphRunOptions } from "./graph.js";
 import { runLoop, type LoopDefinition } from "./loop.js";
 import { WorkerRouter, type WorkerEntry } from "./router.js";
 import { createRuntimeServices, type RuntimeServices, type RuntimeServiceOptions } from "./services.js";
 import type {
-  ExecutionScope, InvocationEnvelope, InvocationResult, InvokeTransport, RemoteWorker, WorkerAddress,
+  ExecutionScope, InvocationEnvelope, InvocationResult, InvokeOptions, InvokeTransport, RemoteWorker, WorkerAddress,
 } from "./communication/transport.js";
 
 export interface DittoOptions extends RuntimeServiceOptions {
@@ -20,6 +20,19 @@ export interface DittoOptions extends RuntimeServiceOptions {
   readonly events?: EventFabric;
   readonly artifacts?: ArtifactStore;
   readonly inlineLimitBytes?: number;
+}
+
+/** Deployment choices belong to execution, not to a reusable graph. */
+export interface RunOptions extends GraphRunOptions {
+  readonly workers?: Readonly<Record<string, string>>;
+}
+export interface LoopRunOptions extends GraphRunOptions {
+  readonly workers?: Readonly<Record<string, Readonly<Record<string, string>>>>;
+}
+export interface WorkerRegistrationOptions {
+  readonly id?: string;
+  /** Omit to share Runtime services; inject a separate instance for isolation. */
+  readonly services?: RuntimeServices;
 }
 
 export interface WorkerHandle {
@@ -41,6 +54,9 @@ export class DittoRuntime implements RuntimeClient {
   readonly #events: EventFabric;
   readonly #closers = new Set<() => Promise<void>>();
   #closed = false;
+  #closing: Promise<void> | undefined;
+  readonly #jobs = new Set<Promise<unknown>>();
+  readonly #subscriptions = new Set<() => boolean>();
 
   constructor(options: DittoOptions = {}) {
     this.hostId = options.hostId ?? "local";
@@ -57,7 +73,8 @@ export class DittoRuntime implements RuntimeClient {
     for (const worker of options.workers ?? []) this.register(worker);
   }
 
-  register(worker: WorkerDefinition, workerId: string = randomUUID()): WorkerHandle {
+  register(worker: WorkerDefinition, options: string | WorkerRegistrationOptions = {}): WorkerHandle {
+    const { id: workerId = randomUUID(), services = this.services } = typeof options === "string" ? { id: options } : options;
     this.#checkId(workerId);
     const address = Object.freeze({
       workerId, workerType: worker.type, hostId: this.hostId, processId: this.processId,
@@ -65,7 +82,7 @@ export class DittoRuntime implements RuntimeClient {
     const entry: WorkerEntry = {
       address, capabilities: this.#capabilities(address, worker.capabilities),
       nodeTypes: this.#capabilities(address, worker.nodeTypes ?? worker.capabilities),
-      executor: worker.instantiate(), available: true,
+      executor: worker.instantiate(), services, available: true,
       concurrency: worker.concurrency ?? Infinity, active: 0, pending: new Set(),
     };
     return this.#add(entry);
@@ -79,11 +96,14 @@ export class DittoRuntime implements RuntimeClient {
     if (worker.address.hostId === this.hostId && worker.address.processId === this.processId) {
       throw new Error("Use register for Workers in the current process");
     }
+    if (worker.concurrency !== undefined && (!Number.isSafeInteger(worker.concurrency) || worker.concurrency < 1)) {
+      throw new Error("Worker concurrency must be a positive integer");
+    }
     return this.#add({
       address: Object.freeze({ ...worker.address }),
       capabilities: this.#capabilities(worker.address, worker.capabilities),
       transportId: worker.transportId, available: true,
-      concurrency: Infinity, active: 0, pending: new Set(),
+      concurrency: worker.concurrency ?? Infinity, active: 0, pending: new Set(),
     });
   }
 
@@ -93,16 +113,22 @@ export class DittoRuntime implements RuntimeClient {
     }));
   }
 
-  async invoke<N extends NodeType>(node: N, input: InputOf<NoInfer<N>>): Promise<OutputOf<N>> {
-    return this.#invoke(node, input) as Promise<OutputOf<N>>;
+  async invoke<N extends NodeType>(node: N, input: InputOf<NoInfer<N>>, options: InvokeOptions = {}): Promise<OutputOf<N>> {
+    this.#assertOpen();
+    return this.#operation(() => this.#invoke(node, input, undefined, undefined, options)) as Promise<OutputOf<N>>;
   }
 
-  emit<T>(event: RuntimeEvent<T>): Promise<void> {
-    return this.#events.emit(event);
+  async emit<T>(event: RuntimeEvent<T>): Promise<void> {
+    this.#assertOpen();
+    return this.#operation(() => this.#events.emit(event));
   }
 
   subscribe(type: string, handler: EventHandler): () => boolean {
-    return this.#events.subscribe(type, handler);
+    this.#assertOpen();
+    const remove = this.#events.subscribe(type, event => this.#operation(async () => { await handler(event); }));
+    const unsubscribe = (): boolean => { this.#subscriptions.delete(unsubscribe); return remove(); };
+    this.#subscriptions.add(unsubscribe);
+    return unsubscribe;
   }
 
   /** Wait for accepted events, returning consumer failures separately from emit. */
@@ -114,19 +140,37 @@ export class DittoRuntime implements RuntimeClient {
     return graph<I>(id);
   }
 
-  run<I, O extends object>(plan: ExecutionGraph<I, O>, input: NoInfer<I>): Promise<O> {
-    if (this.#closed) return Promise.reject(new Error("Runtime is closed"));
-    return runGraph(plan, input, (node, value, scope) => this.#invoke(node, value, undefined, scope));
+  async run<I, O extends object>(plan: ExecutionGraph<I, O>, input: NoInfer<I>, options: RunOptions = {}): Promise<O> {
+    this.#assertOpen();
+    return this.#operation(() => this.#run(plan, input, options));
   }
 
-  loop<S, I, O extends object>(definition: LoopDefinition<S, I, O>, initialState: NoInfer<S>): Promise<S> {
-    if (this.#closed) return Promise.reject(new Error("Runtime is closed"));
-    return runLoop(definition, initialState, (plan, input) => this.run(plan, input));
+  async loop<S, I, O extends object>(definition: LoopDefinition<S, I, O>, initialState: NoInfer<S>, options: LoopRunOptions = {}): Promise<S> {
+    this.#assertOpen();
+    return this.#operation(() => runLoop({ ...definition, maxIterations: definition.maxIterations ?? this.services.config.loopMaxIterations }, initialState, (plan, input) => this.#run(plan, input, {
+      ...options, workers: options.workers?.[plan.id] ?? {},
+    }), options.signal));
+  }
+
+  #run<I, O extends object>(plan: ExecutionGraph<I, O>, input: I, options: RunOptions): Promise<O> {
+    const bindings = new Map(Object.entries(options.workers ?? {}));
+    const tasks = new Map(plan.tasks.map(task => [task.id, task]));
+    for (const [taskId, workerId] of bindings) {
+      const task = tasks.get(taskId);
+      if (!task) throw new Error(`Unknown graph Node binding: ${taskId}`);
+      if (!this.#workers.get(workerId)?.capabilities.includes(task.node)) {
+        throw new Error(`Worker ${workerId} does not expose ${task.node}`);
+      }
+    }
+    return runGraph(plan, input, (node, value, scope) => this.#invoke(node, value, undefined, scope, {
+      ...(!bindings.has(scope.nodeId) ? {} : { workerId: bindings.get(scope.nodeId)! }),
+      ...(options.signal ? { signal: options.signal } : {}),
+    }), { concurrency: this.services.config.graphConcurrency, ...options });
   }
 
   /** Adapter-facing receiver. This is not an unauthenticated network server. */
   async receive(envelope: InvocationEnvelope): Promise<InvocationResult> {
-    if (this.#closed) throw new Error("Runtime is closed");
+    this.#assertOpen();
     const entry = this.#workers.get(envelope.target.workerId);
     if (!entry?.executor || !entry.available
       || entry.address.hostId !== envelope.target.hostId
@@ -135,18 +179,24 @@ export class DittoRuntime implements RuntimeClient {
       || !entry.capabilities.includes(envelope.node)) {
       throw new Error(`Invocation target unavailable or mismatched: ${envelope.target.workerId}`);
     }
-    return this.#track(entry, async () => {
+    return this.#operation(() => this.#track(entry, async () => {
       const input = await this.#codec.decode(envelope.payload);
       const output = await entry.executor!.execute(envelope.node, input, this.#context(entry, envelope.execution));
       return { invocationId: envelope.id, payload: await this.#codec.encode(output) };
-    });
+    }));
   }
 
-  async #invoke(node: NodeType, input: unknown, source?: WorkerAddress, execution?: ExecutionScope): Promise<unknown> {
+  async #invoke(node: NodeType, input: unknown, source?: WorkerAddress, execution?: ExecutionScope, options: InvokeOptions = {}): Promise<unknown> {
     if (this.#closed) throw new Error("Runtime is closed");
-    const entry = this.#router.select(node, this.#workers.values(), this.hostId);
+    options.signal?.throwIfAborted();
+    const entry = this.#router.select(node, this.#workers.values(), this.hostId, options.workerId);
     if (entry.executor) {
-      return this.#track(entry, () => entry.executor!.execute(node, input, this.#context(entry, execution)));
+      return this.#track(entry, async () => {
+        options.signal?.throwIfAborted();
+        const result = await entry.executor!.execute(node, input, this.#context(entry, execution, options.signal));
+        options.signal?.throwIfAborted();
+        return result;
+      });
     }
     const transport = this.#transports.get(entry.transportId!)!;
     const id = randomUUID();
@@ -154,32 +204,47 @@ export class DittoRuntime implements RuntimeClient {
       const response = await transport.invoke({
         id, node, target: entry.address, payload: await this.#codec.encode(input),
         ...(source ? { source } : {}), ...(execution ? { execution } : {}),
-      });
+      }, options);
+      options.signal?.throwIfAborted();
       if (response.invocationId !== id) throw new Error("Transport returned a mismatched invocation ID");
       return this.#codec.decode(response.payload);
     });
   }
 
-  #context(entry: WorkerEntry, execution?: ExecutionScope): WorkerContext {
+  #context(entry: WorkerEntry, execution?: ExecutionScope, signal?: AbortSignal): WorkerContext {
     return {
       resources: undefined, config: undefined, artifacts: this.#codec.artifacts,
-      services: this.services, worker: entry.address, execution,
+      services: entry.services ?? this.services, worker: entry.address, execution,
+      ...(signal ? { signal } : {}),
       run: (plan, input) => {
         // Validate all capabilities before allowing any internal side effects.
         for (const task of plan.tasks) {
           if (!entry.nodeTypes!.includes(task.node)) throw new Error(`Worker does not implement ${task.node}`);
         }
         return runGraph(plan, input, (node, value, scope) =>
-          entry.executor!.execute(node, value, this.#context(entry, scope)));
+          entry.executor!.execute(node, value, this.#context(entry, scope, signal)), signal ? { signal } : {});
       },
-      invoke: <N extends NodeType>(node: N, input: InputOf<NoInfer<N>>) =>
-        this.#invoke(node, input, entry.address, execution) as Promise<OutputOf<N>>,
-      emit: <T>(event: RuntimeEvent<T>) => this.emit(event),
+      invoke: <N extends NodeType>(node: N, input: InputOf<NoInfer<N>>, options: InvokeOptions = {}) =>
+        this.#invoke(node, input, entry.address, execution, {
+          ...options,
+          ...(signal ? { signal: options.signal ? AbortSignal.any([signal, options.signal]) : signal } : {}),
+        }) as Promise<OutputOf<N>>,
+      emit: <T>(event: RuntimeEvent<T>) => this.#events.emit(event),
     };
   }
 
+  #assertOpen(): void {
+    if (this.#closed || this.#closing) throw new Error("Runtime is closed");
+  }
+
+  #operation<T>(execute: () => Promise<T>): Promise<T> {
+    const job = (async () => execute())();
+    this.#jobs.add(job);
+    return job.finally(() => { this.#jobs.delete(job); });
+  }
+
   #checkId(id: string): void {
-    if (this.#closed) throw new Error("Runtime is closed");
+    this.#assertOpen();
     if (!id || this.#workers.has(id)) throw new Error(`Duplicate or empty Worker ID: ${id}`);
   }
 
@@ -220,11 +285,17 @@ export class DittoRuntime implements RuntimeClient {
     return job.finally(() => { entry.active--; entry.pending.delete(job); });
   }
 
-  async close(): Promise<void> {
-    this.#closed = true;
-    const results = await Promise.allSettled([...this.#closers].map((close) => close()));
-    const errors = results.filter((result) => result.status === "rejected").map((result) => result.reason);
-    if (errors.length) throw new AggregateError(errors, "Worker cleanup failed");
+  close(): Promise<void> {
+    return this.#closing ??= (async () => {
+      // Stop event intake; queued handlers and accepted graphs keep their Workers alive.
+      for (const unsubscribe of this.#subscriptions) unsubscribe();
+      await Promise.resolve();
+      while (this.#jobs.size) await Promise.allSettled([...this.#jobs]);
+      this.#closed = true;
+      const results = await Promise.allSettled([...this.#closers].map(close => close()));
+      const errors = results.filter(result => result.status === "rejected").map(result => result.reason);
+      if (errors.length) throw new AggregateError(errors, "Worker cleanup failed");
+    })();
   }
 }
 

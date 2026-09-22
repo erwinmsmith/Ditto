@@ -2,7 +2,7 @@
 
 [English](configuration.md) · [Worker API](README.zh-CN.md)
 
-根目录 [`ditto.yaml`](../../ditto.yaml) 是可提交的行为参数配置；[`.env.example`](../../.env.example) 是部署模板，真实 `.env` 被 Git 忽略。Node 用 `--env-file=.env` 加载环境变量，应用显式加载 YAML，一次构建的 Runtime services 供所有 Worker 使用。导入库、创建默认 Runtime 不会读取文件或环境变量。
+根目录 [`ditto.yaml`](../../ditto.yaml) 是可提交的行为参数配置；[`.env.example`](../../.env.example) 是部署模板，真实 `.env` 被 Git 忽略。Node 用 `--env-file=.env` 加载环境变量，应用显式加载 YAML，默认共享 Runtime services，也可在 register 时为 Worker 注入独立 services。导入库、创建默认 Runtime 不会读取文件或环境变量。
 
 ```ts
 import { createDitto, createInfer, createInferWorker, loadRuntimeConfigFile } from "@ditto/core";
@@ -23,6 +23,8 @@ await runtime.close();
 runtime:               # 超时与 Graph 编排
   timeoutMs: 120000
   maxTurns: 8
+  graphConcurrency: 8
+  loopMaxIterations: 32
   react: {}            # ReAct 参数
 shared:
   providers: {}        # 共享供应商请求行为
@@ -66,7 +68,7 @@ loadRuntimeConfigFile(path = "ditto.yaml", env = process.env): RuntimeConfig
 loadRuntimeConfig(env = process.env, settings: RuntimeSettings = {}): RuntimeConfig
 ```
 
-第一个接口读取 UTF-8 YAML；相对路径基于当前工作目录。第二个是纯配置解析，供测试、嵌入式应用传对象使用，不访问文件。加载后返回不可变配置快照，包含 `environment/workspace/model/providers/timeoutMs/maxTurns/infer/context/memory/retrieval/react/sandbox`。配置只读取一次；修改 YAML 后需重新加载并创建 Runtime。Worker 通过 `ctx.services.config` 访问同一快照。
+第一个接口读取 UTF-8 YAML；相对路径基于当前工作目录。第二个是纯配置解析，供测试、嵌入式应用传对象使用，不访问文件。加载后返回不可变配置快照，包含 `environment/workspace/model/providers/timeoutMs/maxTurns/graphConcurrency/loopMaxIterations/infer/context/memory/retrieval/react/sandbox`。配置只读取一次；修改 YAML 后需重新加载并创建 Runtime。Worker 通过 `ctx.services.config` 访问所属 services 的配置快照。
 
 缺失文件、空文件、非对象、未知字段、重复键、YAML alias、非法数字在启动时抛错，不静默退回默认值。只使用标准 YAML 数据结构，不使用自定义 tag 或 merge key。显式自定义 `providers` Registry 时，Runtime 不再从配置构建 HTTP Provider。
 
@@ -78,6 +80,8 @@ loadRuntimeConfig(env = process.env, settings: RuntimeSettings = {}): RuntimeCon
 | --- | --- | --- |
 | `runtime.timeoutMs` | 单次 INFER / ReAct 超时，整数 1–2147483647 毫秒 | 30000 / 120000 |
 | `runtime.maxTurns` | ReAct 默认轮数，正安全整数 | 8 / 8 |
+| `runtime.graphConcurrency` | 每次 Graph 的并行节点上限，正安全整数；run/loop 选项可覆盖 | 不设上限 / 8 |
+| `runtime.loopMaxIterations` | 通用 Loop 轮数上限，正安全整数；definition.maxIterations 可覆盖 | 32 / 32 |
 | `workers.infer.generation.maxTokens` | 每次生成上限，正安全整数；供应商可能含内部推理 Token | 供应商默认 / 4096 |
 | `workers.infer.generation.temperature/topP/topK/stop/seed` | 与 [GenerationConfig](infer.zh-CN.md) 相同：0–2 / 0–1 / 正整数 / 非空字符串数组 / 安全整数 | 均未指定 |
 | `workers.infer.constraints.maxSteps` | 轨迹最多模型调用数，含评估/合并调用，正安全整数 | 16 / 16 |
