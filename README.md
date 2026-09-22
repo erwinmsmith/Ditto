@@ -44,23 +44,21 @@ RETRIEVAL is an optional independently deployable search Worker exposing only `R
 Four public compositions live directly in `src/runtime/graph.ts` and are exported from `@ditto/core/runtime`:
 
 ```text
-runRagFlow(context)  CONTEXT.RAG.RETRIEVE -> CONTEXT.RAG.RANK -> CONTEXT.UPDATE
-runRagFlow(memory)   MEMORY.SEARCH -> mapMemory -> CONTEXT.UPDATE
-runSkillFlow         CONTEXT.SKILL (application supplies the Skill)
+runRagFlow          CONTEXT.SELECT (rag strategy)
+runSkillFlow        CONTEXT.LOAD -> CONTEXT.UPDATE (when context is supplied)
 runToolCallFlow      INTERACTION.ACT.TOOL   -> INTERACTION.OBSERVE -> CONTEXT.UPDATE
 runMcpFlow           INTERACTION.ACT.MCP    -> INTERACTION.OBSERVE -> CONTEXT.UPDATE (invoke)
 ```
 
-These are functions, not Nodes. They provide standard Context ingress; Skill activation uses `CONTEXT.SKILL`; applications remain free to compose the same leaf Nodes differently. RAG `EMBED` is index preparation and is intentionally outside the query-time flow.
+These Runtime functions use explicit Context. RAG is an internal SELECT strategy; applications resolve Skill content for LOAD/UPDATE. See the [CONTEXT API](docs/worker-api/context.md) for cached calls, Redis and examples.
 
 ```ts
 import { runRagFlow, runToolCallFlow } from "@ditto/core/runtime";
 
 const retrieved = await runRagFlow(runtime, {
-  scope: "context",
   context: { items: [] },
   query: "Find the relevant API definition",
-  corpus: [{ id: "contract", content: "..." }],
+  corpus: { uri: "urn:contracts" }, // Resolved by the configured ragStrategy.
 });
 
 const toolResult = await runToolCallFlow(runtime, {

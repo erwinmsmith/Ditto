@@ -57,7 +57,7 @@ MEMORY implements six validated nodes in `worker/memory/<operation>/node.ts` and
 
 ## Workers Contain Nodes
 
-Built-in capabilities are organized as `MEMORY`, `CONTEXT`, `INFER`, and `INTERACTION`; Workers with matching names are the recommended deployment boundaries. These names are not first-level Nodes. A custom Worker.type can still be any string, and explicit composition across domains remains supported: an Interaction Worker can include reasoning's GENERATE. Directory ownership does not restrict execution placement.
+Built-in capabilities are organized as `MEMORY`, `CONTEXT`, `INFER`, and `INTERACTION`; Workers with matching names are the recommended deployment boundaries. These names are not first-level Nodes. A custom Worker.type can still be any string, and explicit composition across domains remains supported: an Interaction Worker can include INFER.REASONING.SAMPLE. Directory ownership does not restrict execution placement.
 
 In `defineWorker({ nodes, expose })`, `nodes` is the internal implementation set, while `expose` lists entry points available to Runtime routing and remote calls. Omitting `expose` exposes all implemented Nodes. Expose the capabilities that application Graphs invoke; internal Graphs may still use private Nodes. Repetition is invoked through `runtime.loop()`, not a RUN Node.
 
@@ -104,7 +104,7 @@ Handlers must await work they start. Closing a Runtime may reject Graph descenda
 
 ## Contracts and the Final Node Taxonomy
 
-`NodeContractMap` contains the 25 approved executable leaf Contracts. Reasoning lives under `INFER.REASONING.*`; current-task and durable retrieval remain separate under `CONTEXT.RAG.*` and `MEMORY.SEARCH`; Skills are application-resolved and activated through `CONTEXT.SKILL`; external calls use `INTERACTION.ACT.TOOL` and `INTERACTION.ACT.MCP`. Reset/session lifecycle and repeated execution belong to Runtime rather than Node Contracts. Task input enters at the application/Runtime boundary, while `INTERACTION.OUTPUT` submits the final result.
+`NodeContractMap` contains 21 Core leaf contracts. CONTEXT provides LOAD/SELECT/UPDATE/COMPRESS; RAG is internal to SELECT and applications supply resolved Skill sources. Optional cached state uses replaceable ContextStateStore with a Redis adapter. INFER, MEMORY and INTERACTION own computation, durable storage and external interaction; optional RETRIEVAL executes independent search. See [Worker API](worker-api/README.md).
 
 Custom capabilities still use declaration merging without hard-coding a Node enum into the Router or Scheduler. The fixed TypeScript inputs and outputs are defined by the [Node Taxonomy and API Contract](13-node-api-contract.md).
 
@@ -126,4 +126,4 @@ The Router filters capabilities, capacity, and locality in one pass while retain
 
 ## Optional RETRIEVAL extension
 
-The four Core Workers retain 25 leaves. The optional `@ditto/core/worker/retrieval` entry adds the RETRIEVAL.SEARCH contract and implementation through explicit imports/registration. It invokes user providers through a Target/Strategy registry, owns no corpus, performs no RAG, and is not required by MEMORY/CONTEXT. Existing Runtime/HTTP facilities support independent deployment and replicas. See [API and deployment boundaries](worker-api/retrieval.md).
+The four Core Workers retain 21 leaves. The optional `@ditto/core/worker/retrieval` entry adds the RETRIEVAL.SEARCH contract and implementation through explicit imports/registration. It invokes user providers through a Target/Strategy registry, owns no corpus, performs no RAG, and is not required by MEMORY/CONTEXT. Existing Runtime/HTTP facilities support independent deployment and replicas. See [API and deployment boundaries](worker-api/retrieval.md).

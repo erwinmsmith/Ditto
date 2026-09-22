@@ -6,6 +6,7 @@ These files accompany the bilingual API references. They export example function
 
 | File | Reference | Setup |
 | --- | --- | --- |
+| [context.ts](context.ts) | [CONTEXT](../context.zh-CN.md) | Explicit Context, injected Redis or ContextStateStore; no requests on import. |
 | [memory.ts](memory.ts) | [MEMORY](../memory.zh-CN.md) | Supply MemoryResources; filters/cursors/orderBy belong to the plugin. |
 | [infer.ts](infer.ts) | [INFER](../infer.zh-CN.md) · [Providers](../providers.zh-CN.md) | Supply InferClient/ModelConfig, or load root config in setupInfer. |
 | [interaction.ts](interaction.ts) | [INTERACTION](../interaction.zh-CN.md) | File examples need workspace access; MCP examples need a connected client and an allowed absolute file path. |
@@ -117,3 +118,28 @@ For a complete executable local flow use `npm run example:agent` or `npm run exa
 1. 不准备外部依赖时，先运行[根目录完整示例](../../../examples/README.zh-CN.md)。
 2. 学习某个 Worker 时，在上表选择对应函数，按文件签名注入资源。`setupMemory` / `setupInfer` / `setupInteraction` / `setupRetrieval` 返回的 Runtime 由调用者关闭。
 3. 修改示例后，在项目根目录运行 `npm run typecheck`。仅运行 `node docs/worker-api/examples/memory.ts` 这类命令不会执行其中的示例函数。
+
+### context.ts
+
+| 函数 / 对象 | 用途与实际行为 |
+| --- | --- |
+| [`setupContext`](context.ts) | 创建 SDK 与 Worker；详见 [CONTEXT](../context.zh-CN.md)。 |
+| [`loadContext`](context.ts) | LOAD：消息、条目与引用；详见 [CONTEXT](../context.zh-CN.md)。 |
+| [`selectContext`](context.ts) | SELECT：推理与记忆用途；详见 [CONTEXT](../context.zh-CN.md)。 |
+| [`updateContext`](context.ts) | UPDATE：增量与来源；详见 [CONTEXT](../context.zh-CN.md)。 |
+| [`compressContext`](context.ts) | COMPRESS：预算；详见 [CONTEXT](../context.zh-CN.md)。 |
+| [`executeContext`](context.ts) | execute：通用调用；详见 [CONTEXT](../context.zh-CN.md)。 |
+| [`cachedContext`](context.ts) | 四个节点的缓存调用；详见 [CONTEXT](../context.zh-CN.md)。 |
+| [`redisStore`](context.ts) | Redis 存储与显式版本；详见 [CONTEXT](../context.zh-CN.md)。 |
+| [`contextServices`](context.ts) | 注入自定义服务；详见 [CONTEXT](../context.zh-CN.md)。 |
+| [`ragContext`](context.ts) | RAG 策略；详见 [CONTEXT](../context.zh-CN.md)。 |
+| [`contextRetrieval`](context.ts) | 复用 RETRIEVAL Provider；详见 [CONTEXT](../context.zh-CN.md)。 |
+| [`contextToInfer`](context.ts) | 传入 INFER；详见 [CONTEXT](../context.zh-CN.md)。 |
+| [`memoryToContext`](context.ts) | MEMORY 与 Context Graph；详见 [CONTEXT](../context.zh-CN.md)。 |
+| [`contextFlows`](context.ts) | RAG 与 Skill 流程；详见 [CONTEXT](../context.zh-CN.md)。 |
+| [`contextErrors`](context.ts) | 错误分支；详见 [CONTEXT](../context.zh-CN.md)。 |
+| [`directStrategies`](context.ts) | 复用内置策略；详见 [CONTEXT](../context.zh-CN.md)。 |
+| [`customContextLoad`](context.ts) | 自定义节点描述符；详见 [CONTEXT](../context.zh-CN.md)。 |
+| [`contextToMemory`](context.ts) | 写入长期 MEMORY。 |
+| [`toolToCachedContext`](context.ts) | 工具观察写入缓存。 |
+| [`remoteContextRetrieval`](context.ts) | 委托独立 RETRIEVAL。 |

@@ -57,7 +57,7 @@ MEMORY 已在 `worker/memory/<operation>/node.ts` 实现六个节点的校验与
 
 ## Worker 是 Node 的容器
 
-内置能力按 `MEMORY`、`CONTEXT`、`INFER`、`INTERACTION` 组织，推荐同名 Worker 作为部署边界。这些名称不是一级 Node。自定义 Worker.type 仍可为任意字符串；保留显式组合不同领域 Node 的能力，例如 Interaction Worker 组合 reasoning 的 GENERATE，不将目录归属误当作运行位置限制。
+内置能力按 `MEMORY`、`CONTEXT`、`INFER`、`INTERACTION` 组织，推荐同名 Worker 作为部署边界。这些名称不是一级 Node。自定义 Worker.type 仍可为任意字符串；保留显式组合不同领域 Node 的能力，例如 Interaction Worker 组合 INFER.REASONING.SAMPLE，不将目录归属误当作运行位置限制。
 
 `defineWorker({ nodes, expose })` 中，`nodes` 是内部实现集合；`expose` 是参与 Runtime 路由、允许远端调用的入口集合。省略 `expose` 时公开全部实现。公开应用 Graph 调用的能力；内部 Graph 仍可使用私有 Node。重复执行通过 `runtime.loop()` 发起，不再使用 RUN Node。
 
@@ -104,7 +104,7 @@ Handler 必须 await 自己启动的工作。关闭 Runtime 时未开始的 Grap
 
 ## Contract 与最终节点体系
 
-`NodeContractMap` 包含 25 个已确定的可执行叶子 Contract。推理位于 `INFER.REASONING.*`；当前任务检索与长期检索分别位于 `CONTEXT.RAG.*` 和 `MEMORY.SEARCH`；Skill 由应用解析并通过 `CONTEXT.SKILL` 激活；外部调用使用 `INTERACTION.ACT.TOOL` 与 `INTERACTION.ACT.MCP`。Reset/session 生命周期和重复执行属于 Runtime，不属于 Node Contract。任务输入从应用/Runtime 边界进入，最终结果由 `INTERACTION.OUTPUT` 提交。
+`NodeContractMap` 包含 21 个 Core 叶子 Contract。CONTEXT 提供 LOAD/SELECT/UPDATE/COMPRESS，RAG 为 SELECT 内部策略，Skill 作为应用已解析的 sources 装入；缓存模式通过可替换 ContextStateStore 接口读写，默认提供 Redis 适配。INFER、MEMORY、INTERACTION 各自负责计算、长期存储与外部交互；可选 RETRIEVAL 提供独立检索。详细调用见 [Worker API](worker-api/README.zh-CN.md)。
 
 自定义能力仍通过 declaration merging 扩展，不在 Router 或 Scheduler 中硬编码 Node enum。固定 TypeScript 输入输出以[节点体系与 API Contract](13-node-api-contract.zh-CN.md)为准。
 
@@ -126,4 +126,4 @@ Router 用一次遍历筛选能力、容量与位置，保留同级轮询；没�
 
 ## 可选 RETRIEVAL 扩展
 
-四个 Core Worker 的 25 个叶子保持不变。可选入口 `@ditto/core/worker/retrieval` 增加 `RETRIEVAL.SEARCH` 的契约与实现，仅在应用显式导入/注册时启用。它通过 Target/Strategy Registry 调用用户 Provider，不拥有数据、不执行 RAG，也不要求 MEMORY/CONTEXT 经由它检索。需要独立执行资源或水平扩容时，可使用现有 Runtime/HTTP 部署多个副本。[详细 API 与部署边界](worker-api/retrieval.zh-CN.md)。
+四个 Core Worker 的 21 个叶子保持不变。可选入口 `@ditto/core/worker/retrieval` 增加 `RETRIEVAL.SEARCH` 的契约与实现，仅在应用显式导入/注册时启用。它通过 Target/Strategy Registry 调用用户 Provider，不拥有数据、不执行 RAG，也不要求 MEMORY/CONTEXT 经由它检索。需要独立执行资源或水平扩容时，可使用现有 Runtime/HTTP 部署多个副本。[详细 API 与部署边界](worker-api/retrieval.zh-CN.md)。

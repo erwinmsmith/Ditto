@@ -44,23 +44,21 @@ RETRIEVAL 是可选的独立检索执行 Worker，仅提供 `RETRIEVAL.SEARCH`�
 四类公开组合直接位于 `src/runtime/graph.ts`，并由 `@ditto/core/runtime` 导出：
 
 ```text
-runRagFlow(context)  CONTEXT.RAG.RETRIEVE -> CONTEXT.RAG.RANK -> CONTEXT.UPDATE
-runRagFlow(memory)   MEMORY.SEARCH -> mapMemory -> CONTEXT.UPDATE
-runSkillFlow         CONTEXT.SKILL (application supplies the Skill)
+runRagFlow          CONTEXT.SELECT (rag strategy)
+runSkillFlow        CONTEXT.LOAD -> CONTEXT.UPDATE (when context is supplied)
 runToolCallFlow      INTERACTION.ACT.TOOL   -> INTERACTION.OBSERVE -> CONTEXT.UPDATE
 runMcpFlow           INTERACTION.ACT.MCP    -> INTERACTION.OBSERVE -> CONTEXT.UPDATE (invoke)
 ```
 
-它们是函数，不是 Node。它们为 `CONTEXT.UPDATE` 提供统一入口，应用仍可自由组合相同的叶子 Node。RAG 的 `EMBED` 属于索引准备，因此不进入查询时流程。
+这些 Runtime 函数使用显式 Context。RAG 是 SELECT 的内部策略，Skill 内容由应用解析后经 LOAD/UPDATE 加入工作集。缓存调用、Redis 接入和详细示例见 [CONTEXT API](docs/worker-api/context.zh-CN.md)。
 
 ```ts
 import { runRagFlow, runToolCallFlow } from "@ditto/core/runtime";
 
 const retrieved = await runRagFlow(runtime, {
-  scope: "context",
   context: { items: [] },
   query: "查找相关 API 定义",
-  corpus: [{ id: "contract", content: "..." }],
+  corpus: { uri: "urn:contracts" }, // Resolved by the configured ragStrategy.
 });
 
 const toolResult = await runToolCallFlow(runtime, {

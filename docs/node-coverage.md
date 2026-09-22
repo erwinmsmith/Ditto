@@ -10,7 +10,7 @@ Tasks and delivery constraints follow the supplied Node Coverage document. Every
 
 | Original label or behavior | Current ownership | Mapping requirement |
 | --- | --- | --- |
-| CONTEXT.PROMPT | Graph bind or application input assembly | Use CONTEXT.LOAD/UPDATE only when loading or changing actual context; use CONTEXT.SKILL to activate an application-resolved Skill. |
+| CONTEXT.PROMPT | Graph bind or application input assembly | Use CONTEXT.LOAD/UPDATE only when loading or changing actual context; use CONTEXT.LOAD to activate an application-resolved Skill. |
 | CONTEXT.SCHEDULE | Application composition and existing context/memory operations | MEMORY.WRITE/UPDATE persist knowledge; CONTEXT.SELECT/COMPRESS select or compress working context. There is no same-name Node. |
 | INTERACTION.MCP | INTERACTION.ACT.MCP | MCP discovery or invocation is a distinct semantic Node; client connection, authentication, and session lifecycle remain in the application/Runtime. |
 | Receiving a task or question | Application/Runtime input boundary | Task parameters enter before Graph execution. This is not a Node; an actual external messaging service may be called through ACT.TOOL or ACT.MCP. |
@@ -19,14 +19,14 @@ Tasks and delivery constraints follow the supplied Node Coverage document. Every
 | ACT and TOOL shown at the same level | `ACT` is a namespace | Use `INTERACTION.ACT.TOOL` for directly registered tools and `INTERACTION.ACT.MCP` for MCP capabilities; ACT is not an executable leaf. |
 | Evaluation, approval, retry, and cost accounting | Test-side or application policy | No new Nodes. Actual verifier-tool calls may use TOOL/ACT; reasoning and prompts do not replace authorization checks. |
 
-Cases must not insert behavior merely to cover all 25 target Node Types. The former `INTERACTION.RUN` is application Graph / Runtime orchestration rather than a Node, and one composite loop cannot replace trace evidence for the leaf Nodes actually invoked.
+Cases must not insert behavior merely to cover all 21 target Node Types. The former `INTERACTION.RUN` is application Graph / Runtime orchestration rather than a Node, and one composite loop cannot replace trace evidence for the leaf Nodes actually invoked.
 
 ## Final RAG Mappings
 
 | Operation | Existing Nodes | Boundary |
 | --- | --- | --- |
 | Acquire web, file, or third-party material | `INTERACTION.ACT.TOOL` / `INTERACTION.ACT.MCP` | External capability call; acquired data may become a current-task corpus. |
-| Retrieve current-task knowledge | `CONTEXT.RAG.EMBED/RETRIEVE/RANK` | Search current documents, repositories, web sources, knowledge bases, or temporary corpora and feed working context. |
+| Retrieve current-task knowledge | `CONTEXT.SELECT` (rag strategy) | Search current documents, repositories, web sources, knowledge bases, or temporary corpora and feed working context. |
 | Directly read a durable item | `MEMORY.GET` | GET addresses IDs/keys; QUERY handles structured filters. |
 | Semantically retrieve durable memory | `MEMORY.SEARCH` | Search a Memory Corpus that survives invocations or sessions. |
 | Manage durable-state lifecycle | `MEMORY.WRITE/UPDATE/DELETE + Graph/Policy` | Create, modify, organize, and evict persistent semantic state. |
@@ -48,7 +48,7 @@ All changes occur in a disposable container or temporary worktree and are not pu
 | 2 | CONTEXT.LOAD | Load the Issue, repository tree, baseline commit, and test commands. |
 | 3 | MEMORY.SEARCH | Semantically retrieve repository conventions, known build problems, and prior repair experience from the long-term Memory Corpus. |
 | 4 | CONTEXT.SELECT | Select loaded evidence related to the stack trace, symbols, and modules. |
-| 5 | CONTEXT.SKILL | Retrieve registered repair constraints such as minimal edits and no test bypass; use Graph bind when no Skill is registered. |
+| 5 | CONTEXT.LOAD | Retrieve registered repair constraints such as minimal edits and no test bypass; use Graph bind when no Skill is registered. |
 | 6 | INFER.REASONING.TRAJECTORY | Form the first defect hypothesis. |
 | 7 | INTERACTION.ACT.TOOL | Use registered code search, file read, and Git diff tools. |
 | 8 | INTERACTION.OBSERVE | Receive symbol references, call paths, and current implementation details. |
@@ -87,7 +87,7 @@ Select a public-validation question requiring web search, attachment reading, an
 | 7 | INTERACTION.ACT.TOOL | Invoke web search, browser, PDF, or spreadsheet tools. |
 | 8 | INTERACTION.OBSERVE | Receive pages, documents, tables, and source information. |
 | 9 | CONTEXT.UPDATE | Add sources, dates, facts, and confidence to context. |
-| 10 | CONTEXT.RAG.RANK | Rerank candidates by source authority, date, and evidence completeness, lowering reposts and unsupported snippets. |
+| 10 | CONTEXT.SELECT | Rerank candidates by source authority, date, and evidence completeness, lowering reposts and unsupported snippets. |
 
 Delivery and validation: calculations use configured tools; OUTPUT delivers the answer and sources. Official answer comparison belongs to the test harness. Public web search is not automatically long-term Memory retrieval; record Memory calls only when the existing test actually uses persistent knowledge.
 
@@ -107,7 +107,7 @@ The case distinguishes authority to propose an operation from authority to execu
 | 4 | INTERACTION.ACT.TOOL | Query customer, order, flight, or product state. |
 | 5 | INTERACTION.OBSERVE | Receive real sandbox business records. |
 | 6 | CONTEXT.UPDATE | Add order state, amounts, times, and identity information to context. |
-| 7 | CONTEXT.SKILL | Retrieve registered refund policy and approval boundaries; tools and Sandbox still enforce permissions. |
+| 7 | CONTEXT.LOAD | Retrieve registered refund policy and approval boundaries; tools and Sandbox still enforce permissions. |
 | 8 | INFER.REASONING.TRAJECTORY | Identify the requested transaction type. |
 | 9 | INFER.REASONING.DELIBERATE | Check policy, fees, eligibility, and mutually exclusive operations. |
 | 10 | CONTEXT.SELECT | Keep the customer and policy fields needed for the decision. |
@@ -185,6 +185,6 @@ Delivery and validation: application tools perform the edits and 10-sample run r
 
 Associate formal coverage with case ID, original sample/task ID, code commit, actual Node Type, input/output references, tool/Provider implementation, and verification result. Repeated uses of a Node may have different Graph task IDs; deduplicate when counting type coverage. Record application entry, bind, connection startup, and test-side verifiers separately.
 
-The supplied Agent Node Coverage Analysis report's 11/18 represents an earlier offline analysis of 12 samples against the pre-migration fixed baseline; its 7 uncovered Nodes were validation blind spots at that time. The figure is neither the six cases' run result nor convertible to coverage of the final 25 target Node Types. Final coverage requires new execution evidence keyed by the new fully qualified names.
+The supplied Agent Node Coverage Analysis report's 11/18 represents an earlier offline analysis of 12 samples against the pre-migration fixed baseline; its 7 uncovered Nodes were validation blind spots at that time. The figure is neither the six cases' run result nor convertible to coverage of the current 21 target Node Types. Final coverage requires new execution evidence keyed by the new fully qualified names.
 
 Implementation state is based on dev commit a9e43212162650259b2a1bf9ed907d8bad19e79f's contracts, interaction loop, and MCP adapter; the target classification comes from the project-owner-approved final taxonomy. Case tasks come from the supplied Node Coverage and Agent Node Coverage Analysis documents. The source contained flow screenshots rather than a complete spreadsheet attachment, so the visible row counts remain unchanged.

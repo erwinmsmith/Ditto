@@ -664,3 +664,21 @@ export function sampleDescriptor(infer: InferClient) {
   return inferSampleNode.define("INFER", input => infer.reasoning.sample(input));
 }
 ```
+
+## 与 CONTEXT 组合
+
+通过 CONTEXT.SELECT 选取后显式映射成 messages。INFER 使用自身的消息与 ContextItem 契约；工作上下文的 source 是 Reference，传入 INFER 的 source 时需取 uri。 [完整 CONTEXT API 与调用示例](context.zh-CN.md)。
+
+```ts
+export async function contextToInfer(context: WorkingContext, infer: InferClient, model: ModelConfig) {
+  const selected = await createContext().select({ context, purpose: "infer", limit: 16 });
+  return infer.reasoning.sample({ model, messages: [
+    ...selected.context.items.map(item => ({ role: "user" as const,
+      content: typeof item.content === "string" ? item.content : JSON.stringify(item.content),
+    })),
+    { role: "user", content: "Explain the evidence." },
+  ] });
+}
+```
+
+[完整 imports 和代码](examples/context.ts)。

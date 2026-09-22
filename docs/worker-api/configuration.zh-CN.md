@@ -66,7 +66,7 @@ loadRuntimeConfigFile(path = "ditto.yaml", env = process.env): RuntimeConfig
 loadRuntimeConfig(env = process.env, settings: RuntimeSettings = {}): RuntimeConfig
 ```
 
-第一个接口读取 UTF-8 YAML；相对路径基于当前工作目录。第二个是纯配置解析，供测试、嵌入式应用传对象使用，不访问文件。加载后返回不可变配置快照，包含 `environment/workspace/model/providers/timeoutMs/maxTurns/infer/memory/retrieval/react/sandbox`。配置只读取一次；修改 YAML 后需重新加载并创建 Runtime。Worker 通过 `ctx.services.config` 访问同一快照。
+第一个接口读取 UTF-8 YAML；相对路径基于当前工作目录。第二个是纯配置解析，供测试、嵌入式应用传对象使用，不访问文件。加载后返回不可变配置快照，包含 `environment/workspace/model/providers/timeoutMs/maxTurns/infer/context/memory/retrieval/react/sandbox`。配置只读取一次；修改 YAML 后需重新加载并创建 Runtime。Worker 通过 `ctx.services.config` 访问同一快照。
 
 缺失文件、空文件、非对象、未知字段、重复键、YAML alias、非法数字在启动时抛错，不静默退回默认值。只使用标准 YAML 数据结构，不使用自定义 tag 或 merge key。显式自定义 `providers` Registry 时，Runtime 不再从配置构建 HTTP Provider。
 
@@ -115,3 +115,32 @@ DELIBERATE 的 mode/selectCount 优先使用请求字段，再使用 workers.inf
 ## RETRIEVAL （可选）
 
 `workers.retrieval.searchLimit` 为 1–10000 整数，默认 10，加载为 `config.retrieval`。请求 limit > options.defaults.searchLimit > Runtime YAML > 内置默认。根 YAML 中出现该字段不会安装/注册/启动 Worker；应用必须显式导入可选入口并调用 createRetrievalWorker。连接、凭据和模型句柄由应用 Provider 管理，不增加数据库 env 占位项。详见 [RETRIEVAL API](retrieval.zh-CN.md)。
+
+## CONTEXT
+
+`workers.context` 在启动时解析到 `config.context`；创建 SDK/Worker 时显式传入，不会自动连接 Redis。
+
+```yaml
+workers:
+  context:
+    policy:
+      maxInlineBytes: 65536
+      maxItems: 256
+      duplicate: replace
+      missingRemoval: ignore
+    cache:
+      ttlMs: 3600000
+      keyPrefix: "ditto:context:"
+```
+
+| Field | Default | Values |
+| --- | --- | --- |
+| policy.maxInlineBytes | 65536 | 1..1000000 |
+| policy.maxItems | 256 | 1..1000000 |
+| policy.maxTokens | unset | 1..1000000 |
+| policy.duplicate | replace | replace / keep-first / reject |
+| policy.missingRemoval | ignore | ignore / reject |
+| cache.ttlMs | 3600000 | 1..2147483647 |
+| cache.keyPrefix | ditto:context: | Nonempty string |
+
+Redis URL 和凭据放 `.env` 的 `DITTO_WORKER_CONTEXT_REDIS_URL`，应用直接交给 SDK；行为参数放 YAML。安装、调用及插件接口见 [CONTEXT API](context.zh-CN.md)。

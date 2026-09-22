@@ -2,13 +2,12 @@ import { createHash, randomUUID } from "node:crypto";
 import type { ExecutionScope } from "./communication/transport.js";
 import type { InputOf, NodeType, OutputOf } from "../contracts/index.js";
 import type {
-  Context, ContextIngress, KnowledgeItem, Observation,
-  MessageContent, Reference, ToolCall, Skill,
+  Context, ContextIngress, ContextSource, JsonObject, Observation,
+  MessageContent, Reference, ToolCall,
 } from "../contracts/common.js";
 import type { RuntimeClient } from "../worker/execution-context.js";
-import type { ContextRagRankOutput } from "../worker/context/contracts.js";
+import type { ContextSelection } from "../worker/context/contracts.js";
 import type { InteractionMcpInput, InteractionMcpOutput, InteractionToolOutput } from "../worker/interaction/contracts.js";
-import type { MemorySearchInput, MemorySearchOutput, MemorySearchResult } from "../worker/memory/contracts.js";
 
 export interface GraphTask {
   readonly id: string;
@@ -92,27 +91,19 @@ export interface RuntimeFlowResult<Output> {
   readonly context: Context;
 }
 
-export interface ContextRagFlowInput {
-  readonly scope: "context";
+export interface RagFlowInput {
   readonly context: Context;
-  readonly query: MessageContent;
-  readonly corpus: Reference | readonly KnowledgeItem[];
+  readonly query?: MessageContent;
+  readonly corpus?: Reference;
   readonly limit?: number;
-  readonly strategy?: string;
+  readonly maxTokens?: number;
+  readonly options?: JsonObject;
 }
-
-export interface MemoryRagFlowInput extends MemorySearchInput {
-  readonly scope: "memory";
-  readonly context: Context;
-  /** The application maps its arbitrary memory content into Context explicitly. */
-  readonly mapMemory: (hit: MemorySearchResult) => ContextIngress;
-}
-
-export type RagFlowInput = ContextRagFlowInput | MemoryRagFlowInput;
 
 export interface SkillFlowInput {
-  readonly context: Context;
-  readonly skill: Skill;
+  readonly context?: Context;
+  /** Skill instructions/resources have already been resolved by the application or Runtime. */
+  readonly sources: readonly ContextSource[];
 }
 
 export interface McpFlowInput {
@@ -141,16 +132,6 @@ async function updateContext(
   return runtime.invoke("CONTEXT.UPDATE", { context, ingress });
 }
 
-function contextRagIngress(candidates: ContextRagRankOutput): readonly ContextIngress[] {
-  return candidates.map(({ item, score }) => ({
-    id: stableIngressId("context-rag", item.id),
-    sourceNode: "CONTEXT.RAG.RANK",
-    content: item.content,
-    ...(item.source ? { reference: item.source } : {}),
-    metadata: { ...(item.metadata ?? {}), itemId: item.id, ...(score === undefined ? {} : { score }) },
-  }));
-}
-
 function observationIngress(observation: Observation): readonly ContextIngress[] {
   return [{
     id: stableIngressId("observation", [observation.callId, observation]),
@@ -159,59 +140,43 @@ function observationIngress(observation: Observation): readonly ContextIngress[]
     metadata: {
       ...(observation.metadata ?? {}), callId: observation.callId,
       source: observation.source, status: observation.status,
+      messageRole: observation.message.role,
+      ...(observation.message.name === undefined ? {} : { messageName: observation.message.name }),
       ...(observation.error ? { errorCode: observation.error.code } : {}),
       ...(observation.references ? { references: observation.references.map(reference => ({ ...reference })) } : {}),
     },
   }];
 }
 
-/** Standard query-time RAG flow. EMBED remains an index-preparation operation. */
-export function runRagFlow(
-  runtime: RuntimeClient,
-  input: ContextRagFlowInput,
-): Promise<RuntimeFlowResult<ContextRagRankOutput>>;
-export function runRagFlow(
-  runtime: RuntimeClient,
-  input: MemoryRagFlowInput,
-): Promise<RuntimeFlowResult<MemorySearchOutput>>;
+/** RAG is an internal CONTEXT.SELECT strategy, not a public Node namespace. */
 export async function runRagFlow(
   runtime: RuntimeClient,
   input: RagFlowInput,
-): Promise<RuntimeFlowResult<ContextRagRankOutput | MemorySearchOutput>> {
-  const options = {
+): Promise<RuntimeFlowResult<ContextSelection>> {
+  const output = await runtime.invoke("CONTEXT.SELECT", {
+    context: input.context,
+    purpose: "infer",
+    strategy: {
+      kind: "rag",
+      ...(input.corpus === undefined ? {} : { corpus: input.corpus }),
+      ...(input.options === undefined ? {} : { options: input.options }),
+    },
+    ...(input.query === undefined ? {} : { query: input.query }),
     ...(input.limit === undefined ? {} : { limit: input.limit }),
-    ...(input.strategy === undefined ? {} : { strategy: input.strategy }),
-  };
-  if (input.scope === "context") {
-    const candidates = await runtime.invoke("CONTEXT.RAG.RETRIEVE", {
-      query: input.query,
-      corpus: input.corpus,
-      ...options,
-    });
-    const output = await runtime.invoke("CONTEXT.RAG.RANK", {
-      query: input.query,
-      candidates,
-      ...options,
-    });
-    return { output, context: await updateContext(runtime, input.context, contextRagIngress(output)) };
-  }
-  const result = await runtime.invoke("MEMORY.SEARCH", {
-    query: input.query,
-    ...(input.filter === undefined ? {} : { filter: input.filter }),
-    ...(input.options === undefined ? {} : { options: input.options }),
-    ...options,
+    ...(input.maxTokens === undefined ? {} : { maxTokens: input.maxTokens }),
   });
-  if (result.status !== "success" || !result.output) {
-    throw new Error(`MEMORY.SEARCH failed: ${result.error?.code ?? result.status}`);
-  }
-  return { output: result.output, context: await updateContext(runtime, input.context, result.output.map(input.mapMemory)) };
+  return { output, context: output.context };
 }
 
 export async function runSkillFlow(
   runtime: RuntimeClient,
   input: SkillFlowInput,
-): Promise<RuntimeFlowResult<Skill>> {
-  return { output: input.skill, context: await runtime.invoke("CONTEXT.SKILL", input) };
+): Promise<RuntimeFlowResult<Context>> {
+  const loaded = await runtime.invoke("CONTEXT.LOAD", { sources: input.sources });
+  const context = input.context === undefined
+    ? loaded
+    : await runtime.invoke("CONTEXT.UPDATE", { context: input.context, add: loaded.items });
+  return { output: context, context };
 }
 
 export function runMcpFlow(

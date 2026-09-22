@@ -4,7 +4,7 @@ import { once } from "node:events";
 import test from "node:test";
 import {
   createDitto, createMemory, createMemoryWorker, MemoryError, loadRuntimeConfig,
-  createHttpTransport, createWorkerHttpHandler, runRagFlow, defineWorker,
+  createHttpTransport, createWorkerHttpHandler,
   type MemoryItem, type MemoryStore, type MemorySearchProvider,
 } from "../src/index.js";
 
@@ -138,18 +138,6 @@ test("MEMORY nodes execute through the existing HTTP transport", async () => {
     assert.deepEqual((await client.invoke("MEMORY.GET", { ids: [result.output![0]!.id] })).output, result.output);
     assert.equal((await client.invoke("MEMORY.SEARCH", { query: "remote" })).output?.length, 1);
   } finally { await client.close(); await serverRuntime.close(); server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
-});
-
-test("memory flow uses an explicit Context mapping and stops on search failure", async () => {
-  let updates = 0;
-  const runtime = createDitto({ workers: [
-    defineWorker({ type: "MEMORY", nodes: { "MEMORY.SEARCH": async () => ({ executionId: "x", node: "MEMORY.SEARCH", status: "failed", error: { code: "UNAVAILABLE", message: "Unavailable" } }) } }),
-    defineWorker({ type: "CONTEXT", nodes: { "CONTEXT.UPDATE": async ({ context }) => { updates++; return context; } } }),
-  ] });
-  try {
-    await assert.rejects(runRagFlow(runtime, { scope: "memory", context: { items: [] }, query: [1, 2], mapMemory: ({ memory }) => ({ id: memory.id, sourceNode: "MEMORY.SEARCH", content: String(memory.content) }) }), /UNAVAILABLE/);
-    assert.equal(updates, 0);
-  } finally { await runtime.close(); }
 });
 
 test("MEMORY defaults to database-native search, preserving SDK receiver and allowing explicit overrides", async () => {

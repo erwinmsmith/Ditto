@@ -423,3 +423,7 @@ export function mapTextCandidates(output: RetrievalSearchOutput) {
   }); // Use as mapOutput only when content is the application's complete memory content.
 }
 ```
+
+## Compose with CONTEXT
+
+Inject database search, embedding, fusion and reranking providers into createRagStrategy retrieve. CONTEXT does not require a RETRIEVAL deployment; backend lifecycle stays application-owned. [Complete CONTEXT API and examples](context.md)。

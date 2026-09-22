@@ -6,6 +6,7 @@
 
 | Worker | 详细 API | 操作与示例 |
 | --- | --- | --- |
+| CONTEXT | [中文 API](context.zh-CN.md) · [English](context.md) | LOAD / SELECT / UPDATE / COMPRESS; Redis / stateStore / RAG |
 | INFER | [中文 API](infer.zh-CN.md) · [English](infer.md) | SAMPLE / TRAJECTORY / REFLECT / DELIBERATE / CACHE LOOKUP, WRITE, INVALIDATE; SDK + stream |
 | MEMORY | [中文 API](memory.zh-CN.md) · [English](memory.md) | GET / QUERY / SEARCH / WRITE / UPDATE / DELETE; store / search |
 | INTERACTION | [中文 API](interaction.zh-CN.md) · [English](interaction.md) | ACT.TOOL / ACT.MCP / OBSERVE / OUTPUT; ToolRegistry / McpRegistry / OutputSink |
@@ -26,6 +27,7 @@
 | 调用层 | 返回 | 失败处理 |
 | --- | --- | --- |
 | INFER / MEMORY / RETRIEVAL SDK 或 Worker | `NodeResult<T>` | 检查 status 后读取 output；构造、路由或传输错误仍可能抛异常 |
+| CONTEXT | `Context` / `ContextSelection` | 失败抛 ContextError 或服务异常 |
 | INTERACTION | `ExternalResult` / `Observation` / MCP union / `OutputReceipt` | 直接检查各自 status；参数/权限/基础设施错误抛异常 |
 | 底层 store / Provider / Sink | 各自原始 Output | 由对应 Worker 包装或校验；不要再套一层 NodeResult |
 
@@ -43,6 +45,7 @@ INTERACTION 的工具、MCP 实例与输出函数通过代码注入；当前 YAM
 
 | 示例文件 | 覆盖 |
 | --- | --- |
+| [context.ts](examples/context.ts) | LOAD / SELECT / UPDATE / COMPRESS; scope / Redis / Graph |
 | [memory.ts](examples/memory.ts) | 两个工厂、六个 SDK/节点、execute、分页、插件、错误、Graph、描述符 |
 | [infer.ts](examples/infer.ts) | 两个工厂、七个叶子、五种策略、三种反思、四种审议、四个流、缓存及模型 Provider |
 | [interaction.ts](examples/interaction.ts) | 工厂、注册/移除、四个节点、MCP、观察、回执、handler、Graph/Loop |

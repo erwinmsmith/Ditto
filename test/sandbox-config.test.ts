@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, writeFile, symlink, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { loadRuntimeConfig, Sandbox, SkillRegistry } from "../src/index.js";
+import { loadRuntimeConfig, Sandbox } from "../src/index.js";
 
 test("env config is explicit, validated and immutable; permissions deny by default", () => {
   const config = loadRuntimeConfig({ DITTO_SHARED_PROVIDERS: "primary,local", DITTO_WORKER_INFER_MODEL_PROVIDER: "local", DITTO_WORKER_INFER_MODEL: "test",
@@ -41,8 +41,8 @@ test("workspace permissions reject traversal, outside symlinks and dangling syml
       if ((error as NodeJS.ErrnoException).code !== "EPERM") throw error;
       // Windows without Developer Mode cannot create symlinks; CI covers these assertions.
     }
-    const skills = new SkillRegistry(); await skills.load("test", "SKILL.md", sandbox);
-    assert.equal(skills.get("test", sandbox).instructions, "# Test skill");
-    assert.throws(() => skills.get("test", denied), /Permission denied/);
+    sandbox.assert("skills", "test");
+    assert.throws(() => denied.assert("skills", "test"), /Permission denied/);
+    assert.equal(await sandbox.readText("SKILL.md"), "# Test skill");
   } finally { await rm(root, { recursive: true, force: true }); }
 });

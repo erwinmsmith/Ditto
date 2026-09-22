@@ -389,3 +389,26 @@ export async function interactionGraph() {
 同一 Worker definition 注册多次会共享传入的工具/注册表/客户端/接收端。需要独立资源时分别构造 definition，或使用 defineWorker 的 resources/dispose。动态 unregister 只移除后续查找，不取消已开始操作或关闭 SDK。关闭时先 `await runtime.close()` 排空 Worker，再关闭应用拥有的 MCP、数据库、队列等客户端。
 
 命令、普通工具与 MCP 的组合用法见[示例指南](../../examples/README.zh-CN.md)。数据库能力接入 MEMORY，不需要把数据库客户端塞进 Interaction。模型动作循环见 [ReAct Graph](../interaction-runtime.zh-CN.md#react-预定义-graph-流程)。
+
+## 与 CONTEXT 组合
+
+工具结果先经 OBSERVE，再通过 ingress 更新 CONTEXT。缓存模式在 Graph 中给 UPDATE 传 scope；runToolCallFlow/runMcpFlow 使用显式 Context。 [完整 CONTEXT API 与调用示例](context.zh-CN.md)。
+
+```ts
+export async function toolToCachedContext(
+  runtime: import("@ditto/core").RuntimeClient,
+  scope: import("@ditto/core/worker/context").ContextScope,
+  call: import("@ditto/core/contracts").ToolCall,
+) {
+  const result = await runtime.invoke("INTERACTION.ACT.TOOL", { call });
+  const observation = await runtime.invoke("INTERACTION.OBSERVE", { result });
+  // The application chooses whether failed observations should enter its working set.
+  if (observation.status !== "success") throw new Error(observation.error?.code ?? observation.status);
+  return runtime.invoke("CONTEXT.UPDATE", { scope, ingress: [{
+    id: `observation:${call.id}`, sourceNode: "INTERACTION.OBSERVE", content: observation.message.content,
+    metadata: { callId: call.id, source: observation.source, status: observation.status },
+  }] });
+}
+```
+
+[完整 imports 和代码](examples/context.ts)。

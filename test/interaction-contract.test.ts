@@ -3,8 +3,8 @@ import { createServer } from "node:http";
 import { once } from "node:events";
 import test from "node:test";
 import {
-  createDitto, createInteractionNodes, defineWorker, McpRegistry, ToolRegistry,
-  observeExternalResult, runMcpFlow, mergeContextUpdate, createHttpTransport, createWorkerHttpHandler, type OutputSink,
+  createContextWorker, createDitto, createInteractionNodes, defineWorker, McpRegistry, ToolRegistry,
+  observeExternalResult, runMcpFlow, createHttpTransport, createWorkerHttpHandler, type OutputSink,
   type RegisteredTool,
 } from "../src/index.js";
 
@@ -43,7 +43,7 @@ test("MCP discovery is bounded and errors do not promote untrusted content into 
     async listTools({ cursor } = {}) { return cursor ? { tools: [{ name: "b", inputSchema: {}, outputSchema: { type: "object" } }] } : { tools: [{ name: "a", inputSchema: {} }], nextCursor: "next" }; },
     async callTool() { calls++; return { isError: true, content: "secret-like untrusted output", structuredContent: { reason: "remote" } }; },
   });
-  const runtime = createDitto({ sandbox: { mcp: ["docs"] }, workers: [defineWorker({ type: "INTERACTION", nodes: createInteractionNodes({ mcp }) }), defineWorker({ type: "CONTEXT", nodes: { "CONTEXT.UPDATE": mergeContextUpdate } })] });
+  const runtime = createDitto({ sandbox: { mcp: ["docs"] }, workers: [defineWorker({ type: "INTERACTION", nodes: createInteractionNodes({ mcp }) }), createContextWorker()] });
   try {
     const context = { items: [] };
     const discovered = await runMcpFlow(runtime, { context, request: { operation: "discover", server: "docs" } });

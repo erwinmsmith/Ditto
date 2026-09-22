@@ -63,7 +63,7 @@ loadRuntimeConfigFile(path = "ditto.yaml", env = process.env): RuntimeConfig
 loadRuntimeConfig(env = process.env, settings: RuntimeSettings = {}): RuntimeConfig
 ```
 
-The file loader reads UTF-8 YAML relative to the current working directory. The second loader takes an object without file access. Both loaders return a normalized immutable snapshot containing environment, workspace, model, providers, timeoutMs, maxTurns, infer, memory, retrieval, react and sandbox. All Workers access it through ctx.services.config. Reload and recreate the Runtime after editing YAML; there is no per-call file I/O or hot reload.
+The file loader reads UTF-8 YAML relative to the current working directory. The second loader takes an object without file access. Both loaders return a normalized immutable snapshot containing environment, workspace, model, providers, timeoutMs, maxTurns, infer, context, memory, retrieval, react and sandbox. All Workers access it through ctx.services.config. Reload and recreate the Runtime after editing YAML; there is no per-call file I/O or hot reload.
 
 Missing/empty files, non-object roots, unknown keys, duplicate keys, aliases and invalid values fail at startup. YAML does not interpolate environment variables or accept deployment fields such as apiKey/baseUrl. Provider options are request parameters, never a place for credentials. Custom createDitto({ providers }) skips HTTP provider construction from config.
 
@@ -114,3 +114,32 @@ DELIBERATE resolves mode and selectCount from the request, then workers.infer.de
 ## RETRIEVAL (optional)
 
 `workers.retrieval.searchLimit` is an integer in 1–10000, defaulting to 10 and normalized as config.retrieval. Precedence: request limit > options.defaults.searchLimit > Runtime YAML > built-in default. YAML does not install/register/start a Worker; the application must explicitly import the optional entry and call createRetrievalWorker. Application providers own connections, credentials and model handles; no database env placeholders are added. See [RETRIEVAL API](retrieval.md).
+
+## CONTEXT
+
+`workers.context` is parsed into `config.context` at startup. Pass it explicitly to SDK/Worker construction; loading config does not connect Redis.
+
+```yaml
+workers:
+  context:
+    policy:
+      maxInlineBytes: 65536
+      maxItems: 256
+      duplicate: replace
+      missingRemoval: ignore
+    cache:
+      ttlMs: 3600000
+      keyPrefix: "ditto:context:"
+```
+
+| Field | Default | Values |
+| --- | --- | --- |
+| policy.maxInlineBytes | 65536 | 1..1000000 |
+| policy.maxItems | 256 | 1..1000000 |
+| policy.maxTokens | unset | 1..1000000 |
+| policy.duplicate | replace | replace / keep-first / reject |
+| policy.missingRemoval | ignore | ignore / reject |
+| cache.ttlMs | 3600000 | 1..2147483647 |
+| cache.keyPrefix | ditto:context: | Nonempty string |
+
+Store the Redis URL/credentials in `.env` as `DITTO_WORKER_CONTEXT_REDIS_URL` for the application SDK; behavior belongs in YAML. See [CONTEXT API](context.md) for setup, invocation and plugin ports.
