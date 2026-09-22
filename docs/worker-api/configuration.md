@@ -24,6 +24,8 @@ await runtime.close();
 runtime:               # Timeouts and Graph orchestration
   timeoutMs: 120000
   maxTurns: 8
+  graphConcurrency: 8
+  loopMaxIterations: 32
   react: {}
 shared:
   providers: {}        # Shared provider behavior
@@ -63,7 +65,7 @@ loadRuntimeConfigFile(path = "ditto.yaml", env = process.env): RuntimeConfig
 loadRuntimeConfig(env = process.env, settings: RuntimeSettings = {}): RuntimeConfig
 ```
 
-The file loader reads UTF-8 YAML relative to the current working directory. The second loader takes an object without file access. Both loaders return a normalized immutable snapshot containing environment, workspace, model, providers, timeoutMs, maxTurns, infer, context, memory, retrieval, react and sandbox. All Workers access it through ctx.services.config. Reload and recreate the Runtime after editing YAML; there is no per-call file I/O or hot reload.
+The file loader reads UTF-8 YAML relative to the current working directory. The second loader takes an object without file access. Both loaders return a normalized immutable snapshot containing environment, workspace, model, providers, timeoutMs, maxTurns, graphConcurrency, loopMaxIterations, infer, context, memory, retrieval, react and sandbox. Workers access it through ctx.services.config and may receive independent services at registration. Reload and recreate the Runtime after editing YAML; there is no per-call file I/O or hot reload.
 
 Missing/empty files, non-object roots, unknown keys, duplicate keys, aliases and invalid values fail at startup. YAML does not interpolate environment variables or accept deployment fields such as apiKey/baseUrl. Provider options are request parameters, never a place for credentials. Custom createDitto({ providers }) skips HTTP provider construction from config.
 
@@ -75,6 +77,8 @@ All fields are optional. Request values take precedence over configuration, then
 | --- | --- | --- |
 | runtime.timeoutMs | INFER/ReAct deadline, integer 1–2147483647 ms | 30000 / 120000 |
 | runtime.maxTurns | ReAct default turns, positive safe integer | 8 / 8 |
+| `runtime.graphConcurrency` | Positive integer parallel node limit per graph; run/loop options override | Unlimited / 8 |
+| `runtime.loopMaxIterations` | Positive integer generic Loop limit; definition.maxIterations overrides | 32 / 32 |
 | workers.infer.generation.maxTokens | Per-generation token limit, positive safe integer | Provider default / 4096 |
 | workers.infer.generation.temperature/topP/topK/stop/seed | [GenerationConfig](infer.md): 0–2 / 0–1 / positive integer / nonempty strings / safe integer | Unspecified |
 | workers.infer.constraints.maxSteps | Total model calls per trajectory, including ranking/merging, positive safe integer | 16 / 16 |

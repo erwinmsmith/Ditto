@@ -2,17 +2,25 @@
 
 **English** · [简体中文](worker-communication.zh-CN.md)
 
-> Runtime `invoke` / `emit` are internal communication semantics, not Interaction Nodes. `INTERACTION.RUN` has been removed. Application Graphs and Loops invoke exposed leaf capabilities; the Loop and its state remain with the caller.
+> Runtime `invoke` / `emit` are internal communication semantics, not Interaction Nodes. Application Graphs and Loops invoke exposed leaf capabilities; the Loop and its state remain with the caller.
 
 ## Location and Invocation
 
 | Location | Current implementation | Data and execution |
 | --- | --- | --- |
 | Same process | Direct Worker executor calls | Preserves object identity without serialization |
-| Different processes on one host | HTTP loopback or a custom InvokeTransport | Serializes public Node calls; preferred over cross-host routing |
+| Different processes on one host | Native Node IPC; HTTP loopback is also available | Serializes public Node calls; preferred over cross-host routing |
 | Different servers | HTTP(S) transport and receiving handler | Authentication, Envelope validation, response correlation, size limits, and timeouts |
 
 `ctx.invoke` and top-level `runtime.invoke` share capability routing. The HTTP adapter uses the standard library and does not depend on frameworks such as Express. worker_threads / MessagePort / NATS require a custom `InvokeTransport`. HTTP is a working network adapter, tested through real loopback sockets.
+
+## Same-host IPC
+
+Use `createIpcTransport({ id, channel: child, timeoutMs })` with a ChildProcess returned by `node:child_process.fork`; register Workers in the child and call `serveWorkerIpc(runtime, process)`. Exchange the exact Worker address, use the same hostId with distinct processId values, and bind the transport through registerRemote. Routing prefers same process, same host, then other hosts; explicit workerId bindings remain strict.
+
+IPC reuses the inherited channel without a TCP port or network token. Calls still pass through envelopes, target identity checks, public capabilities and capacity limits; business payloads must remain serializable. Timeout, cancellation and disconnect stop the caller's wait without rolling back or forcibly terminating remote work. Applications own process/transport lifetime; call ipc.close() during shutdown. Receiver.close() detaches intake and drains accepted replies.
+
+See [placement.ts](../examples/runtime/placement.ts) for both modes and [Runtime API](worker-api/runtime.md) for detailed interfaces.
 
 ## HTTP Example
 

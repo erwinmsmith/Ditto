@@ -12,6 +12,8 @@
 | INTERACTION | [中文 API](interaction.zh-CN.md) · [English](interaction.md) | ACT.TOOL / ACT.MCP / OBSERVE / OUTPUT; ToolRegistry / McpRegistry / OutputSink |
 | RETRIEVAL （可选） | [中文 API](retrieval.zh-CN.md) · [English](retrieval.md) | SEARCH; SDK / target / strategy / 独立部署 |
 
+[Runtime / Graph / Loop 详细 API](runtime.zh-CN.md)：节点连接、Worker 分配、独立 Sandbox、本地 IPC 与跨机 HTTP。
+
 ## 从哪里开始
 
 1. 定义 Agent Graph：选择语义 Node、数据映射及失败时是否继续；不要把数据库连接、客户端或凭据放进 Graph。

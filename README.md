@@ -141,6 +141,8 @@ npm run check
 
 The package is currently private and is not published to npm. Other experiment repositories can consume it through a local Git or workspace dependency; the existing package exports are designed to remain valid when npm publication begins.
 
+See the [Runtime API](docs/worker-api/runtime.md) and [complete examples](examples/runtime/README.md) for node bindings, independent sandboxes, loops and local IPC / cross-host HTTP.
+
 ## Documentation
 
 - [Node System and API Contract](docs/13-node-api-contract.md)

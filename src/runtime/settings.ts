@@ -24,6 +24,8 @@ export interface RuntimeSettings {
   readonly runtime?: {
     readonly timeoutMs?: number;
     readonly maxTurns?: number;
+    readonly graphConcurrency?: number;
+    readonly loopMaxIterations?: number;
     readonly react?: { readonly maxActionCalls?: number; readonly maxTotalTokens?: number };
   };
   readonly workers?: {
@@ -75,8 +77,8 @@ const branch = [1, 16] as const;
 export function validateRuntimeSettings(value: unknown): RuntimeSettings {
   const v = record(value, "config", ["runtime", "workers", "shared"]);
   if (v.runtime !== undefined) {
-    const { react, ...runtime } = record(v.runtime, "runtime", ["timeoutMs", "maxTurns", "react"]);
-    integers(runtime, "runtime", { timeoutMs: timeout, maxTurns: positive });
+    const { react, ...runtime } = record(v.runtime, "runtime", ["timeoutMs", "maxTurns", "graphConcurrency", "loopMaxIterations", "react"]);
+    integers(runtime, "runtime", { timeoutMs: timeout, maxTurns: positive, graphConcurrency: positive, loopMaxIterations: positive });
     if (react !== undefined) integers(react, "runtime.react", { maxActionCalls: [0, Number.MAX_SAFE_INTEGER], maxTotalTokens: positive });
   }
   const workers = v.workers === undefined ? {} : record(v.workers, "workers", ["infer", "memory", "retrieval", "context"]);

@@ -11,7 +11,7 @@ flowchart TB
   App[Application state / Graph definitions] --> Loop[Loop: choose Graph, update state, stop]
   Loop --> Runtime[Runtime: configuration, scheduling, routing, communication]
   Runtime --> A
-  Runtime --> Transport[HTTP / custom IPC or RPC]
+  Runtime --> Transport[IPC / HTTP / custom RPC]
   Transport --> B[Worker in another Runtime]
   subgraph A[Worker replica: resources, concurrency, lifecycle]
     Entry[Public entry Node] --> G[Internal Graph]
@@ -85,7 +85,7 @@ Graphs contain no Provider keys, physical addresses, or replica counts. Because 
 
 `loop({ graph, bind, update, done, maxIterations })` defines repetition. `graph` may be a fixed DAG or `(state) => graph`: each iteration selects its DAG from the latest state, binds input, awaits `runtime.run`, updates state, and checks `done` against the new state and output. Different rounds may use different Nodes, dependencies, and branch structures. Selected Graphs share the Loop's declared input/output boundary; use explicit union types when their result shapes differ. Graphs themselves remain acyclic.
 
-`runtime.loop(definition, initialState)` returns final state. Callbacks are synchronous, and the default limit is 32 positive-integer iterations. Failure or exhaustion rejects without retrying. Each selected Graph receives a fresh run ID and uses ordinary capability routing, so replicas can change across tasks and rounds. State lives in the calling application; a Loop does not pin a Worker or persist a conversation. `config.maxTurns` is only used when the application explicitly passes it as `maxIterations`.
+`runtime.loop(definition, initialState)` returns final state. Callbacks are synchronous, and the default limit is 32 positive-integer iterations. Failure or exhaustion rejects without retrying. Each selected Graph receives a fresh run ID and uses ordinary capability routing, so replicas can change across tasks and rounds. State lives in the calling application; a Loop does not pin a Worker or persist a conversation. YAML `runtime.loopMaxIterations` sets the default budget; execution options can bind nodes to Workers by Graph ID.
 
 ## Scaling and Lifecycle
 
@@ -98,7 +98,7 @@ Routing filters public capabilities, availability, and local concurrency capacit
 - `setAvailable(false)`: stop accepting new routed calls.
 - `unregister()`: remove routing without interrupting accepted calls. Resources remain until the handle or Runtime is closed.
 - `await handle.close()`: stop routing, await accepted calls on that replica, and release resources once.
-- `await runtime.close()`: reject new calls and close owned Workers. Cleanup failures are returned as an AggregateError.
+- `await runtime.close()`: reject new calls, drain accepted graphs/loops/calls and event handlers, then close owned Workers. Cleanup failures are returned as an AggregateError.
 
 Handlers must await work they start. Closing a Runtime may reject Graph descendants that have not started or new cross-Worker requests, so applications should stop accepting requests and await top-level work before closing it. A handler must not await its own handle.close: that would wait for the handler itself. Applications own EventFabric, external Provider/MCP clients, and HTTP Server lifecycles.
 
@@ -127,3 +127,5 @@ The Router filters capabilities, capacity, and locality in one pass while retain
 ## Optional RETRIEVAL extension
 
 The four Core Workers retain 21 leaves. The optional `@ditto/core/worker/retrieval` entry adds the RETRIEVAL.SEARCH contract and implementation through explicit imports/registration. It invokes user providers through a Target/Strategy registry, owns no corpus, performs no RAG, and is not required by MEMORY/CONTEXT. Existing Runtime/HTTP facilities support independent deployment and replicas. See [API and deployment boundaries](worker-api/retrieval.md).
+
+[Runtime API](worker-api/runtime.md) documents concurrency, cancellation, node placement, per-Worker services/Sandbox and IPC with examples.

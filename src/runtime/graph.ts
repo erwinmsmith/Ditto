@@ -53,37 +53,72 @@ export function graph<I>(id = "agent"): ExecutionGraph<I> {
   return ExecutionGraph.create<I>(id);
 }
 
+export interface GraphRunOptions {
+  /** Maximum simultaneously running graph nodes. No hidden invocation queue. */
+  readonly concurrency?: number;
+  readonly signal?: AbortSignal;
+}
+
 export async function runGraph<I, O extends object>(
   graph: ExecutionGraph<I, O>,
   input: I,
   invoke: (node: NodeType, input: unknown, scope: ExecutionScope) => Promise<unknown>,
+  options: GraphRunOptions = {},
 ): Promise<O> {
-  // Validate the whole plan before executing anything (also protects JS callers).
-  const known = new Set<string>();
+  const concurrency = options.concurrency ?? Infinity;
+  if (concurrency !== Infinity && (!Number.isSafeInteger(concurrency) || concurrency < 1)) {
+    throw new Error("Graph concurrency must be a positive integer");
+  }
+  options.signal?.throwIfAborted();
+  // Build adjacency once: O(nodes + edges), with no promise per dependency.
+  const remaining = new Map<GraphTask, number>();
+  const dependents = new Map<string, GraphTask[]>();
+  const ready: GraphTask[] = [];
   for (const task of graph.tasks) {
-    if (!task.id || known.has(task.id)) throw new Error(`Duplicate graph Node ID: ${task.id}`);
+    if (!task.id || dependents.has(task.id)) throw new Error(`Duplicate graph Node ID: ${task.id}`);
     for (const dependency of task.dependencies) {
-      if (!known.has(dependency)) throw new Error(`Unknown or cyclic dependency: ${dependency}`);
+      const children = dependents.get(dependency);
+      if (!children) throw new Error(`Unknown or cyclic dependency: ${dependency}`);
+      children.push(task);
     }
-    known.add(task.id);
+    dependents.set(task.id, []);
+    remaining.set(task, task.dependencies.length);
+    if (!task.dependencies.length) ready.push(task);
   }
   const runId = randomUUID();
   const outputs: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
-  const jobs = new Map<string, Promise<void>>();
-  for (const task of graph.tasks) {
-    const job = Promise.all(task.dependencies.map((id) => jobs.get(id)!)).then(async () => {
-      const dependencies = Object.fromEntries(task.dependencies.map((id) => [id, outputs[id]]));
-      outputs[task.id] = await invoke(task.node, task.bind(input, Object.freeze(dependencies)), {
-        graphId: graph.id, runId, nodeId: task.id,
-      });
-    });
-    jobs.set(task.id, job);
-  }
-  // Drain already-started branches before rejecting. No hidden work after run settles.
-  const settled = await Promise.allSettled(jobs.values());
-  const failure = settled.find((result) => result.status === "rejected");
-  if (failure?.status === "rejected") throw failure.reason;
-  return Object.freeze(outputs) as O;
+  return new Promise<O>((resolve, reject) => {
+    let cursor = 0, active = 0, failed = false;
+    let failure: unknown;
+    const stop = (error: unknown): void => { if (!failed) { failed = true; failure = error; } };
+    const pump = (): void => {
+      if (options.signal?.aborted) stop(options.signal.reason);
+      while (!failed && active < concurrency && cursor < ready.length) {
+        const task = ready[cursor++]!;
+        active++;
+        void Promise.resolve().then(() => {
+          options.signal?.throwIfAborted();
+          const dependencies = Object.fromEntries(task.dependencies.map(id => [id, outputs[id]]));
+          return invoke(task.node, task.bind(input, Object.freeze(dependencies)), {
+            graphId: graph.id, runId, nodeId: task.id,
+          });
+        }).then(output => {
+          outputs[task.id] = output;
+          for (const child of dependents.get(task.id)!) {
+            const count = remaining.get(child)! - 1;
+            remaining.set(child, count);
+            if (!count) ready.push(child);
+          }
+        }, stop).finally(() => { active--; pump(); });
+      }
+      // Finish only after every started node settles, including on cancellation.
+      if (!active) {
+        if (failed) reject(failure);
+        else resolve(Object.freeze(outputs) as O);
+      }
+    };
+    pump();
+  });
 }
 
 export interface RuntimeFlowResult<Output> {

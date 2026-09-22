@@ -2,17 +2,25 @@
 
 [English](worker-communication.md) · **简体中文**
 
-> Runtime 的 `invoke` / `emit` 是内部通信语义，不属于 Interaction Node。`INTERACTION.RUN` 已移除；应用 Graph 与 Loop 调用公开的叶子能力，Loop 和状态留在调用端。
+> Runtime 的 `invoke` / `emit` 是内部通信语义，不属于 Interaction Node。应用 Graph 与 Loop 调用公开的叶子能力，Loop 和状态留在调用端。
 
 ## 位置与调用
 
 | 位置 | 当前实现 | 数据与执行 |
 | --- | --- | --- |
 | 同进程 | 直接调用 Worker executor | 保留对象身份，不序列化 |
-| 同机不同进程 | HTTP loopback，或自行实现 InvokeTransport | 序列化公开 Node 调用；路由优先于跨 host |
+| 同机不同进程 | Node 原生 IPC；也可使用 HTTP loopback | 序列化公开 Node 调用；路由优先于跨 host |
 | 跨服务器 | HTTP(S) transport + 接收 handler | 认证、Envelope 校验、响应关联、大小与超时限制 |
 
 `ctx.invoke` 和顶层 `runtime.invoke` 使用同一个能力路由。HTTP Adapter 使用标准库，不依赖 Express 等框架；worker_threads / MessagePort / NATS 等需要提供自己的 `InvokeTransport`。HTTP 是实际可用的网络适配器，测试通过真实 loopback socket 验证。
+
+## 同机 IPC
+
+使用 `createIpcTransport({ id, channel: child, timeoutMs })` 将 `node:child_process.fork` 返回的 ChildProcess 接到调用端；子进程注册 Worker 后执行 `serveWorkerIpc(runtime, process)`。登记两端共享的 hostId、不同 processId 及准确的 Worker 地址，再用 registerRemote 绑定 transport。Runtime 优先选择同进程，再选择同 host，最后跨 host；指定 workerId 时严格使用该副本。
+
+IPC 复用父子进程的内置 channel，不开 TCP 端口、不需要网络 token。调用仍经过 Envelope、目标身份、公开能力与容量检查；业务输入输出应保持可序列化。超时、取消和断开会结束调用端等待，但不会回滚或强制停止远端任务。应用拥有子进程及 transport 生命周期，退出前调用 ipc.close()；接收端 receiver.close() 停止新入口并等待已接受回复。
+
+完整双模式示例见 [placement.ts](../examples/runtime/placement.ts)，详细接口见 [Runtime API](worker-api/runtime.zh-CN.md)。
 
 ## HTTP 示例
 

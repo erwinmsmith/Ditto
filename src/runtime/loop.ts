@@ -18,6 +18,7 @@ export async function runLoop<S, I, O extends object>(
   definition: LoopDefinition<S, I, O>,
   initialState: NoInfer<S>,
   run: (graph: ExecutionGraph<I, O>, input: I) => Promise<O>,
+  signal?: AbortSignal,
 ): Promise<S> {
   const { graph, bind, update, done, maxIterations = 32 } = definition;
   if (!Number.isSafeInteger(maxIterations) || maxIterations < 1) {
@@ -25,8 +26,10 @@ export async function runLoop<S, I, O extends object>(
   }
   let state = initialState;
   for (let iteration = 0; iteration < maxIterations; iteration++) {
+    signal?.throwIfAborted();
     const plan = typeof graph === "function" ? graph(state) : graph;
     const output = await run(plan, bind(state));
+    signal?.throwIfAborted();
     state = update(state, output);
     if (done(state, output)) return state;
   }

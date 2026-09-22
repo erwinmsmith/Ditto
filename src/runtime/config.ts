@@ -22,6 +22,8 @@ export interface RuntimeConfig {
   readonly providers: Readonly<Record<string, ProviderConfig>>;
   readonly timeoutMs: number;
   readonly maxTurns: number;
+  readonly graphConcurrency: number;
+  readonly loopMaxIterations: number;
   readonly infer: InferSettings;
   readonly context: NonNullable<NonNullable<RuntimeSettings["workers"]>["context"]>;
   readonly memory: NonNullable<NonNullable<RuntimeSettings["workers"]>["memory"]>;
@@ -79,6 +81,8 @@ export function loadRuntimeConfig(env: NodeJS.ProcessEnv = process.env, settings
     providers: Object.freeze(providers),
     timeoutMs: settings.runtime?.timeoutMs ?? 30_000,
     maxTurns: settings.runtime?.maxTurns ?? 8,
+    graphConcurrency: settings.runtime?.graphConcurrency ?? Infinity,
+    loopMaxIterations: settings.runtime?.loopMaxIterations ?? 32,
     infer: settings.workers?.infer ?? Object.freeze({}),
     context: settings.workers?.context ?? Object.freeze({}),
     memory: settings.workers?.memory ?? Object.freeze({}),

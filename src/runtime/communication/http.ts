@@ -23,11 +23,12 @@ export function createHttpTransport(options: HttpTransportOptions): InvokeTransp
   if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) throw new Error("Invalid Worker URL");
   return {
     id: options.id,
-    async invoke(envelope): Promise<InvocationResult> {
+    async invoke(envelope, invocationOptions): Promise<InvocationResult> {
       const body = JSON.stringify(envelope);
       if (Buffer.byteLength(body) > maxBodyBytes) throw new Error("Worker request is too large");
       const response = await fetch(url, {
-        method: "POST", redirect: "error", signal: AbortSignal.timeout(options.timeoutMs ?? 30_000),
+        method: "POST", redirect: "error", signal: AbortSignal.any([AbortSignal.timeout(options.timeoutMs ?? 30_000),
+          ...(invocationOptions?.signal ? [invocationOptions.signal] : [])]),
         headers: { authorization: `Bearer ${options.token}`, "content-type": "application/json", "x-ditto-protocol": "1" }, body,
       });
       if (!response.ok) { await response.body?.cancel(); throw new Error(`Worker request failed (HTTP ${response.status})`); }

@@ -12,6 +12,8 @@ These references follow current public exports and cover factories, SDK methods,
 | INTERACTION | [API](interaction.md) · [中文](interaction.zh-CN.md) | ACT.TOOL / ACT.MCP / OBSERVE / OUTPUT; ToolRegistry / McpRegistry / OutputSink |
 | RETRIEVAL (optional) | [API](retrieval.md) · [中文](retrieval.zh-CN.md) | SEARCH; SDK / target / strategy / deployment |
 
+[Runtime / Graph / Loop API](runtime.md): node dependencies, Worker placement, independent sandboxes, local IPC and cross-host HTTP.
+
 ## Start here
 
 1. Define an Agent Graph with semantic nodes, data mappings, and failure policy; keep clients and credentials outside it.

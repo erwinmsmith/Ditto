@@ -141,6 +141,8 @@ npm run check
 
 当前 package 为 private，暂不发布 npm。其他实验仓库可通过本地 Git 或 workspace dependency 使用；现有 package exports 可在后续 npm 发布时继续沿用。
 
+Runtime 的节点绑定、独立 Sandbox、Loop 和两种部署通信方式详见 [Runtime API](docs/worker-api/runtime.zh-CN.md)；完整代码见 [Runtime 示例](examples/runtime/README.zh-CN.md)。
+
 ## 文档
 
 - [节点体系与 API Contract](docs/13-node-api-contract.zh-CN.md)
@@ -151,6 +153,6 @@ npm run check
 
 具体使用案例、缺陷与架构讨论请提交至 [GitHub Issues](https://github.com/erwinmsmith/Ditto/issues)。
 
-行为参数统一放根目录 [`ditto.yaml`](ditto.yaml)，凭证与部署配置使用 [`.env.example`](.env.example)，所有 Worker 共用 Runtime services。详见 [统一配置 API](docs/worker-api/configuration.zh-CN.md)。运行方式见 [INFER 示例指南](examples/README.zh-CN.md#infer)。
+行为参数统一放根目录 [`ditto.yaml`](ditto.yaml)，凭证与部署配置使用 [`.env.example`](.env.example)，Worker 默认共享 Runtime services，也可独立注入。详见 [统一配置 API](docs/worker-api/configuration.zh-CN.md)。运行方式见 [INFER 示例指南](examples/README.zh-CN.md#infer)。
 
 MEMORY 的接入、插件边界、六个节点和配置详见 [MEMORY API](docs/worker-api/memory.zh-CN.md)。

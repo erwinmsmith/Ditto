@@ -5,6 +5,8 @@
 runtime:
   timeoutMs: 120000
   maxTurns: 8
+  graphConcurrency: 8
+  loopMaxIterations: 32
   react:
     maxActionCalls: 16
     maxTotalTokens: 64000
