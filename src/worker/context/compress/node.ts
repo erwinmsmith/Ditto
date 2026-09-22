@@ -1,6 +1,6 @@
 import { createNodeScaffold } from "../../node-scaffold.js";
 import type { ContextExecution } from "../types.js";
-import { estimateTokens, snapshotContext } from "../execution.js";
+import { checkedItem, estimateTokens, snapshotContext } from "../execution.js";
 import { check, ContextError, context } from "../validation.js";
 import { deterministicCompress, isProtectedContextItem } from "./strategies/deterministic.js";
 import { validateCompress } from "./schema.js";
@@ -44,7 +44,7 @@ async function validateCompressed(
       .reduce((sum, value) => sum + value, 0);
     check(tokens <= maxTokens, "Compressor exceeded maxTokens", "INVALID_PROVIDER_OUTPUT");
   }
-  return snapshotContext(output.items);
+  return snapshotContext(output.items.map(item => checkedItem(item, execution)));
 }
 
 export async function compressNode(input: ContextCompressInput, execution: ContextExecution): Promise<ContextCompressOutput> {

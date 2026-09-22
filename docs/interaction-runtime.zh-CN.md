@@ -93,20 +93,19 @@ const interaction = createInteractionWorker({
 
 | 函数 | 固定流程 |
 | --- | --- |
-| `runRagFlow({ scope: "context" })` | `CONTEXT.RAG.RETRIEVE -> CONTEXT.RAG.RANK -> CONTEXT.UPDATE` |
-| `runRagFlow({ scope: "memory" })` | `MEMORY.SEARCH -> mapMemory -> CONTEXT.UPDATE` |
-| `runSkillFlow()` | `CONTEXT.SKILL` |
+| `runRagFlow()` | `CONTEXT.SELECT` with `strategy: { kind: "rag" }` |
+| `runSkillFlow()` | `CONTEXT.LOAD -> CONTEXT.UPDATE` (optional merge) |
 | `runToolCallFlow()` | `INTERACTION.ACT.TOOL -> INTERACTION.OBSERVE -> CONTEXT.UPDATE` |
 | `runMcpFlow()` | `discover` 只调用 MCP；`invoke` 执行 MCP -> OBSERVE -> CONTEXT.UPDATE |
 
-RAG 的 `EMBED` 用于索引准备，不进入查询时流程。Tool 和 MCP 调用返回 Observation 并更新 Context；MCP 能力发现只返回清单，不修改 Context。观察结果的来源经 `ContextIngress` 传入 `CONTEXT.UPDATE`。
+RAG 的 embed/retrieve/rank 由注入的 createRagStrategy 管理。Tool/MCP 调用返回 Observation，并通过 ContextIngress 更新显式 Context；discover 不更新。
 
 ```ts
 import { runSkillFlow, runToolCallFlow } from "@ditto/core/runtime";
 
 const skill = await runSkillFlow(runtime, {
   context,
-  skill: { name: "code-review", instructions: "Review correctness and tests." },
+  sources: [{ id: "code-review", content: "Review correctness and tests." }],
 });
 
 const tool = await runToolCallFlow(runtime, {
@@ -119,9 +118,8 @@ const tool = await runToolCallFlow(runtime, {
 
 ## Skill 生命周期
 
-应用解析 Skill 后传入 runSkillFlow；流程调用 CONTEXT.SKILL 激活它。MEMORY 不负责 Skill 管理。
+应用解析 Skill 后，将其内容作为 sources 传入 runSkillFlow；流程调用 LOAD，可选 UPDATE。
 
-`SkillRegistry` 位于 context 目录，提供带 Sandbox 检查的进程内注册/读取。长期 Skill 管理由应用实现。
 
 ## Sandbox 与部署
 
@@ -196,4 +194,4 @@ Token 计数缺失返回 USAGE_UNAVAILABLE；重复 action ID、未声明动作�
 
 采样与预算默认参数见 [统一配置 API](worker-api/configuration.zh-CN.md)。
 
-Memory RAG 需要显式 mapMemory 回调；参见 [MEMORY API](worker-api/memory.zh-CN.md)。SEARCH 失败时不会调用 CONTEXT.UPDATE。
+长期记忆搜索使用 MEMORY.SEARCH，Graph 检查 NodeResult 并显式映射到 CONTEXT.UPDATE；详见 [MEMORY API](worker-api/memory.zh-CN.md)。

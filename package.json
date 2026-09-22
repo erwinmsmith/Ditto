@@ -73,7 +73,8 @@
     "check:infer:live": "npm run build && node --env-file=.env scripts/check-infer-live.ts",
     "example:agent": "npm run build && node examples/graph-loop-worker.ts",
     "example:tools": "npm run build && node examples/interaction-tools.ts",
-    "check:interaction:mcp:live": "npm run build && node scripts/check-interaction-mcp-live.mjs"
+    "check:interaction:mcp:live": "npm run build && node scripts/check-interaction-mcp-live.mjs",
+    "check:context:redis:live": "npm run build && node scripts/check-context-redis-live.mjs"
   },
   "engines": {
     "node": ">=24.0.0",

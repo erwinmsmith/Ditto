@@ -100,3 +100,39 @@ npm run check:infer:live -- --provider deepseek
 ```
 
 使用 `--strategies cot,tot,got` 筛选策略，`--cases sample,tot` 筛选用例，`--max-tokens 4096` 调整本次调用预算。`--report path` 指定结果文件；默认写入被 Git 忽略的 `.infer-live-results.json`。
+
+## CONTEXT / Redis
+
+`createContext()` 可直接执行无状态示例。缓存调用需要应用提供 Redis 服务及 SDK；从根目录运行：
+
+```bash
+redis_deps="$(mktemp -d)"
+npm install --prefix "$redis_deps" --no-audit --no-fund --ignore-scripts redis@6.2.1
+DITTO_WORKER_CONTEXT_REDIS_URL=redis://127.0.0.1:6379 npm run check:context:redis:live -- "$redis_deps"
+```
+
+应用项目中安装 `redis`，使用 `.env` 的地址创建连接，再注入 Worker。使用 Node `--env-file=.env` 或应用自己的环境加载器：
+
+```ts
+import { createClient } from "redis";
+import { createContextWorker, createDitto, loadRuntimeConfigFile } from "@ditto/core";
+const config = loadRuntimeConfigFile("ditto.yaml", process.env);
+const redis = createClient({ url: process.env.DITTO_WORKER_CONTEXT_REDIS_URL });
+redis.on("error", () => { /* Application logging/health reporting. */ });
+await redis.connect();
+const runtime = createDitto({ config, workers: [createContextWorker({
+  ...(config.context.policy ? { policy: config.context.policy } : {}),
+  redis: { client: redis, ...config.context.cache },
+})] });
+try {
+  const scope = { sessionId: "tenant-a:session-1" };
+  await runtime.invoke("CONTEXT.LOAD", { scope, sources: [{ role: "user", content: "hello" }] });
+  const selected = await runtime.invoke("CONTEXT.SELECT", { scope, purpose: "infer" });
+  console.log(selected.context);
+} finally {
+  await runtime.close();
+  await redis.quit();
+}
+```
+
+[每个 CONTEXT 示例的说明](../docs/worker-api/examples/README.md#contextts) · [完整 API](../docs/worker-api/context.zh-CN.md)

@@ -93,20 +93,19 @@ The public functions live directly in `src/runtime/graph.ts` and are exported fr
 
 | Function | Fixed flow |
 | --- | --- |
-| `runRagFlow({ scope: "context" })` | `CONTEXT.RAG.RETRIEVE -> CONTEXT.RAG.RANK -> CONTEXT.UPDATE` |
-| `runRagFlow({ scope: "memory" })` | `MEMORY.SEARCH -> mapMemory -> CONTEXT.UPDATE` |
-| `runSkillFlow()` | `CONTEXT.SKILL` |
+| `runRagFlow()` | `CONTEXT.SELECT` with `strategy: { kind: "rag" }` |
+| `runSkillFlow()` | `CONTEXT.LOAD -> CONTEXT.UPDATE` (optional merge) |
 | `runToolCallFlow()` | `INTERACTION.ACT.TOOL -> INTERACTION.OBSERVE -> CONTEXT.UPDATE` |
 | `runMcpFlow()` | `discover`: MCP only; `invoke`: MCP -> OBSERVE -> CONTEXT.UPDATE |
 
-RAG `EMBED` prepares representations/indexes and is excluded from query-time flows. Tool and MCP invoke return an Observation and update Context; MCP discovery returns capabilities without changing Context. Observation provenance enters `CONTEXT.UPDATE` through `ContextIngress`.
+Injected createRagStrategy manages optional embed/rank and required retrieve. Tool/MCP calls return Observation and update explicit Context through ContextIngress; discovery does not update it.
 
 ```ts
 import { runSkillFlow, runToolCallFlow } from "@ditto/core/runtime";
 
 const skill = await runSkillFlow(runtime, {
   context,
-  skill: { name: "code-review", instructions: "Review correctness and tests." },
+  sources: [{ id: "code-review", content: "Review correctness and tests." }],
 });
 
 const tool = await runToolCallFlow(runtime, {
@@ -119,9 +118,8 @@ Applications may compose the same leaf Nodes differently with `ExecutionGraph`; 
 
 ## Skill Lifecycle
 
-Applications resolve a Skill before passing it to runSkillFlow, which invokes CONTEXT.SKILL. MEMORY does not manage Skills.
+Applications resolve Skill content and pass sources to runSkillFlow, which invokes LOAD and optionally UPDATE.
 
-`SkillRegistry` lives in the context directory and provides process-local registration/loading with Sandbox checks. Applications own durable Skill management.
 
 ## Sandbox and Deployment
 
@@ -196,4 +194,4 @@ Missing usage produces USAGE_UNAVAILABLE. Duplicate action IDs, undeclared actio
 
 Shared generation and budget defaults: [configuration API](worker-api/configuration.md).
 
-Memory RAG requires an explicit mapMemory callback; see the [MEMORY API](worker-api/memory.md). Failed SEARCH results do not update Context.
+Use MEMORY.SEARCH for durable recall; the Graph checks NodeResult and maps results to CONTEXT.UPDATE. See [MEMORY API](worker-api/memory.md).

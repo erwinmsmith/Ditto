@@ -100,3 +100,39 @@ npm run check:infer:live -- --provider deepseek
 ```
 
 Use `--strategies cot,tot,got` to select strategies, `--cases sample,tot` to select cases, and `--max-tokens 4096` to set the token budget for this run. `--report path` sets the output file; the default is the Git-ignored `.infer-live-results.json`.
+
+## CONTEXT / Redis
+
+`createContext()` runs explicit Context examples without a cache. Cached calls need application-provided Redis and its SDK. Run from the repository root:
+
+```bash
+redis_deps="$(mktemp -d)"
+npm install --prefix "$redis_deps" --no-audit --no-fund --ignore-scripts redis@6.2.1
+DITTO_WORKER_CONTEXT_REDIS_URL=redis://127.0.0.1:6379 npm run check:context:redis:live -- "$redis_deps"
+```
+
+Install `redis` in the application, construct a connection using the URL from `.env`, and inject it into the Worker. Load env explicitly with Node `--env-file=.env` or your application loader:
+
+```ts
+import { createClient } from "redis";
+import { createContextWorker, createDitto, loadRuntimeConfigFile } from "@ditto/core";
+const config = loadRuntimeConfigFile("ditto.yaml", process.env);
+const redis = createClient({ url: process.env.DITTO_WORKER_CONTEXT_REDIS_URL });
+redis.on("error", () => { /* Application logging/health reporting. */ });
+await redis.connect();
+const runtime = createDitto({ config, workers: [createContextWorker({
+  ...(config.context.policy ? { policy: config.context.policy } : {}),
+  redis: { client: redis, ...config.context.cache },
+})] });
+try {
+  const scope = { sessionId: "tenant-a:session-1" };
+  await runtime.invoke("CONTEXT.LOAD", { scope, sources: [{ role: "user", content: "hello" }] });
+  const selected = await runtime.invoke("CONTEXT.SELECT", { scope, purpose: "infer" });
+  console.log(selected.context);
+} finally {
+  await runtime.close();
+  await redis.quit();
+}
+```
+
+[CONTEXT example functions](../docs/worker-api/examples/README.md#contextts) · [Complete API](../docs/worker-api/context.md)

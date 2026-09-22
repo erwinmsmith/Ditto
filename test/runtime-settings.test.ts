@@ -155,3 +155,14 @@ test("ToT/GoT keep their decision modes and retain budget caps with separate DEL
     assert.deepEqual(requests.map(r => r.generation?.maxTokens), [5, 3, 1]);
   }
 });
+
+test("Context behavior settings are immutable and reject invalid cache or policy values", () => {
+  const config = loadRuntimeConfig({}, { workers: { context: {
+    policy: { maxItems: 12, duplicate: "keep-first" }, cache: { ttlMs: 1000, keyPrefix: "test:" },
+  } } });
+  assert.equal(config.context.policy?.maxItems, 12);
+  assert.ok(Object.isFrozen(config.context.cache));
+  for (const context of [{ cache: { ttlMs: 0 } }, { cache: { keyPrefix: "" } }, { policy: { maxItems: -1 } }, { cache: { url: "redis://secret" } }]) {
+    assert.throws(() => loadRuntimeConfig({}, { workers: { context } } as never));
+  }
+});

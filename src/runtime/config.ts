@@ -23,6 +23,7 @@ export interface RuntimeConfig {
   readonly timeoutMs: number;
   readonly maxTurns: number;
   readonly infer: InferSettings;
+  readonly context: NonNullable<NonNullable<RuntimeSettings["workers"]>["context"]>;
   readonly memory: NonNullable<NonNullable<RuntimeSettings["workers"]>["memory"]>;
   readonly retrieval: NonNullable<NonNullable<RuntimeSettings["workers"]>["retrieval"]>;
   readonly react: NonNullable<NonNullable<RuntimeSettings["runtime"]>["react"]>;
@@ -79,6 +80,7 @@ export function loadRuntimeConfig(env: NodeJS.ProcessEnv = process.env, settings
     timeoutMs: settings.runtime?.timeoutMs ?? 30_000,
     maxTurns: settings.runtime?.maxTurns ?? 8,
     infer: settings.workers?.infer ?? Object.freeze({}),
+    context: settings.workers?.context ?? Object.freeze({}),
     memory: settings.workers?.memory ?? Object.freeze({}),
     retrieval: settings.workers?.retrieval ?? Object.freeze({}),
     react: settings.runtime?.react ?? Object.freeze({}),

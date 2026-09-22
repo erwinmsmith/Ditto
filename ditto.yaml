@@ -30,6 +30,15 @@ shared:
 
 # Worker-specific behavior; add sections only when a Worker consumes them.
 workers:
+  context:
+    policy:
+      maxInlineBytes: 65536
+      maxItems: 256
+      duplicate: replace
+      missingRemoval: ignore
+    cache:
+      ttlMs: 3600000
+      keyPrefix: "ditto:context:"
   # Optional; this config does not register or start a RETRIEVAL Worker.
   retrieval:
     searchLimit: 10

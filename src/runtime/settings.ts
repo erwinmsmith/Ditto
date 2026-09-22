@@ -1,3 +1,6 @@
+import type { ContextPolicy } from "../worker/context/types.js";
+import { validatePolicy } from "../worker/context/validation.js";
+import { DEFAULT_CONTEXT_POLICY } from "../worker/context/execution.js";
 import type { MemoryDefaults } from "../worker/memory/types.js";
 import type { GenerationConfig } from "../worker/infer/types.js";
 import type { DeliberationMode } from "../worker/infer/reasoning/deliberate/types.js";
@@ -25,6 +28,10 @@ export interface RuntimeSettings {
   };
   readonly workers?: {
     readonly infer?: InferSettings;
+    readonly context?: {
+      readonly policy?: Partial<ContextPolicy>;
+      readonly cache?: { readonly ttlMs?: number; readonly keyPrefix?: string };
+    };
     readonly memory?: MemoryDefaults;
     // Data-only settings keep the optional retrieval implementation out of Core's import graph.
     readonly retrieval?: {
@@ -72,7 +79,19 @@ export function validateRuntimeSettings(value: unknown): RuntimeSettings {
     integers(runtime, "runtime", { timeoutMs: timeout, maxTurns: positive });
     if (react !== undefined) integers(react, "runtime.react", { maxActionCalls: [0, Number.MAX_SAFE_INTEGER], maxTotalTokens: positive });
   }
-  const workers = v.workers === undefined ? {} : record(v.workers, "workers", ["infer", "memory", "retrieval"]);
+  const workers = v.workers === undefined ? {} : record(v.workers, "workers", ["infer", "memory", "retrieval", "context"]);
+  if (workers.context !== undefined) {
+    const settings = record(workers.context, "workers.context", ["policy", "cache"]);
+    if (settings.policy !== undefined) {
+      const policy = record(settings.policy, "workers.context.policy", ["maxInlineBytes", "maxItems", "maxTokens", "duplicate", "missingRemoval"]);
+      validatePolicy({ ...DEFAULT_CONTEXT_POLICY, ...policy });
+    }
+    if (settings.cache !== undefined) {
+      const { keyPrefix, ...cache } = record(settings.cache, "workers.context.cache", ["ttlMs", "keyPrefix"]);
+      integers(cache, "workers.context.cache", { ttlMs: timeout });
+      if (keyPrefix !== undefined && (typeof keyPrefix !== "string" || keyPrefix.length === 0)) throw new Error("Invalid workers.context.cache.keyPrefix");
+    }
+  }
   if (workers.retrieval !== undefined) {
     const { embedding, hybrid, rerank, ...retrieval } = record(workers.retrieval, "workers.retrieval", ["searchLimit", "embedding", "hybrid", "rerank"]);
     integers(retrieval, "workers.retrieval", { searchLimit: [1, 10000] });

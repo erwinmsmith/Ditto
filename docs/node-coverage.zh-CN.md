@@ -10,7 +10,7 @@
 
 | 原说明中的标签或行为 | 当前归属 | 映射要求 |
 | --- | --- | --- |
-| CONTEXT.PROMPT | Graph bind 或应用输入装配 | 已有上下文装入或修改时才使用 CONTEXT.LOAD/UPDATE；只有取用已注册 Skill 才使用 CONTEXT.SKILL。 |
+| CONTEXT.PROMPT | Graph bind 或应用输入装配 | 已有上下文装入或修改时才使用 CONTEXT.LOAD/UPDATE；只有取用已注册 Skill 才使用 CONTEXT.LOAD。 |
 | CONTEXT.SCHEDULE | 应用编排与已有上下文、记忆节点 | 持久化调用 MEMORY.WRITE/UPDATE；当前条目选择或压缩使用 CONTEXT.SELECT/COMPRESS。没有同名节点。 |
 | INTERACTION.MCP | INTERACTION.ACT.MCP | MCP 发现或调用是独立语义 Node；客户端连接、认证和 session 生命周期仍由应用/Runtime 管理。 |
 | 接收任务或问题 | 应用/Runtime 输入边界 | 任务参数在 Graph 执行前进入系统，不是 Node；实际外部消息系统可通过 ACT.TOOL 或 ACT.MCP 调用。 |
@@ -19,14 +19,14 @@
 | ACT 与 TOOL 表示同一层级 | `ACT` 是命名空间 | 直接注册工具使用 `INTERACTION.ACT.TOOL`，MCP 能力使用 `INTERACTION.ACT.MCP`；ACT 本身不作为可执行叶子。 |
 | 评估、审批、重试、成本统计 | 测试侧或应用策略 | 不新增节点。真正执行验证工具可归 TOOL/ACT；推理和提示词不代替实际授权检查。 |
 
-案例不得为了覆盖 25 个目标 Node Type 而插入原测试没有的行为。原 `INTERACTION.RUN` 是应用 Graph / Runtime 编排，不作为 Node；一次复合循环也不能替代对内部真实叶子 Node 的 trace 证据。
+案例不得为了覆盖 21 个目标 Node Type 而插入原测试没有的行为。原 `INTERACTION.RUN` 是应用 Graph / Runtime 编排，不作为 Node；一次复合循环也不能替代对内部真实叶子 Node 的 trace 证据。
 
 ## RAG 的最终节点映射
 
 | 操作 | 现有节点 | 边界 |
 | --- | --- | --- |
 | 获取网页、文件或第三方资料 | `INTERACTION.ACT.TOOL` / `INTERACTION.ACT.MCP` | 外部能力调用；取得的数据可成为当前任务 corpus。 |
-| 检索当前任务知识 | `CONTEXT.RAG.EMBED/RETRIEVE/RANK` | 面向当前文档、repo、网页、知识库或临时 corpus，结果进入 working context。 |
+| 检索当前任务知识 | `CONTEXT.SELECT` (rag strategy) | 面向当前文档、repo、网页、知识库或临时 corpus，结果进入 working context。 |
 | 直接读取长期条目 | `MEMORY.GET` | GET 按 id/key 精确读取；QUERY 使用结构化条件。 |
 | 语义检索长期记忆 | `MEMORY.SEARCH` | 面向跨 invocation/session 的 Memory Corpus。 |
 | 长期状态生命周期 | `MEMORY.WRITE/UPDATE/DELETE + Graph/Policy` | 新建、修改、整理和淘汰持久语义状态。 |
@@ -48,7 +48,7 @@
 | 2 | CONTEXT.LOAD | 加载 Issue、仓库树、基线 commit 和测试命令。 |
 | 3 | MEMORY.SEARCH | 从长期 Memory Corpus 语义检索仓库约定、已知构建问题和此前修复经验。 |
 | 4 | CONTEXT.SELECT | 从已加载上下文中选择与报错堆栈、符号和模块相关的证据。 |
-| 5 | CONTEXT.SKILL | 读取已注册的代码修复约束，例如只修改必要文件、不得绕过测试；若未注册 Skill，则由 Graph bind 装配这些约束。 |
+| 5 | CONTEXT.LOAD | 读取已注册的代码修复约束，例如只修改必要文件、不得绕过测试；若未注册 Skill，则由 Graph bind 装配这些约束。 |
 | 6 | INFER.REASONING.TRAJECTORY | 形成第一版故障假设。 |
 | 7 | INTERACTION.ACT.TOOL | 使用代码搜索、文件读取和 Git diff 等已注册工具。 |
 | 8 | INTERACTION.OBSERVE | 接收符号引用、调用路径和当前代码实现。 |
@@ -87,7 +87,7 @@
 | 7 | INTERACTION.ACT.TOOL | 调用网页搜索、浏览器、PDF 或表格读取工具。 |
 | 8 | INTERACTION.OBSERVE | 接收网页、文档、表格和来源信息。 |
 | 9 | CONTEXT.UPDATE | 将来源、日期、事实和可信度加入当前上下文。 |
-| 10 | CONTEXT.RAG.RANK | 按来源权威性、日期和证据完整性重排候选，并降低转载摘要权重。 |
+| 10 | CONTEXT.SELECT | 按来源权威性、日期和证据完整性重排候选，并降低转载摘要权重。 |
 
 交付与验证：计算使用任务配置的工具，答案及来源由 OUTPUT 交付。官方答案比对属于测试侧。此案例的公开网页搜索不自动计为长期 Memory 检索；只有已有测试实际使用持久知识库时才记录相应 Memory 调用。
 
@@ -107,7 +107,7 @@
 | 4 | INTERACTION.ACT.TOOL | 查询客户、订单、航班或商品状态。 |
 | 5 | INTERACTION.OBSERVE | 接收真实沙箱业务记录。 |
 | 6 | CONTEXT.UPDATE | 将订单状态、金额、时间和身份信息加入当前上下文。 |
-| 7 | CONTEXT.SKILL | 读取已注册的退款政策、身份校验和审批边界；真实权限仍由工具和 Sandbox 检查。 |
+| 7 | CONTEXT.LOAD | 读取已注册的退款政策、身份校验和审批边界；真实权限仍由工具和 Sandbox 检查。 |
 | 8 | INFER.REASONING.TRAJECTORY | 判断用户请求对应的事务类型。 |
 | 9 | INFER.REASONING.DELIBERATE | 检查政策条件、费用、资格和互斥操作。 |
 | 10 | CONTEXT.SELECT | 只保留当前决定需要的客户与政策字段。 |
@@ -185,6 +185,6 @@
 
 正式覆盖记录应关联 case id、原样本/任务 id、代码 commit、实际 Node Type、输入输出引用、工具/Provider 实现和验证结果。同一个 Node 在 Graph 中重复出现可有不同逻辑 id；统计类型覆盖时去重。应用入口、bind、连接初始化与测试侧 verifier 均单独记录，不充作 Node。
 
-《Agent 节点体系覆盖分析 · 报告》的 11/18 是此前 12 个样本对迁移前固定基线的离线分析；7 个未覆盖节点是当时的验证盲区。它既不是这六个案例的运行成绩，也不能换算成最终 25 个目标 Node Type 的覆盖率。最终覆盖必须按新全限定名称重新采集执行证据。
+《Agent 节点体系覆盖分析 · 报告》的 11/18 是此前 12 个样本对迁移前固定基线的离线分析；7 个未覆盖节点是当时的验证盲区。它既不是这六个案例的运行成绩，也不能换算成最终 21 个目标 Node Type 的覆盖率。最终覆盖必须按新全限定名称重新采集执行证据。
 
 实现现状依据 dev 提交 a9e43212162650259b2a1bf9ed907d8bad19e79f 的 contracts、interaction loop 和 MCP 适配器；目标分类依据负责人最终商定的节点体系。案例任务依据提供的《节点体系覆盖》和《Agent 节点体系覆盖分析 · 报告》。原图只包含流程截图，没有完整电子表格附件，因此可见行数保持不变。

@@ -28,10 +28,10 @@ test("every agreed leaf Node has a module in the existing worker tree", async ()
 test("the bilingual contract documents describe the final taxonomy", async () => {
   for (const name of ["13-node-api-contract.md", "13-node-api-contract.zh-CN.md"]) {
     const document = await readFile(join(root, "docs", name), "utf8");
-    for (const node of ["INFER.REASONING.TRAJECTORY", "CONTEXT.RAG.RANK", "MEMORY.SEARCH", "INTERACTION.ACT.MCP"]) {
+    for (const node of ["INFER.REASONING.TRAJECTORY", "CONTEXT.SELECT", "MEMORY.SEARCH", "INTERACTION.ACT.MCP"]) {
       assert.match(document, new RegExp(node.replaceAll(".", "\\.")));
     }
-    assert.doesNotMatch(document, /CONTEXT\.RAG\.PACK/);
+    assert.doesNotMatch(document, /CONTEXT\.(?:RAG\.|SKILL)/);
     assert.doesNotMatch(document, /INTERACTION\.COMMUNICATE/);
   }
 });

@@ -6,6 +6,7 @@ These references follow current public exports and cover factories, SDK methods,
 
 | Worker | Reference | Operations and examples |
 | --- | --- | --- |
+| CONTEXT | [中文 API](context.zh-CN.md) · [English](context.md) | LOAD / SELECT / UPDATE / COMPRESS; Redis / stateStore / RAG |
 | INFER | [API](infer.md) · [中文](infer.zh-CN.md) | SAMPLE / TRAJECTORY / REFLECT / DELIBERATE / CACHE LOOKUP, WRITE, INVALIDATE; SDK + stream |
 | MEMORY | [API](memory.md) · [中文](memory.zh-CN.md) | GET / QUERY / SEARCH / WRITE / UPDATE / DELETE; store / search |
 | INTERACTION | [API](interaction.md) · [中文](interaction.zh-CN.md) | ACT.TOOL / ACT.MCP / OBSERVE / OUTPUT; ToolRegistry / McpRegistry / OutputSink |
@@ -26,6 +27,7 @@ See [Graph + Loop + Worker](../../examples/graph-loop-worker.ts) and [real comma
 | Call layer | Returns | Failure behavior |
 | --- | --- | --- |
 | INFER / MEMORY / RETRIEVAL SDK or Worker | `NodeResult<T>` | Check status before consuming output; construction/routing/transport can still throw |
+| CONTEXT | `Context` / `ContextSelection` | Rejects with ContextError or service errors |
 | INTERACTION | `ExternalResult` / `Observation` / MCP union / `OutputReceipt` | Check the appropriate status; validation/permission/infrastructure errors throw |
 | Underlying store / Provider / Sink | Their raw Output | Workers wrap or validate it; do not add another NodeResult |
 
@@ -43,6 +45,7 @@ INTERACTION tools, MCP clients, and output functions are injected through code. 
 
 | Example file | Coverage |
 | --- | --- |
+| [context.ts](examples/context.ts) | LOAD / SELECT / UPDATE / COMPRESS; scope / Redis / Graph |
 | [memory.ts](examples/memory.ts) | Both factories, six operations, execute, pagination, plugins, errors, Graph, descriptors |
 | [infer.ts](examples/infer.ts) | Both factories, seven leaves, five strategies, three reflection/four deliberation modes, four streams, cache and model providers |
 | [interaction.ts](examples/interaction.ts) | Factories, registration/removal, four nodes, MCP, observations, receipts, handlers, Graph/Loop |

@@ -389,3 +389,26 @@ export async function interactionGraph() {
 Registering one Worker definition multiple times shares supplied tools, registries, clients, and sinks. Construct separate definitions or use defineWorker resources/dispose for independent resources. unregister only affects future lookups; it neither cancels started operations nor closes SDKs. Drain runtime.close() before closing application-owned clients.
 
 See the [example guide](../../examples/README.md) for command, tool, and MCP composition. Database capabilities belong in MEMORY. Model action loops are documented in [ReAct Graph](../interaction-runtime.md#react-predefined-graph-flow).
+
+## Compose with CONTEXT
+
+Observe tool results before updating CONTEXT through ingress. Cached Graphs pass scope to UPDATE; runToolCallFlow/runMcpFlow use explicit Context. [Complete CONTEXT API and examples](context.md)。
+
+```ts
+export async function toolToCachedContext(
+  runtime: import("@ditto/core").RuntimeClient,
+  scope: import("@ditto/core/worker/context").ContextScope,
+  call: import("@ditto/core/contracts").ToolCall,
+) {
+  const result = await runtime.invoke("INTERACTION.ACT.TOOL", { call });
+  const observation = await runtime.invoke("INTERACTION.OBSERVE", { result });
+  // The application chooses whether failed observations should enter its working set.
+  if (observation.status !== "success") throw new Error(observation.error?.code ?? observation.status);
+  return runtime.invoke("CONTEXT.UPDATE", { scope, ingress: [{
+    id: `observation:${call.id}`, sourceNode: "INTERACTION.OBSERVE", content: observation.message.content,
+    metadata: { callId: call.id, source: observation.source, status: observation.status },
+  }] });
+}
+```
+
+[Complete imports and source](examples/context.ts).

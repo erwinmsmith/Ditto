@@ -1,3 +1,4 @@
+import type { ContextRequest, ContextStateInput } from "./state.js";
 import type { ContextLoadInput, ContextLoadOutput } from "./load/types.js";
 import type { ContextSelectInput, ContextSelectOutput } from "./select/types.js";
 import type { ContextUpdateInput, ContextUpdateOutput } from "./update/types.js";
@@ -10,10 +11,10 @@ export type * from "./compress/types.js";
 export type * from "./types.js";
 
 export interface ContextContractMap {
-  "CONTEXT.LOAD": { input: ContextLoadInput; output: ContextLoadOutput };
-  "CONTEXT.SELECT": { input: ContextSelectInput; output: ContextSelectOutput };
-  "CONTEXT.UPDATE": { input: ContextUpdateInput; output: ContextUpdateOutput };
-  "CONTEXT.COMPRESS": { input: ContextCompressInput; output: ContextCompressOutput };
+  "CONTEXT.LOAD": { input: ContextLoadInput | (ContextStateInput & { readonly sources?: ContextLoadInput["sources"] }); output: ContextLoadOutput };
+  "CONTEXT.SELECT": { input: ContextRequest<ContextSelectInput>; output: ContextSelectOutput };
+  "CONTEXT.UPDATE": { input: ContextRequest<ContextUpdateInput>; output: ContextUpdateOutput };
+  "CONTEXT.COMPRESS": { input: ContextRequest<ContextCompressInput>; output: ContextCompressOutput };
 }
 
 export type ContextNode = keyof ContextContractMap;

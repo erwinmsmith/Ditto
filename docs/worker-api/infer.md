@@ -645,3 +645,21 @@ export function sampleDescriptor(infer: InferClient) {
   return inferSampleNode.define("INFER", input => infer.reasoning.sample(input));
 }
 ```
+
+## Compose with CONTEXT
+
+Select with CONTEXT.SELECT and explicitly map to messages. Working ContextItem.source is a Reference; INFER context source uses its URI string. [Complete CONTEXT API and examples](context.md)。
+
+```ts
+export async function contextToInfer(context: WorkingContext, infer: InferClient, model: ModelConfig) {
+  const selected = await createContext().select({ context, purpose: "infer", limit: 16 });
+  return infer.reasoning.sample({ model, messages: [
+    ...selected.context.items.map(item => ({ role: "user" as const,
+      content: typeof item.content === "string" ? item.content : JSON.stringify(item.content),
+    })),
+    { role: "user", content: "Explain the evidence." },
+  ] });
+}
+```
+
+[Complete imports and source](examples/context.ts).

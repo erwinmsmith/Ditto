@@ -313,3 +313,19 @@ export function retrievalDescriptor(provider: RetrievalSearchProvider) {
   return retrievalSearchNode.define("RETRIEVAL", input => retrieval.search(input));
 }
 ```
+
+## 与 CONTEXT 组合
+
+CONTEXT.SELECT 的 ragStrategy 可复用当前 SearchProvider，也可通过 Runtime 委托 RETRIEVAL.SEARCH。独立调用须先检查 NodeResult，再显式映射候选，返回 ContextItem[]；SELECT 不自动写回工作集。 [完整 CONTEXT API 与调用示例](context.zh-CN.md)。
+
+```ts
+export function remoteContextRetrieval(runtime: import("@ditto/core").RuntimeClient, target: RetrievalTarget) {
+  return contextRetrieval({ async search(input) {
+    const result = await runtime.invoke("RETRIEVAL.SEARCH", input);
+    if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);
+    return result.output;
+  } }, target);
+}
+```
+
+[完整 imports 和代码](examples/context.ts)。

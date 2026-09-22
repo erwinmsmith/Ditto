@@ -125,3 +125,60 @@ test("malformed Context inputs fail before strategies or compressors run", async
   await assert.rejects(context.execute("CONTEXT.COMPRESS", { context: { items: [] }, maxItems: -1 } as never), /maxItems/);
   assert.equal(calls, 0);
 });
+
+test("scoped Context state is explicit, isolated, read-only on SELECT, and rejects concurrent overwrites", async () => {
+  const states = new Map<string, import("../src/index.js").StoredContext>();
+  let version = 0;
+  const store: import("../src/index.js").ContextStateStore = {
+    async get(scope) { return states.get(JSON.stringify(scope)); },
+    async compareAndSet(scope, expected, next) {
+      const key = JSON.stringify(scope);
+      if (states.get(key)?.version !== expected) throw new ContextError("STATE_CONFLICT", "conflict");
+      const value = { version: String(++version), context: next };
+      states.set(key, value); return value;
+    },
+  };
+  const client = createContext({ services: { stateStore: store } });
+  const scope = { sessionId: "one" };
+  const conflict = (e: unknown) => e instanceof ContextError && e.code === "STATE_CONFLICT";
+  await client.load({ scope, sources: [{ id: "first", content: "hello" }] });
+  assert.deepEqual(await client.load({ scope }), { items: [{ id: "first", content: "hello" }] });
+  await client.select({ scope, purpose: "infer", limit: 0 });
+  assert.equal((await client.load({ scope })).items.length, 1);
+  await assert.rejects(client.load({ scope: { sessionId: "two" } }), /absent or expired/);
+  const old = (await store.get(scope))!.version;
+  const writes = await Promise.allSettled([
+    client.update({ scope, add: [{ id: "a", content: "a" }] }),
+    client.update({ scope, add: [{ id: "b", content: "b" }] }),
+  ]);
+  assert.equal(writes.filter(result => result.status === "fulfilled").length, 1);
+  assert.ok(writes.some(result => result.status === "rejected" && conflict(result.reason)));
+  assert.equal((await client.load({ scope })).items.length, 2);
+  await assert.rejects(client.compress({ scope, expectedVersion: old, maxItems: 1 }), conflict);
+  await client.compress({ scope, maxItems: 1 });
+  assert.equal((await client.load({ scope })).items.length, 1);
+  states.clear();
+  await assert.rejects(client.update({ scope, add: [] }), /absent or expired/);
+  await assert.rejects(client.load({ scope: {}, sources: [] }), /identifier/);
+  await assert.rejects(client.select({ scope, context: { items: [] }, purpose: "infer" } as never), /either context or scope/);
+  await assert.rejects(createContext().load({ scope }), /Configure a Context state store/);
+  await assert.rejects(client.execute("UNKNOWN" as never, {} as never), /Unknown Context node/);
+  // Explicit payload computation never calls the configured store.
+  assert.deepEqual(await client.load({ sources: [] }), { items: [] });
+  const runtime = createDitto({ workers: [createContextWorker({ services: { stateStore: store } })] });
+  try {
+    await runtime.invoke("CONTEXT.LOAD", { scope, sources: [{ id: "runtime", content: "ok" }] });
+    assert.equal((await runtime.invoke("CONTEXT.SELECT", { scope, purpose: "infer" })).selectedItemIds[0], "runtime");
+  } finally { await runtime.close(); }
+});
+
+test("Context skips token estimation without a token budget and enforces compressor inline limits", async () => {
+  let estimates = 0;
+  const client = createContext({ services: { tokenEstimator: { estimate() { estimates++; return 1; } } } });
+  await client.compress({ context: { items: [{ id: "one", content: "one" }] }, maxItems: 1 });
+  assert.equal(estimates, 0);
+  await assert.rejects(createContext({ policy: { maxInlineBytes: 8 }, services: {
+    compressor: { async compress() { return { items: [{ id: "one", content: "too much inline content" }] }; } },
+  } }).compress({ context: { items: [{ id: "one", content: "one" }] } }),
+  (e: unknown) => e instanceof ContextError && e.code === "INLINE_LIMIT_EXCEEDED");
+});

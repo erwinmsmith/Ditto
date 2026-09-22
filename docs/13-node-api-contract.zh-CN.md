@@ -1,12 +1,11 @@
 # Ditto 节点体系与 API Contract
 
-> 可执行 Worker API：[INFER](worker-api/infer.zh-CN.md) · [MEMORY](worker-api/memory.zh-CN.md)。
+> [详细 Worker API 与示例](worker-api/README.zh-CN.md)。
 
 [English](13-node-api-contract.md) | **简体中文**
 
-> 状态：节点体系最终版；API Contract `2.0-rc.1`。INFER 与 MEMORY 已提供可执行 Worker；本分支的 Interaction 接口改动仍待审阅。
 
-本文与 INFER/MEMORY API 共同定义节点树、语义边界、公共基础类型和节点输入输出契约。Node 是可组合、可独立执行的语义操作；Worker 是实现、资源、部署和扩容边界；Graph 组合 Node；Runtime 负责调度、路由、通信与执行。
+本文与 Worker API 共同定义节点树、语义边界、公共基础类型和节点输入输出契约。Node 是可组合、可独立执行的语义操作；Worker 是实现、资源、部署和扩容边界；Graph 组合 Node；Runtime 负责调度、路由、通信与执行。
 
 ## Runtime 预定义流程
 
@@ -14,12 +13,12 @@ Ditto 从 `src/runtime/graph.ts` 公开四个可直接调用的 Runtime 函数�
 
 | 函数 | 标准流转 |
 | --- | --- |
-| `runRagFlow()` | 根据 `scope` 执行 `CONTEXT.RAG.RETRIEVE → CONTEXT.RAG.RANK → CONTEXT.UPDATE`，或 `MEMORY.SEARCH → mapMemory → CONTEXT.UPDATE` |
-| `runSkillFlow()` | `CONTEXT.SKILL` |
+| `runRagFlow()` | `CONTEXT.SELECT` with `strategy: { kind: "rag" }` |
+| `runSkillFlow()` | `CONTEXT.LOAD → CONTEXT.UPDATE` (optional merge) |
 | `runMcpFlow()` | `discover` 只调用 MCP；`invoke` 执行 MCP → OBSERVE → CONTEXT.UPDATE |
 | `runToolCallFlow()` | TOOL → OBSERVE → CONTEXT.UPDATE |
 
-流程返回 `{ output, context }`；Tool 和 MCP 调用还返回 `observation`。Memory RAG 必须提供 mapMemory，将任意 content 显式映射到 Context，且先检查 NodeResult；Skill 流程接收已解析的 skill 并调用 CONTEXT.SKILL。MCP 能力发现不修改 Context。详见 [MEMORY API](worker-api/memory.zh-CN.md)。
+流程返回 `{ output, context }`，Tool/MCP invoke 还返回 observation。RAG output 为 ContextSelection；Skill 输入 sources，可选 context。Memory 搜索由用户 Graph 显式检查 NodeResult 并映射到 UPDATE。详见 [CONTEXT API](worker-api/context.zh-CN.md)。
 
 ## 1. 最终节点树
 
@@ -41,12 +40,7 @@ CONTEXT
 ├── LOAD
 ├── SELECT
 ├── UPDATE
-├── COMPRESS
-├── RAG/
-│   ├── EMBED
-│   ├── RETRIEVE
-│   └── RANK
-└── SKILL
+└── COMPRESS
 
 MEMORY
 ├── GET
@@ -58,29 +52,21 @@ MEMORY
 
 INTERACTION
 ├── ACT/
-│   ├── TOOL/                   // 源码目录；ACT.TOOL 仍是语义 Node
-│   │   ├── Linux Commands/     // 工具目录，不是 Node
-│   │   │   ├── grep            // 注册工具名
-│   │   │   ├── ls
-│   │   │   ├── cat
-│   │   │   ├── find
-│   │   │   └── ...
-│   │   └── other registered tools
+│   ├── TOOL
 │   └── MCP
 ├── OBSERVE
 └── OUTPUT
 ```
 
-Core 当前包含 25 个可路由叶子 Contract。`INFER.REASONING`、`INFER.CACHE`、`INFER.PROVIDERS`、`RAG` 分支和 `INTERACTION.ACT` 都是命名空间；CACHE 的可执行叶子为 LOOKUP、WRITE、INVALIDATE。工具名与推理策略不是 Node。
+Core 当前包含 21 个可路由叶子 Contract。`INFER.REASONING`、`INFER.CACHE`、`INFER.PROVIDERS`、`RAG` 分支和 `INTERACTION.ACT` 都是命名空间；CACHE 的可执行叶子为 LOOKUP、WRITE、INVALIDATE。工具名与推理策略不是 Node。
 
 ## 2. 能力域边界
 
 - **INFER** 负责模型计算。`REASONING` 组织显式可控的推理，不代表模型隐藏思维。`TRAJECTORY` 通过 `strategy` 承载 CoT/ToT/GoT；`REFLECT` 重新审视已有结果；`DELIBERATE` 增加推理预算；`SAMPLE` 从同一输入产生候选。不存在独立 Generate Node。Provider 是实现适配器，不是 Node。`CACHE` 复用模型计算结果，不属于 Memory。
 - **CONTEXT** 负责当前 invocation/turn 的 working set。`LOAD`、`SELECT`、`UPDATE`、`COMPRESS` 只改变当前上下文。Reset/session 生命周期归 Runtime。Context 到模型输入的组装是内部 `ModelInput` 边界，不是 Node。
-- **CONTEXT.RAG** 检索当前任务知识，来源可为文档、repo、网页、知识库或临时 corpus，结果默认不持久化。
 - **MEMORY** 提供 GET / QUERY / SEARCH / WRITE / UPDATE / DELETE，通过注入的 MemoryStore / MemorySearchProvider 访问长期记忆。数据库由外部插件提供。
-- **RAG** 是 Runtime/用户 Graph。长期记忆通过 SEARCH 获取，不规定内部检索流水线；CONTEXT.RAG 的 EMBED 用于当前知识库索引准备。
-- **SKILL** 由应用解析，CONTEXT.SKILL 负责激活；Skill 管理不属于 MEMORY。
+- **RAG** 是 CONTEXT.SELECT 的内部策略，embed/retrieve/rank 为可替换服务；独立执行可委托 RETRIEVAL。
+- **SKILL** 由应用解析为 sources，经 LOAD/UPDATE 装入；MEMORY 不管理 Skill。
 - **INTERACTION** 负责与外部世界的语义交互。`ACT.TOOL` 调用直接注册工具；`ACT.MCP` 发现或调用 MCP 能力；`OBSERVE` 标准化外部结果；`OUTPUT` 提交最终结果。
 
 任务和用户输入通过应用/Runtime 边界进入，不设置独立通信 Node。确实需要调用外部消息系统时，应使用注册 Tool 或 MCP 能力。Worker 之间的 `invoke` / `emit` 仍是 Runtime 内部通信。Node Contract 不包含位置和传输信息。
@@ -103,11 +89,8 @@ export interface Message { role: MessageRole; content: MessageContent; name?: st
 export interface ContextItem { id: string; content: MessageContent; source?: Reference; metadata?: JsonObject; }
 export interface Context { items: readonly ContextItem[]; }
 export type ContextSource = Message | Reference | ContextItem;
-export type ContextIngressSource =
-  | "CONTEXT.SKILL" | "CONTEXT.RAG.RANK" | "MEMORY.SEARCH"
-  | "INTERACTION.OBSERVE";
 export interface ContextIngress {
-  id: string; sourceNode: ContextIngressSource; content: MessageContent;
+  id: string; sourceNode: NodeType; content: MessageContent;
   reference?: Reference; metadata?: JsonObject;
 }
 
@@ -118,13 +101,6 @@ export interface MemorySearchResult { memory: MemoryItem; score?: number; metada
 export interface ToolCall { id: string; name: string; arguments: JsonObject; }
 export type ToolEffect = "read" | "write" | "execute" | "network";
 export interface ToolDefinition { name: string; description?: string; inputSchema: JsonObject; effects?: readonly ToolEffect[]; requiresApproval?: boolean; }
-export interface KnowledgeItem { id: string; content: MessageContent; source?: Reference; metadata?: JsonObject; }
-export interface EmbeddingRecord { itemId: string; vector: readonly number[]; }
-export interface RagCandidate { item: KnowledgeItem; score?: number; }
-export interface Skill {
-  name: string; version?: string; description?: string;
-  instructions: MessageContent; metadata?: JsonObject;
-}
 export interface ExternalResult {
   callId: string; source: string; status: "success" | "failed" | "cancelled" | "timeout" | "unknown";
   content?: MessageContent; structuredContent?: JsonValue; references?: readonly Reference[];
@@ -147,30 +123,16 @@ import type {
   CacheInvalidateInput, CacheInvalidateOutput,
 } from "@ditto/core/worker/infer";
 
-export interface ContextLoadInput { sources: readonly ContextSource[]; }
-export type ContextLoadOutput = Context;
-export interface ContextSelectInput { context: Context; query: Message; limit?: number; }
-export type ContextSelectOutput = Context;
-export interface ContextUpdateInput {
-  context: Context; add?: readonly ContextItem[];
-  ingress?: readonly ContextIngress[]; removeIds?: readonly string[];
-}
-export type ContextUpdateOutput = Context;
-export interface ContextCompressInput { context: Context; maxTokens?: number; maxItems?: number; }
-export type ContextCompressOutput = Context;
-export interface ContextRagEmbedInput { items: readonly KnowledgeItem[]; }
-export type ContextRagEmbedOutput = readonly EmbeddingRecord[];
-export interface ContextRagRetrieveInput {
-  query: MessageContent; corpus: Reference | readonly KnowledgeItem[];
-  limit?: number; strategy?: string;
-}
-export type ContextRagRetrieveOutput = readonly RagCandidate[];
-export interface ContextRagRankInput {
-  query: MessageContent; candidates: readonly RagCandidate[]; limit?: number; strategy?: string;
-}
-export type ContextRagRankOutput = readonly RagCandidate[];
-export interface ContextSkillInput { context: Context; skill: Skill; }
-export type ContextSkillOutput = Context;
+// Node inputs include explicit-context and scoped-cache calls.
+import type { ContextInput, ContextOutput } from "@ditto/core/worker/context";
+type ContextLoadInput = ContextInput<"CONTEXT.LOAD">;
+type ContextLoadOutput = ContextOutput<"CONTEXT.LOAD">;
+type ContextSelectInput = ContextInput<"CONTEXT.SELECT">;
+type ContextSelectOutput = ContextOutput<"CONTEXT.SELECT">;
+type ContextUpdateInput = ContextInput<"CONTEXT.UPDATE">;
+type ContextUpdateOutput = ContextOutput<"CONTEXT.UPDATE">;
+type ContextCompressInput = ContextInput<"CONTEXT.COMPRESS">;
+type ContextCompressOutput = ContextOutput<"CONTEXT.COMPRESS">;
 
 export interface MemoryGetInput { ids?: readonly string[]; keys?: readonly string[]; }
 export type MemoryGetOutput = readonly MemoryItem[];
@@ -219,10 +181,6 @@ export interface NodeContractMap {
   "CONTEXT.SELECT": NodeContract<ContextSelectInput, ContextSelectOutput>;
   "CONTEXT.UPDATE": NodeContract<ContextUpdateInput, ContextUpdateOutput>;
   "CONTEXT.COMPRESS": NodeContract<ContextCompressInput, ContextCompressOutput>;
-  "CONTEXT.RAG.EMBED": NodeContract<ContextRagEmbedInput, ContextRagEmbedOutput>;
-  "CONTEXT.RAG.RETRIEVE": NodeContract<ContextRagRetrieveInput, ContextRagRetrieveOutput>;
-  "CONTEXT.RAG.RANK": NodeContract<ContextRagRankInput, ContextRagRankOutput>;
-  "CONTEXT.SKILL": NodeContract<ContextSkillInput, ContextSkillOutput>;
   "MEMORY.GET": NodeContract<MemoryGetInput, NodeResult<MemoryGetOutput>>;
   "MEMORY.QUERY": NodeContract<MemoryQueryInput, NodeResult<MemoryQueryOutput>>;
   "MEMORY.SEARCH": NodeContract<MemorySearchInput, NodeResult<MemorySearchOutput>>;
@@ -252,4 +210,4 @@ export type OutputOf<N extends NodeType> = NodeContractMap[N]["output"];
 
 ## 可选 RETRIEVAL 扩展
 
-四个 Core Worker 的 25 个叶子保持不变。可选入口 `@ditto/core/worker/retrieval` 增加 `RETRIEVAL.SEARCH` 的契约与实现，仅在应用显式导入/注册时启用。它通过 Target/Strategy Registry 调用用户 Provider，不拥有数据、不执行 RAG，也不要求 MEMORY/CONTEXT 经由它检索。需要独立执行资源或水平扩容时，可使用现有 Runtime/HTTP 部署多个副本。[详细 API 与部署边界](worker-api/retrieval.zh-CN.md)。
+四个 Core Worker 的 21 个叶子保持不变。可选入口 `@ditto/core/worker/retrieval` 增加 `RETRIEVAL.SEARCH` 的契约与实现，仅在应用显式导入/注册时启用。它通过 Target/Strategy Registry 调用用户 Provider，不拥有数据、不执行 RAG，也不要求 MEMORY/CONTEXT 经由它检索。需要独立执行资源或水平扩容时，可使用现有 Runtime/HTTP 部署多个副本。[详细 API 与部署边界](worker-api/retrieval.zh-CN.md)。

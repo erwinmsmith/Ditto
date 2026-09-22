@@ -229,21 +229,27 @@ workers:
 
 ## 与 Graph / Context 的边界
 
-MEMORY 不调用其他 Core Worker，不负责 RAG、反思、合并、淘汰调度或 Skill 管理。`runRagFlow({ scope: "memory", ... })` 是 Runtime 的组合函数，执行 SEARCH → 用户映射 → CONTEXT.UPDATE；搜索失败时不更新 Context。content 是 unknown，因此需要调用者显式提供映射：
+MEMORY.SEARCH 返回 NodeResult，Graph 检查成功后将 unknown content 显式映射到 CONTEXT.UPDATE 的 ingress。CONTEXT.LOAD/UPDATE 接收已由应用解析的 Skill 内容；长期记忆不管理 Skill。缓存模式可把 UPDATE 的 context 换成 scope。
 
 ```ts
-import { runRagFlow } from "@ditto/core/runtime";
-const result = await runRagFlow(runtime, {
-  scope: "memory", context: { items: [] }, query: "user preferences",
-  mapMemory: ({ memory, score }) => ({
-    id: `memory:${memory.id}`, sourceNode: "MEMORY.SEARCH",
-    content: typeof memory.content === "string" ? memory.content : JSON.stringify(memory.content),
-    metadata: { memoryId: memory.id, ...(score === undefined ? {} : { score }) },
-  }),
-});
+export async function memoryToContext(resources: MemoryResources) {
+  const runtime = createDitto({ workers: [createMemoryWorker(resources), createContextWorker()] });
+  const plan = graph<string>("memory-context")
+    .node("search", "MEMORY.SEARCH", [], query => ({ query, limit: 5 }))
+    .node("context", "CONTEXT.UPDATE", ["search"], (_query, { search }) => {
+      if (search.status !== "success" || !search.output) throw new Error(search.error?.code ?? search.status);
+      return { context: { items: [] }, ingress: search.output.map(hit => ({
+        id: `memory:${hit.memory.id}`, sourceNode: "MEMORY.SEARCH" as const,
+        content: typeof hit.memory.content === "string" ? hit.memory.content : JSON.stringify(hit.memory.content),
+        metadata: { memoryId: hit.memory.id, ...(hit.score === undefined ? {} : { relevance: hit.score }) },
+      })) };
+    });
+  try { return await runtime.run(plan, "language preference"); }
+  finally { await runtime.close(); }
+}
 ```
 
-映射需符合应用数据类型和 Context 的 JSON 契约，上例适用于 JSON 内容。Skill 由应用解析，`runSkillFlow({ context, skill })` 激活 CONTEXT.SKILL；SkillRegistry 位于 context 目录，也可从根入口导入。
+[完整 CONTEXT API](context.zh-CN.md)
 
 ## 可选独立 Retrieval 服务
 

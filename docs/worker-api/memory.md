@@ -216,21 +216,27 @@ External plugins read database URLs, credentials and connection settings from ap
 
 ## Graph and Context boundaries
 
-MEMORY does not call other Core Workers, schedule RAG/consolidation/eviction, or manage Skills. The Runtime helper `runRagFlow` in memory scope composes SEARCH → application mapping → CONTEXT.UPDATE. Failed searches stop before Context mutation. Since content is unknown, callers provide mapMemory:
+MEMORY.SEARCH returns NodeResult; the Graph checks success and maps unknown content to CONTEXT.UPDATE ingress. Applications resolve Skill content for CONTEXT.LOAD/UPDATE. For cached state, replace UPDATE context with scope.
 
 ```ts
-import { runRagFlow } from "@ditto/core/runtime";
-await runRagFlow(runtime, {
-  scope: "memory", context: { items: [] }, query: "user preferences",
-  mapMemory: ({ memory, score }) => ({
-    id: `memory:${memory.id}`, sourceNode: "MEMORY.SEARCH",
-    content: typeof memory.content === "string" ? memory.content : JSON.stringify(memory.content),
-    metadata: { memoryId: memory.id, ...(score === undefined ? {} : { score }) },
-  }),
-});
+export async function memoryToContext(resources: MemoryResources) {
+  const runtime = createDitto({ workers: [createMemoryWorker(resources), createContextWorker()] });
+  const plan = graph<string>("memory-context")
+    .node("search", "MEMORY.SEARCH", [], query => ({ query, limit: 5 }))
+    .node("context", "CONTEXT.UPDATE", ["search"], (_query, { search }) => {
+      if (search.status !== "success" || !search.output) throw new Error(search.error?.code ?? search.status);
+      return { context: { items: [] }, ingress: search.output.map(hit => ({
+        id: `memory:${hit.memory.id}`, sourceNode: "MEMORY.SEARCH" as const,
+        content: typeof hit.memory.content === "string" ? hit.memory.content : JSON.stringify(hit.memory.content),
+        metadata: { memoryId: hit.memory.id, ...(hit.score === undefined ? {} : { relevance: hit.score }) },
+      })) };
+    });
+  try { return await runtime.run(plan, "language preference"); }
+  finally { await runtime.close(); }
+}
 ```
 
-This mapping example assumes JSON content; applications must satisfy Context's JSON contract. Applications resolve Skills before `runSkillFlow({ context, skill })` activates CONTEXT.SKILL. SkillRegistry is available from the context directory and the root export.
+[Complete CONTEXT API](context.md)
 
 ## Optional independent retrieval service
 

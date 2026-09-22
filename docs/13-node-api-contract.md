@@ -1,12 +1,11 @@
 # Ditto Node Taxonomy and API Contract
 
-> Executable Worker APIs: [INFER](worker-api/infer.md) · [MEMORY](worker-api/memory.md).
+> [Detailed Worker APIs and examples](worker-api/README.md).
 
 **English** | [简体中文](13-node-api-contract.zh-CN.md)
 
-> Status: final Node taxonomy; API Contract `2.0-rc.1`. INFER and MEMORY have executable Workers; Interaction contract changes in this branch remain under review.
 
-This document and the linked INFER/MEMORY APIs define the Node tree, semantic boundaries, common public types, and Node input/output contracts. A Node is a composable, independently executable semantic operation. A Worker is the implementation, resource, deployment, and scaling boundary. Graphs compose Nodes; Runtime schedules, routes, communicates, and executes them.
+This document and the linked Worker APIs define the Node tree, semantic boundaries, common public types, and Node input/output contracts. A Node is a composable, independently executable semantic operation. A Worker is the implementation, resource, deployment, and scaling boundary. Graphs compose Nodes; Runtime schedules, routes, communicates, and executes them.
 
 ## Runtime predefined flows
 
@@ -14,12 +13,12 @@ Ditto exposes four directly callable Runtime functions from `src/runtime/graph.t
 
 | Function | Standard flow |
 | --- | --- |
-| `runRagFlow()` | `CONTEXT.RAG.RETRIEVE → CONTEXT.RAG.RANK → CONTEXT.UPDATE`, or `MEMORY.SEARCH → mapMemory → CONTEXT.UPDATE` according to `scope` |
-| `runSkillFlow()` | `CONTEXT.SKILL` |
+| `runRagFlow()` | `CONTEXT.SELECT` with `strategy: { kind: "rag" }` |
+| `runSkillFlow()` | `CONTEXT.LOAD → CONTEXT.UPDATE` (optional merge) |
 | `runMcpFlow()` | `discover`: MCP only; `invoke`: MCP → OBSERVE → CONTEXT.UPDATE |
 | `runToolCallFlow()` | TOOL → OBSERVE → CONTEXT.UPDATE |
 
-Flows return `{ output, context }`; Tool and MCP invoke also return `observation`. Memory RAG requires `mapMemory` to map arbitrary content into Context and checks NodeResult before updating Context. Skill flow receives an already-resolved `skill` and invokes CONTEXT.SKILL. MCP discovery does not update Context. See [MEMORY API](worker-api/memory.md).
+Flows return `{ output, context }`; Tool/MCP invoke also return observation. RAG output is ContextSelection; Skill input is sources with optional context. Map Memory search results to UPDATE explicitly in the application Graph after checking NodeResult. See [CONTEXT API](worker-api/context.md).
 
 ## 1. Final Node tree
 
@@ -41,12 +40,7 @@ CONTEXT
 ├── LOAD
 ├── SELECT
 ├── UPDATE
-├── COMPRESS
-├── RAG/
-│   ├── EMBED
-│   ├── RETRIEVE
-│   └── RANK
-└── SKILL
+└── COMPRESS
 
 MEMORY
 ├── GET
@@ -58,29 +52,21 @@ MEMORY
 
 INTERACTION
 ├── ACT/
-│   ├── TOOL/                   // source folder; ACT.TOOL remains the semantic Node
-│   │   ├── Linux Commands/     // tool folder, not a Node
-│   │   │   ├── grep            // registered tool name
-│   │   │   ├── ls
-│   │   │   ├── cat
-│   │   │   ├── find
-│   │   │   └── ...
-│   │   └── other registered tools
+│   ├── TOOL
 │   └── MCP
 ├── OBSERVE
 └── OUTPUT
 ```
 
-There are 25 Core routable leaf contracts. INFER.REASONING, INFER.CACHE, INFER.PROVIDERS, RAG branches and INTERACTION.ACT are namespaces; CACHE executes through LOOKUP, WRITE and INVALIDATE. Tool names and reasoning strategies are not Nodes.
+There are 21 Core routable leaf contracts. INFER.REASONING, INFER.CACHE, INFER.PROVIDERS, INTERACTION.ACT are namespaces; CACHE executes through LOOKUP, WRITE and INVALIDATE. Tool names and reasoning strategies are not Nodes.
 
 ## 2. Semantic boundaries
 
 - **INFER** owns model computation. `REASONING` organizes explicit reasoning; it is not hidden model thought. `TRAJECTORY` accepts CoT/ToT/GoT through `strategy`; `REFLECT` revisits a result; `DELIBERATE` compares/combines candidates; `SAMPLE` generates one candidate. There is no separate Generate Node. Providers are implementation adapters, not Nodes. `CACHE` reuses computation results and is not Memory.
 - **CONTEXT** owns the working set of the current invocation or turn. `LOAD`, `SELECT`, `UPDATE`, and `COMPRESS` alter that working set. Reset/session lifecycle belongs to Runtime. Context-to-model assembly is an internal `ModelInput` boundary, not a Node.
-- **CONTEXT.RAG** retrieves current-task knowledge from documents, repositories, web sources, knowledge bases, or temporary corpora. Its results are not durable by default.
 - **MEMORY** exposes GET / QUERY / SEARCH / WRITE / UPDATE / DELETE through injected MemoryStore / MemorySearchProvider ports; external plugins own databases.
-- **RAG** is a Runtime/application Graph. Long-term retrieval uses SEARCH without prescribing its internal pipeline; CONTEXT.RAG.EMBED prepares current-corpus indexes.
-- **SKILL** is resolved by the application and activated by CONTEXT.SKILL; MEMORY does not manage Skills.
+- **RAG** is an internal CONTEXT.SELECT strategy using replaceable embed/retrieve/rank services; independent execution can delegate to RETRIEVAL.
+- **SKILL** content is resolved by the application into sources and loaded through LOAD/UPDATE; MEMORY does not manage Skills.
 - **INTERACTION** owns semantic interaction with the outside world. `ACT.TOOL` calls registered native tools; `ACT.MCP` discovers or invokes MCP capabilities; `OBSERVE` standardizes external results; `OUTPUT` submits the final result.
 
 Task and user input enter through the application/Runtime boundary, not through a dedicated communication Node. A live external messaging system may be invoked through a registered Tool or MCP capability. Worker-to-Worker `invoke` and `emit` remain Runtime communication primitives. Location and transport never appear in Node Contracts.
@@ -104,11 +90,8 @@ export interface Message { role: MessageRole; content: MessageContent; name?: st
 export interface ContextItem { id: string; content: MessageContent; source?: Reference; metadata?: JsonObject; }
 export interface Context { items: readonly ContextItem[]; }
 export type ContextSource = Message | Reference | ContextItem;
-export type ContextIngressSource =
-  | "CONTEXT.SKILL" | "CONTEXT.RAG.RANK" | "MEMORY.SEARCH"
-  | "INTERACTION.OBSERVE";
 export interface ContextIngress {
-  id: string; sourceNode: ContextIngressSource; content: MessageContent;
+  id: string; sourceNode: NodeType; content: MessageContent;
   reference?: Reference; metadata?: JsonObject;
 }
 
@@ -119,14 +102,6 @@ export interface MemorySearchResult { memory: MemoryItem; score?: number; metada
 export interface ToolCall { id: string; name: string; arguments: JsonObject; }
 export type ToolEffect = "read" | "write" | "execute" | "network";
 export interface ToolDefinition { name: string; description?: string; inputSchema: JsonObject; effects?: readonly ToolEffect[]; requiresApproval?: boolean; }
-export interface KnowledgeItem { id: string; content: MessageContent; source?: Reference; metadata?: JsonObject; }
-export interface EmbeddingRecord { itemId: string; vector: readonly number[]; }
-export interface RagCandidate { item: KnowledgeItem; score?: number; }
-export interface Skill {
-  name: string; version?: string; description?: string;
-  instructions: MessageContent; metadata?: JsonObject;
-}
-
 export interface ExternalResult {
   callId: string; source: string; status: "success" | "failed" | "cancelled" | "timeout" | "unknown";
   content?: MessageContent; structuredContent?: JsonValue; references?: readonly Reference[];
@@ -149,30 +124,16 @@ import type {
   CacheInvalidateInput, CacheInvalidateOutput,
 } from "@ditto/core/worker/infer";
 
-export interface ContextLoadInput { sources: readonly ContextSource[]; }
-export type ContextLoadOutput = Context;
-export interface ContextSelectInput { context: Context; query: Message; limit?: number; }
-export type ContextSelectOutput = Context;
-export interface ContextUpdateInput {
-  context: Context; add?: readonly ContextItem[];
-  ingress?: readonly ContextIngress[]; removeIds?: readonly string[];
-}
-export type ContextUpdateOutput = Context;
-export interface ContextCompressInput { context: Context; maxTokens?: number; maxItems?: number; }
-export type ContextCompressOutput = Context;
-export interface ContextRagEmbedInput { items: readonly KnowledgeItem[]; }
-export type ContextRagEmbedOutput = readonly EmbeddingRecord[];
-export interface ContextRagRetrieveInput {
-  query: MessageContent; corpus: Reference | readonly KnowledgeItem[];
-  limit?: number; strategy?: string;
-}
-export type ContextRagRetrieveOutput = readonly RagCandidate[];
-export interface ContextRagRankInput {
-  query: MessageContent; candidates: readonly RagCandidate[]; limit?: number; strategy?: string;
-}
-export type ContextRagRankOutput = readonly RagCandidate[];
-export interface ContextSkillInput { context: Context; skill: Skill; }
-export type ContextSkillOutput = Context;
+// Node inputs include explicit-context and scoped-cache calls.
+import type { ContextInput, ContextOutput } from "@ditto/core/worker/context";
+type ContextLoadInput = ContextInput<"CONTEXT.LOAD">;
+type ContextLoadOutput = ContextOutput<"CONTEXT.LOAD">;
+type ContextSelectInput = ContextInput<"CONTEXT.SELECT">;
+type ContextSelectOutput = ContextOutput<"CONTEXT.SELECT">;
+type ContextUpdateInput = ContextInput<"CONTEXT.UPDATE">;
+type ContextUpdateOutput = ContextOutput<"CONTEXT.UPDATE">;
+type ContextCompressInput = ContextInput<"CONTEXT.COMPRESS">;
+type ContextCompressOutput = ContextOutput<"CONTEXT.COMPRESS">;
 
 export interface MemoryGetInput { ids?: readonly string[]; keys?: readonly string[]; }
 export type MemoryGetOutput = readonly MemoryItem[];
@@ -221,10 +182,6 @@ export interface NodeContractMap {
   "CONTEXT.SELECT": NodeContract<ContextSelectInput, ContextSelectOutput>;
   "CONTEXT.UPDATE": NodeContract<ContextUpdateInput, ContextUpdateOutput>;
   "CONTEXT.COMPRESS": NodeContract<ContextCompressInput, ContextCompressOutput>;
-  "CONTEXT.RAG.EMBED": NodeContract<ContextRagEmbedInput, ContextRagEmbedOutput>;
-  "CONTEXT.RAG.RETRIEVE": NodeContract<ContextRagRetrieveInput, ContextRagRetrieveOutput>;
-  "CONTEXT.RAG.RANK": NodeContract<ContextRagRankInput, ContextRagRankOutput>;
-  "CONTEXT.SKILL": NodeContract<ContextSkillInput, ContextSkillOutput>;
   "MEMORY.GET": NodeContract<MemoryGetInput, NodeResult<MemoryGetOutput>>;
   "MEMORY.QUERY": NodeContract<MemoryQueryInput, NodeResult<MemoryQueryOutput>>;
   "MEMORY.SEARCH": NodeContract<MemorySearchInput, NodeResult<MemorySearchOutput>>;
@@ -254,4 +211,4 @@ export type OutputOf<N extends NodeType> = NodeContractMap[N]["output"];
 
 ## Optional RETRIEVAL extension
 
-The four Core Workers retain 25 leaves. The optional `@ditto/core/worker/retrieval` entry adds the RETRIEVAL.SEARCH contract and implementation through explicit imports/registration. It invokes user providers through a Target/Strategy registry, owns no corpus, performs no RAG, and is not required by MEMORY/CONTEXT. Existing Runtime/HTTP facilities support independent deployment and replicas. See [API and deployment boundaries](worker-api/retrieval.md).
+The four Core Workers retain 21 leaves. The optional `@ditto/core/worker/retrieval` entry adds the RETRIEVAL.SEARCH contract and implementation through explicit imports/registration. It invokes user providers through a Target/Strategy registry, owns no corpus, performs no RAG, and is not required by MEMORY/CONTEXT. Existing Runtime/HTTP facilities support independent deployment and replicas. See [API and deployment boundaries](worker-api/retrieval.md).

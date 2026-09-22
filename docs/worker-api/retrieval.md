@@ -295,3 +295,19 @@ export function retrievalDescriptor(provider: RetrievalSearchProvider) {
   return retrievalSearchNode.define("RETRIEVAL", input => retrieval.search(input));
 }
 ```
+
+## Compose with CONTEXT
+
+CONTEXT.SELECT ragStrategy can reuse a SearchProvider or delegate to RETRIEVAL.SEARCH through Runtime. Check delegated NodeResult, map candidates to ContextItem[], and explicitly UPDATE if persistence is needed. [Complete CONTEXT API and examples](context.md)。
+
+```ts
+export function remoteContextRetrieval(runtime: import("@ditto/core").RuntimeClient, target: RetrievalTarget) {
+  return contextRetrieval({ async search(input) {
+    const result = await runtime.invoke("RETRIEVAL.SEARCH", input);
+    if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);
+    return result.output;
+  } }, target);
+}
+```
+
+[Complete imports and source](examples/context.ts).

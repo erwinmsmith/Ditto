@@ -28,7 +28,7 @@ function correlationKey(item: ContextItem): string {
   return typeof callId === "string" && callId ? `call:${callId}` : `item:${item.id}`;
 }
 
-async function groups(items: readonly ContextItem[], execution: ContextExecution): Promise<readonly ItemGroup[]> {
+async function groups(items: readonly ContextItem[], execution: ContextExecution, countTokens: boolean): Promise<readonly ItemGroup[]> {
   const grouped = new Map<string, { items: ContextItem[]; firstIndex: number }>();
   items.forEach((item, index) => {
     const key = correlationKey(item);
@@ -46,8 +46,8 @@ async function groups(items: readonly ContextItem[], execution: ContextExecution
       + numericMetadata(item, "relevance") * 10
       + (booleanMetadata(item, "retrievable") ? -10 : 0)
       + (group.firstIndex + index) / Math.max(1, items.length))),
-    tokens: (await Promise.all(group.items.map(item => estimateTokens(item.content, execution))))
-      .reduce((sum, value) => sum + value, 0),
+    tokens: countTokens ? (await Promise.all(group.items.map(item => estimateTokens(item.content, execution))))
+      .reduce((sum, value) => sum + value, 0) : 0,
   })));
 }
 
@@ -60,7 +60,7 @@ export async function deterministicCompress(
   const maxTokens = execution.policy.maxTokens === undefined
     ? input.maxTokens ?? Number.POSITIVE_INFINITY
     : Math.min(input.maxTokens ?? execution.policy.maxTokens, execution.policy.maxTokens);
-  const all = await groups(input.context.items, execution);
+  const all = await groups(input.context.items, execution, Number.isFinite(maxTokens));
   const required = all.filter(group => group.protected);
   const requiredItems = required.reduce((sum, group) => sum + group.items.length, 0);
   const requiredTokens = required.reduce((sum, group) => sum + group.tokens, 0);

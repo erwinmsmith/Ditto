@@ -8,3 +8,6 @@ export * from "./select/strategies/index.js";
 export * from "./update/node.js";
 export * from "./compress/node.js";
 export * from "./compress/strategies/index.js";
+export { contextScopeKey } from "./state.js";
+export type { ContextStateInput, ContextRequest } from "./state.js";
+export * from "./redis.js";

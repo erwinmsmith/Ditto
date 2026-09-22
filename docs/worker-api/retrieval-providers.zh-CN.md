@@ -424,3 +424,7 @@ export function mapTextCandidates(output: RetrievalSearchOutput) {
   }); // Use as mapOutput only when content is the application's complete memory content.
 }
 ```
+
+## 与 CONTEXT 组合
+
+数据库检索、embedding、融合与重排 Provider 可注入 createRagStrategy 的 retrieve 步骤。CONTEXT 不要求单独启动 RETRIEVAL；检索后端生命周期仍由应用管理。 [完整 CONTEXT API 与调用示例](context.zh-CN.md)。
