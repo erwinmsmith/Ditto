@@ -441,3 +441,5 @@ export const customGet = memoryGetNode.define("MEMORY", async () => ({
   error: { code: "NOT_CONFIGURED", message: "Configure the application storage adapter" },
 }));
 ```
+
+可直接运行的数据库接入示例：[examples/worker](../../examples/worker/README.zh-CN.md)，包含 SDK 安装、env 配置、调用及资源清理。

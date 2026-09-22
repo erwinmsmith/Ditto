@@ -428,3 +428,5 @@ export const customGet = memoryGetNode.define("MEMORY", async () => ({
   error: { code: "NOT_CONFIGURED", message: "Configure the application storage adapter" },
 }));
 ```
+
+Runnable database integration examples: [examples/worker](../../examples/worker/README.md), including SDK installation, env settings, invocation and cleanup.

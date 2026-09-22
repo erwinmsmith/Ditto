@@ -10,6 +10,7 @@ This directory contains complete executable flows. Start with `graph-loop-worker
 | --- | --- | --- | --- |
 | [graph-loop-worker.ts](graph-loop-worker.ts) | Compose file inspection, observation, and output in a Graph; iterate over two files with a Loop; implement the tool inside a Worker | `npm run example:agent` | Node 24+, npm 11+; no model, database, or MCP setup |
 | [interaction-tools.ts](interaction-tools.ts) | Register Linux/macOS operations as one tool, compose it with SHA-256, and run two command inputs | `npm run example:tools` | Same runtime; Linux or macOS with uname / printf |
+| [worker/](worker/README.md) | CONTEXT with Redis; MEMORY with SQLite/PostgreSQL/MySQL/Milvus | See subfolder commands | Optional SDKs and database connections |
 
 Run all commands from the **repository root**. Install dependencies first:
 
