@@ -16,6 +16,10 @@
 
 [Sandbox API](runtime.zh-CN.md#sandbox-api-与本地执行器)：权限、工作区读写、可替换执行器与真实本地命令执行。
 
+[Worker 组合、事件与 Artifact](composition.zh-CN.md)：自定义 Node/Worker、resources/dispose、WorkerContext、数据引用及通信扩展。
+
+[预定义流程 API](flows.zh-CN.md)：RAG、Skill、Tool、MCP、ReAct 的完整输入输出与调用示例。
+
 ## 从哪里开始
 
 1. 定义 Agent Graph：选择语义 Node、数据映射及失败时是否继续；不要把数据库连接、客户端或凭据放进 Graph。

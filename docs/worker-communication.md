@@ -30,21 +30,13 @@ Server:
 
 ```ts
 import { createServer } from "node:http";
-import { createDitto, defineWorker, loadRuntimeConfig, createWorkerHttpHandler } from "@ditto/core";
+import { createDitto, createContextWorker, loadRuntimeConfigFile, createWorkerHttpHandler } from "@ditto/core";
 
 const token = process.env.DITTO_TRANSPORT_HTTP_WORKER_TOKEN;
 if (!token) throw new Error("Set DITTO_TRANSPORT_HTTP_WORKER_TOKEN");
-const runtime = createDitto({ hostId: "server-a", processId: "agent-service", config: loadRuntimeConfig() });
-const worker = runtime.register(defineWorker({
-  type: "memory", concurrency: 8, expose: ["MEMORY.GET"],
-  nodes: {
-    // Transport-only fixture; use createMemoryWorker with real plugins in production.
-    "MEMORY.GET": async ({ ids }) => ({
-      executionId: crypto.randomUUID(), node: "MEMORY.GET", status: "success",
-      output: ids?.map(id => ({ id, content: `memory:${id}` })) ?? [],
-    }),
-  },
-}), "memory-a");
+const config = loadRuntimeConfigFile("ditto.yaml", process.env);
+const runtime = createDitto({ hostId: "server-a", processId: "agent-service", config });
+const worker = runtime.register(createContextWorker({ policy: config.context.policy ?? {}, concurrency: 8 }), "context-a");
 const server = createServer(createWorkerHttpHandler(runtime, { token }));
 server.listen(8080, "127.0.0.1");
 console.log(worker.address); // Pass to the caller through deployment configuration; contains no key
@@ -62,11 +54,11 @@ const transport = createHttpTransport({
 });
 const runtime = createDitto({ hostId: "client", transports: [transport] });
 runtime.registerRemote({
-  address: { workerId: "memory-a", workerType: "memory", hostId: "server-a", processId: "agent-service" },
-  capabilities: ["MEMORY.GET"], transportId: transport.id,
+  address: { workerId: "context-a", workerType: "CONTEXT", hostId: "server-a", processId: "agent-service" },
+  capabilities: ["CONTEXT.LOAD"], transportId: transport.id,
 });
 try {
-  console.log(await runtime.invoke("MEMORY.GET", { ids: ["example"] }));
+  console.log(await runtime.invoke("CONTEXT.LOAD", { sources: [{ role: "user", content: "hello" }] }));
 } finally { await runtime.close(); }
 ```
 
@@ -80,7 +72,7 @@ Requests contain an invocation ID, source/target Worker addresses, Node name, pa
 
 The receiving handler validates the Envelope shape. The Runtime then checks target host/process/type/id, public capability, and availability. Nodes and tool executors remain responsible for business-input validation; TypeScript declarations do not validate network inputs at runtime. HTTP errors do not expose handler stacks or Provider response bodies.
 
-The token is a service-level credential that authorizes all public capabilities in that service's Runtime; it is not a tenant or per-Node ACL. External requests should pass through the application's authentication/tenant gateway. Use `expose` to limit public entry points. The execution host uses its own Provider keys, model, and Sandbox settings; callers cannot override those through an Envelope. Business inputs may still contain sensitive content, so applications must manage logging and storage accordingly.
+The token is a service-level credential that authorizes all public capabilities in that service's Runtime; it is not a tenant or per-Node ACL. External requests should pass through the application's authentication/tenant gateway. Use `expose` to limit public entry points. The execution host owns Provider keys, connections and Sandbox settings; envelopes cannot override those settings. INFER business input still explicitly selects a model resolved through configured Providers. Business inputs may still contain sensitive content, so applications must manage logging and storage accordingly.
 
 Calls are not retried automatically. A timeout or disconnect leaves the result unknown: the remote side may still be executing or may already have changed external state. An HTTP client timeout ends only the wait; it does not provide remote cancellation, deduplication, transactions, or exactly-once execution. Retrying operations that may affect external state requires application-level idempotency keys and persistent result records. Remote overload currently returns a generic failure; the caller has no automatic failover or health probing.
 
@@ -93,3 +85,5 @@ During shutdown, first stop accepting new HTTP requests and await application-le
 Transport payloads use either `inline` or `reference`. With an ArtifactStore, JSON data exceeding inlineLimitBytes (64 KiB by default) can be stored and passed by reference; responses use the same mechanism. Direct in-process calls do not scan payload sizes.
 
 InMemoryArtifactStore is for single-process experiments. Cross-host references require a Store/Resolver accessible to both hosts; its implementation owns access control, TTL, and cleanup. Automatically generated references are not collected automatically. Without a shared Store, keep data inline and choose appropriate body limits. The network boundary supports JSON-encodable inputs and outputs, not arbitrary classes, functions, undefined, or binary streams.
+
+See [composition APIs](worker-api/composition.md) for each ArtifactStore, PayloadCodec and EventFabric method with examples.
