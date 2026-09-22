@@ -79,7 +79,9 @@ const interaction = createInteractionWorker({
 | `output` | `OutputSink`；未提供时不暴露 OUTPUT |
 | `concurrency` | 可选正整数，限制每个 Worker 副本的并发调用数；缺省不限制 |
 
-`index.ts` 只承担模块导出，实际执行位于 `worker.ts`、`act/tool/node.ts`、`act/tool/registry.ts`、`act/mcp.ts`、`observe.ts` 和 `output.ts`。已移除空的 `linux-commands/` 占位目录；项目不内置命令工具集。需要命令时，在 Worker 的 `RegisteredTool.execute()` 内调用 `context.services.sandbox.run({ command, args })`，并在 Runtime 注入 `sandboxExecutor`、开放对应 execute 与 tools 权限。
+`index.ts` 只承担模块导出，实际执行位于 `worker.ts`、`act/tool/node.ts`、`act/tool/registry.ts`、`act/tool/read-only-commands.ts`、`act/tool/web-search.ts`、`act/mcp.ts`、`observe.ts` 和 `output.ts`。`createReadOnlyCommandTools()` 提供 14 个可选注册项：`grep`、`ls`、`cat`、`find`、`head`、`tail`、`wc`、`sort`、`uniq`、`cut`、`stat`、`file`、`du` 和 `pwd`。它们使用结构化参数和有界结果，Core 不会自动注册；应用必须显式注入工具和 `sandboxExecutor`，再开放各工具与 execute 权限。Core 只传递固定命令名和分离参数，不启动 shell；生产隔离仍由执行器负责。
+
+`createWebSearchTool({ provider })` 提供一个可选 `web_search` 注册项。它只接受有界 query 与结果数量，同时要求 `tools:web_search` 和 Provider 精确网络 origin 权限，返回有界的 `title / url / snippet` 及 references。`createBraveWebSearchProvider({ apiKey })` 是基于原生 fetch 的 Brave Web Search 薄适配器。应用显式提供密钥，并负责配额、生命周期和任何重试策略；Core 不读取环境凭证，也不自动重试。
 
 数组和映射在构造时注册一次；需要动态插拔时传入注册表，使用 `register()` 返回的注销函数。注册工具仍需在 Sandbox 开放对应权限。数据库适配器同样放在 MEMORY Worker：`createMemoryWorker({ store: databaseAdapter })`；Graph 继续只调用 MEMORY Node，检索仍可由数据库自身实现，或显式接到可选 RETRIEVAL。
 
