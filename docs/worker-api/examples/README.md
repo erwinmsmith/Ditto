@@ -145,3 +145,5 @@ For a complete executable local flow use `npm run example:agent` or `npm run exa
 | [`remoteContextRetrieval`](context.ts) | 委托独立 RETRIEVAL。 |
 
 真实数据库接入的完整入口见 [examples/worker](../../../examples/worker/README.zh-CN.md)：CONTEXT + Redis、MEMORY + SQL / Milvus；本目录保留逐 API 函数示例。
+
+Runtime 公共接口的完整可运行示例见 [examples/runtime](../../../examples/runtime/README.zh-CN.md)：quickstart.ts（第一次 Graph 执行）、api.ts（自定义 Worker、事件、Artifact 与关闭）、flows.ts（RAG/Skill/Tool/MCP/ReAct）。这些文件导入时不执行请求；各导出函数的用途在子目录 README 中列出。

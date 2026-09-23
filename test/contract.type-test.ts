@@ -23,7 +23,7 @@ const nodeTypes = {
   "INTERACTION.ACT.MCP": true,
   "INTERACTION.OBSERVE": true,
   "INTERACTION.OUTPUT": true,
-} as const satisfies Record<Exclude<NodeType, "MEMORY.ARCHIVE" | "BROWSER.OPEN" | "RETRIEVAL.SEARCH">, true>;
+} as const satisfies Record<Exclude<NodeType, "MEMORY.ARCHIVE" | "BROWSER.OPEN" | "RETRIEVAL.SEARCH" | `EXAMPLE.${string}`>, true>;
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
 type Expect<T extends true> = T;

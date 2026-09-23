@@ -9,7 +9,7 @@ This document and the linked Worker APIs define the Node tree, semantic boundari
 
 ## Runtime predefined flows
 
-Ditto exposes four directly callable Runtime functions from `src/runtime/graph.ts`. They compose existing Nodes and update the current Context; they are not Nodes and do not appear in `NodeContractMap`.
+Ditto exposes four directly callable Runtime functions from `src/runtime/graph.ts`. They compose existing Nodes and return selected or updated Context according to the flow; they are not Nodes and do not appear in `NodeContractMap`.
 
 | Function | Standard flow |
 | --- | --- |
@@ -62,8 +62,8 @@ There are 21 Core routable leaf contracts. INFER.REASONING, INFER.CACHE, INFER.P
 
 ## 2. Semantic boundaries
 
-- **INFER** owns model computation. `REASONING` organizes explicit reasoning; it is not hidden model thought. `TRAJECTORY` accepts CoT/ToT/GoT through `strategy`; `REFLECT` revisits a result; `DELIBERATE` compares/combines candidates; `SAMPLE` generates one candidate. There is no separate Generate Node. Providers are implementation adapters, not Nodes. `CACHE` reuses computation results and is not Memory.
-- **CONTEXT** owns the working set of the current invocation or turn. `LOAD`, `SELECT`, `UPDATE`, and `COMPRESS` alter that working set. Reset/session lifecycle belongs to Runtime. Context-to-model assembly is an internal `ModelInput` boundary, not a Node.
+- **INFER** owns model computation. `REASONING` organizes explicit reasoning; it is not hidden model thought. `TRAJECTORY` accepts CoT/ToT/GoT through `strategy`; `REFLECT` revisits a result; `DELIBERATE` uses one model call to select/merge/reconcile supplied candidates (select/merge/consensus/debate); `SAMPLE` makes one model call returning an assistant message and optional actionRequests. Providers are implementation adapters, not Nodes. `CACHE` reuses computation results and is not Memory.
+- **CONTEXT** owns the working set of the current invocation or turn. LOAD/UPDATE/COMPRESS produce a working set; SELECT is a projection and does not persist cached state. Applications own session/turn IDs, expiry and reset; Runtime has no reset API. LOAD with scope and sources:[] replaces cached Context with an empty set. Applications map Context to INFER messages.
 - **MEMORY** exposes GET / QUERY / SEARCH / WRITE / UPDATE / DELETE through injected MemoryStore / MemorySearchProvider ports; external plugins own databases.
 - **RAG** is an internal CONTEXT.SELECT strategy using replaceable embed/retrieve/rank services; independent execution can delegate to RETRIEVAL.
 - **SKILL** content is resolved by the application into sources and loaded through LOAD/UPDATE; MEMORY does not manage Skills.
@@ -200,12 +200,12 @@ export type OutputOf<N extends NodeType> = NodeContractMap[N]["output"];
 
 ## 5. Implementation rules
 
-- One `.ts` scaffold exists for every agreed leaf Node. A scaffold fixes identity and type binding without inventing business logic.
+- Every agreed leaf Node has an executable `.ts` implementation. Typed leaf descriptors support custom composition by binding identity and handlers; descriptors are not unfinished business implementations.
 - INFER.CACHE is a namespace; LOOKUP, WRITE and INVALIDATE are implemented leaves.
 - Providers live in `src/worker/infer/providers/`. Runtime and INFER share ModelProvider.invoke/stream and ProviderRegistry; see [Provider API](worker-api/providers.md). ReAct is a predefined Runtime graph flow, not an INFER strategy. Model/vendor changes do not create Nodes.
 - `INTERACTION.ACT.TOOL` is represented by a source directory. Applications register tool or command implementations inside Workers; individual tool names are not Nodes.
 - Tool and MCP registries remain distinct.
-- The four predefined flows live in `src/runtime/graph.ts`; there is no `src/presets` package or export.
+- The four Context flows live in `src/runtime/graph.ts`; ReAct lives in `src/runtime/react.ts`.
 - Core remains dependency-light; databases, RPC, NATS, MCP SDKs, model SDKs, and distributed transports are optional adapters.
 - The same Graph and Node Contracts must run across local and remote Workers without embedding deployment information.
 

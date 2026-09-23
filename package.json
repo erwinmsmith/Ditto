@@ -61,6 +61,10 @@
     "./worker/retrieval/adapters/memory": {
       "types": "./dist/worker/retrieval/adapters/memory.d.ts",
       "import": "./dist/worker/retrieval/adapters/memory.js"
+    },
+    "./worker/retrieval/adapters/context": {
+      "types": "./dist/worker/retrieval/adapters/context.d.ts",
+      "import": "./dist/worker/retrieval/adapters/context.js"
     }
   },
   "scripts": {
@@ -68,19 +72,23 @@
     "build:test": "node scripts/clean.ts .test-dist && tsc -p tsconfig.test.json",
     "prepare": "npm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run build:test && node --test --test-isolation=none .test-dist/test/*.test.js",
-    "check": "npm run typecheck && npm test && npm run build",
+    "test": "npm run build && npm run build:test && node --test --test-isolation=none .test-dist/test/*.test.js",
+    "check": "npm run typecheck && npm test",
     "check:infer:live": "npm run build && node --env-file=.env scripts/check-infer-live.ts",
     "example:agent": "npm run build && node examples/graph-loop-worker.ts",
     "example:tools": "npm run build && node examples/interaction-tools.ts",
     "check:interaction:mcp:live": "npm run build && node scripts/check-interaction-mcp-live.mjs",
-    "check:interaction:web-search:live": "npm run build && node scripts/check-interaction-web-search-live.mjs",
+    "check:interaction:web-search:live": "npm run build && node --env-file-if-exists=.env scripts/check-interaction-web-search-live.mjs",
     "check:context:redis:live": "npm run build && node scripts/check-context-redis-live.mjs",
     "example:worker:redis": "npm run build && node --env-file-if-exists=.env examples/worker/context-redis.ts",
     "example:worker:sql": "npm run build && node --env-file-if-exists=.env examples/worker/memory-sql.ts",
     "example:worker:milvus": "npm run build && node --env-file-if-exists=.env examples/worker/memory-milvus.ts",
     "example:runtime": "npm run build && node examples/runtime/graph-loop.ts",
-    "example:runtime:placement": "npm run build && node examples/runtime/placement.ts"
+    "example:runtime:placement": "npm run build && node examples/runtime/placement.ts",
+    "example:worker:context-retrieval": "npm run build && node examples/worker/context-retrieval.ts",
+    "example:runtime:quickstart": "npm run build && node examples/runtime/quickstart.ts",
+    "example:runtime:api": "npm run build && node examples/runtime/api.ts",
+    "example:runtime:flows": "npm run build && node examples/runtime/flows.ts"
   },
   "engines": {
     "node": ">=24.0.0",

@@ -10,6 +10,7 @@ This directory contains complete executable flows. Start with `graph-loop-worker
 | --- | --- | --- | --- |
 | [graph-loop-worker.ts](graph-loop-worker.ts) | Compose file inspection, observation, and output in a Graph; iterate over two files with a Loop; implement the tool inside a Worker | `npm run example:agent` | Node 24+, npm 11+; no model, database, or MCP setup |
 | [interaction-tools.ts](interaction-tools.ts) | Register the optional read-only commands plus a low-level command example, then compose command output with SHA-256 | `npm run example:tools` | Same runtime; Linux or macOS with grep / uname / printf |
+| [runtime/quickstart.ts](runtime/quickstart.ts), [api.ts](runtime/api.ts), [flows.ts](runtime/flows.ts) | Starter and public APIs: custom nodes, lifecycle, events/artifacts and flows | `npm run example:runtime:quickstart` / `example:runtime:api` / `example:runtime:flows` | Local entrypoints need no external service; MCP/ReAct functions need injected services |
 | [runtime/](runtime/README.md) | Multiple graphs, independent Worker sandboxes, local IPC and cross-host HTTP | `npm run example:runtime` / `npm run example:runtime:placement` | No additional SDK or service |
 | [worker/](worker/README.md) | CONTEXT with Redis; MEMORY with SQLite/PostgreSQL/MySQL/Milvus | See subfolder commands | Optional SDKs and database connections |
 
@@ -51,7 +52,7 @@ linux tool → OBSERVE → sha256 tool → OBSERVE → OUTPUT
 
 | Export | Responsibility |
 | --- | --- |
-| `commandExecutor` | Execute using Node execFile, separate command/args, workspace, timeout, and output limit |
+| `commandExecutor` | Use createLocalSandboxExecutor with literal command/args, workspace, timeout and output limit |
 | `readOnlyCommandTools` | The 14 optional bounded read-only command registrations from Core |
 | `linuxTool` | Validate arguments, call SandboxExecutor, return stdout/stderr/exitCode, and report nonzero exits as failed |
 | `sha256Tool` | Hash text from the preceding tool |
@@ -81,14 +82,14 @@ The example runs only when invoked directly. Importing its exported executor, to
 | [API example guide](../docs/worker-api/examples/README.md) | MEMORY, INFER, INTERACTION, and optional RETRIEVAL; individual function explanations | Inject application resources and call the chosen function; these are not automatically executed applications |
 | [MCP live script](../scripts/check-interaction-mcp-live.mjs) | Real command → MCP file read → SHA-256 → OUTPUT | Install optional SDKs using the [MCP](#mcp) instructions below, then run `npm run check:interaction:mcp:live -- <dependency-directory>` |
 | [INFER live script](../scripts/check-infer-live.ts) | Validate sampling and reasoning against configured real models | Configure `.env` using the [INFER](#infer) instructions below, then run `npm run check:infer:live -- --provider <name>` |
-| [Web search live script](../scripts/check-interaction-web-search-live.mjs) | Brave Search → ACT.TOOL → OBSERVE → CONTEXT.UPDATE | Set `BRAVE_SEARCH_API_KEY`, then run `npm run check:interaction:web-search:live -- "query"` |
+| [Web search live script](../scripts/check-interaction-web-search-live.mjs) | Brave Search → ACT.TOOL → OBSERVE → CONTEXT.UPDATE | Set `DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY`, then run `npm run check:interaction:web-search:live -- "query"` |
 
 ### Web search
 
 The live script explicitly creates the Brave adapter and `web_search` Tool, grants the Tool plus the exact Brave origin, and verifies that real results become an Observation and one Context item. It prints normalized results but never the API key. Core does not read this environment variable; the script is the application layer that injects it.
 
 ```bash
-BRAVE_SEARCH_API_KEY="..." npm run check:interaction:web-search:live -- "Ditto agent runtime"
+DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY="..." npm run check:interaction:web-search:live -- "Ditto agent runtime"
 ```
 
 ### MCP
@@ -148,3 +149,9 @@ try {
 ```
 
 [CONTEXT example functions](../docs/worker-api/examples/README.md#contextts) · [Complete API](../docs/worker-api/context.md)
+
+## CONTEXT and RETRIEVAL composition
+
+[worker/context-retrieval.ts](worker/context-retrieval.ts) compares inline CONTEXT retrieval and an optional RETRIEVAL Worker using real SQLite FTS5. It includes local cache/queue resources, reference resolution and a LOAD → SELECT Graph. Run `npm run example:worker:context-retrieval` without external credentials; see the [Worker example guide](worker/README.md#context-caching-and-optional-retrieval).
+
+`interaction-tools.ts` reuses Core's createLocalSandboxExecutor, with timeoutMs/maxOutputBytes from runtime.sandbox in root YAML, instead of maintaining a second process implementation. Run `npm run example:tools` for the command → OBSERVE → SHA-256 → OUTPUT Graph/Loop.

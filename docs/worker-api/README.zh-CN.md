@@ -6,13 +6,19 @@
 
 | Worker | 详细 API | 操作与示例 |
 | --- | --- | --- |
-| CONTEXT | [中文 API](context.zh-CN.md) · [English](context.md) | LOAD / SELECT / UPDATE / COMPRESS; Redis / stateStore / RAG |
+| CONTEXT | [中文 API](context.zh-CN.md) · [English](context.md) | LOAD / SELECT / UPDATE / COMPRESS; Redis / TTL-LRU / stateStore / RAG / ReferenceResolver |
 | INFER | [中文 API](infer.zh-CN.md) · [English](infer.md) | SAMPLE / TRAJECTORY / REFLECT / DELIBERATE / CACHE LOOKUP, WRITE, INVALIDATE; SDK + stream |
 | MEMORY | [中文 API](memory.zh-CN.md) · [English](memory.md) | GET / QUERY / SEARCH / WRITE / UPDATE / DELETE; store / search |
 | INTERACTION | [中文 API](interaction.zh-CN.md) · [English](interaction.md) | ACT.TOOL / ACT.MCP / OBSERVE / OUTPUT; ToolRegistry / McpRegistry / OutputSink |
 | RETRIEVAL （可选） | [中文 API](retrieval.zh-CN.md) · [English](retrieval.md) | SEARCH; SDK / target / strategy / 独立部署 |
 
 [Runtime / Graph / Loop 详细 API](runtime.zh-CN.md)：节点连接、Worker 分配、独立 Sandbox、本地 IPC 与跨机 HTTP。
+
+[Sandbox API](runtime.zh-CN.md#sandbox-api-与本地执行器)：权限、工作区读写、可替换执行器与真实本地命令执行。
+
+[Worker 组合、事件与 Artifact](composition.zh-CN.md)：自定义 Node/Worker、resources/dispose、WorkerContext、数据引用及通信扩展。
+
+[预定义流程 API](flows.zh-CN.md)：RAG、Skill、Tool、MCP、ReAct 的完整输入输出与调用示例。
 
 ## 从哪里开始
 
@@ -41,7 +47,7 @@ INFER 轨迹还有内层 output.status，外层 success 不等于轨迹 complete
 - [检索 Provider：embedding、vector/text、RRF、rerank、SQL/Milvus 和 MEMORY 双向转接](retrieval-providers.zh-CN.md)
 - [统一配置：根目录 ditto.yaml / .env 的字段、分组和优先级](configuration.zh-CN.md)
 
-INTERACTION 的工具、MCP 实例与输出函数通过代码注入；当前 YAML 不支持 workers.interaction 或任意插件名的自动加载。数据库 SDK 与模型 SDK 生命周期由应用拥有，不逐请求创建或自动关闭。
+INTERACTION 的工具、MCP 实例与输出函数通过代码注入；YAML 支持 `workers.interaction.commands/webSearch` 行为参数；插件实例仍显式注入，不按插件名自动加载。数据库 SDK 与模型 SDK 生命周期由应用拥有，不逐请求创建或自动关闭。
 
 ## 示例目录
 

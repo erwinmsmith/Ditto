@@ -427,3 +427,42 @@ export function mapTextCandidates(output: RetrievalSearchOutput) {
 ## Compose with CONTEXT
 
 Inject database search, embedding, fusion and reranking providers into createRagStrategy retrieve. CONTEXT does not require a RETRIEVAL deployment; backend lifecycle stays application-owned. [Complete CONTEXT API and examples](context.md)。
+
+## Context retrieval adapter
+
+Import `createRetrievalContextStrategy` and `mapContextCandidates` from `@ditto/core/worker/retrieval/adapters/context`. Core does not import this optional module.
+
+`createRetrievalContextStrategy(options)` returns a ContextRagStrategy. Supply provider for an inline RetrievalSearchProvider (including SQL, Milvus, vector/embedding and hybrid pipelines), or runtime to invoke RETRIEVAL.SEARCH. Omit both inside a CONTEXT Worker to use its invocation-bound Runtime; an explicit runtime always takes precedence. The delegated Runtime must already have a local or remote RETRIEVAL Worker registered; deployment uses the usual direct/IPC/HTTP placement.
+
+| Option | Behavior |
+| --- | --- |
+| target | Required logical RetrievalTarget; snapshotted at construction |
+| strategy | Optional configured search strategy |
+| defaults | RetrievalDefaults; inline pipeline defaults, plus default limit for both modes; delegated computation uses the destination Worker configuration |
+| mapInput(input) | Optional ContextSelectInput → RetrievalSearchInput; must handle corpus, tenant namespace, filters and authorization explicitly |
+| mapOutput(output) | Optional complete RetrievalSearchOutput → ContextItem[] or Promise; defaults to mapContextCandidates |
+
+Without a mapper, query is required, strategy.options becomes retrieval options, and limit defaults to searchLimit or 10, capped at 10000. An explicit corpus requires mapInput to avoid silently discarding its scope. Zero limit performs no retrieval. Context still applies its own item/token limits after retrieval.
+
+`mapContextCandidates(output)` requires JSON content. IDs hash target name/type/namespace and candidate ID (or source ref/content fallback). It preserves source.ref as source.uri, candidate metadata and score, adding retrievalTarget. Invalid content raises INVALID_PROVIDER_OUTPUT; supply mapOutput for application-specific records. Context.SELECT deduplicates IDs and budgets results; it never overwrites cached state. For example, `mapContextCandidates({ target: { name: "docs" }, candidates: [{ id: "1", content: "Evidence", score: 0.8 }] })` returns one stable ContextItem with that content and score metadata.
+
+```ts
+import { createContext, type RuntimeClient } from "@ditto/core";
+import type { RetrievalSearchProvider } from "@ditto/core/worker/retrieval";
+import { createRetrievalContextStrategy, mapContextCandidates } from "@ditto/core/worker/retrieval/adapters/context";
+export function contextSearch(provider: RetrievalSearchProvider, runtime: RuntimeClient) {
+  const inline = createContext({ services: { ragStrategy: createRetrievalContextStrategy({
+    provider, target: { name: "documents" }, strategy: "vector",
+  }) } });
+  const delegated = createContext({ services: { ragStrategy: createRetrievalContextStrategy({
+    runtime, target: { name: "documents" }, strategy: "vector", mapOutput: mapContextCandidates,
+  }) } });
+  const input = { context: { items: [] }, purpose: "infer" as const, query: "agent runtime",
+    strategy: { kind: "rag" as const }, limit: 5 };
+  return Promise.all([inline.select(input), delegated.select(input)]);
+}
+```
+
+Register the returned strategy under Context services.ragStrategy. Per-call signal reaches inline providers and delegated invocation. With runtime omitted, built-in Workers use their invocation-bound Runtime so already accepted graphs can complete during shutdown. Network cancellation currently stops the caller's wait, not a remote database operation. [Runnable SQLite FTS5 example](../../examples/worker/context-retrieval.ts).
+
+For `RemoteRetrievalSearchProvider`, omit construction-time runtime inside a MEMORY Worker to inherit its invocation-bound Runtime. An explicit runtime always takes precedence; standalone SDK delegation requires it. Example: `new RemoteRetrievalSearchProvider({ target: { name: "memories" } })` for Worker-owned delegation.

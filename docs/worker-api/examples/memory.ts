@@ -78,13 +78,13 @@ export function adaptDatabase(database: MemoryStore & Partial<MemorySearchProvid
   // These methods are the application's SDK adapter, not raw SQL/Milvus SDK methods.
   // Explicit calls retain the SDK adapter's receiver and connection pool.
   const store: MemoryStore = {
-    get: input => database.get(input),
-    query: input => database.query(input),
-    write: input => database.write(input),
-    update: input => database.update(input),
-    delete: input => database.delete(input),
+    get: (input, options) => database.get(input, options),
+    query: (input, options) => database.query(input, options),
+    write: (input, options) => database.write(input, options),
+    update: (input, options) => database.update(input, options),
+    delete: (input, options) => database.delete(input, options),
   };
-  const search = database.search ? { search: (input: Parameters<MemorySearchProvider["search"]>[0]) => database.search!(input) } : undefined;
+  const search = database.search ? { search: (input: Parameters<MemorySearchProvider["search"]>[0], options?: Parameters<MemorySearchProvider["search"]>[1]) => database.search!(input, options) } : undefined;
   return { store, ...(search ? { search } : {}) };
 }
 

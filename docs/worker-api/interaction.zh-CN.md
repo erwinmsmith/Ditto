@@ -115,7 +115,7 @@ const runtime = createDitto({
 `web_search` 接收 `{ query, limit? }`。query 必须是最多 600 字符、75 个词的非空单行文本；limit 默认 5、硬上限 20。Tool 最多规范化请求数量的结果，统一为 `title / url / snippet`；标题上限 256 字符，摘要上限 2,048 字符；URL 只允许不带内嵌账号密码的 HTTP(S)，每个 URL 同时作为 Reference 输出。
 
 ```ts
-const provider = createBraveWebSearchProvider({ apiKey: process.env.BRAVE_SEARCH_API_KEY! });
+const provider = createBraveWebSearchProvider({ apiKey: process.env.DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY! });
 const webSearch = createWebSearchTool({ provider });
 const runtime = createDitto({
   sandbox: { tools: [webSearch.name], network: [provider.origin] },
@@ -203,11 +203,11 @@ type InteractionMcpOutput =
   | { operation: "discover"; capabilities: readonly McpCapability[] }
   | { operation: "invoke"; result: ExternalResult };
 interface McpClient {
-  listTools(params?: { cursor?: string }): Promise<{
+  listTools(params?: { cursor?: string }, options?: McpCallOptions): Promise<{
     tools: readonly { name: string; description?: string; inputSchema: JsonObject; outputSchema?: JsonObject }[];
     nextCursor?: string;
   }>;
-  callTool(params: { name: string; arguments: JsonObject }): Promise<McpToolResult>;
+  callTool(params: { name: string; arguments: JsonObject }, options?: McpCallOptions): Promise<McpToolResult>;
 }
 interface McpToolResult {
   content?: MessageContent; structuredContent?: JsonValue;
@@ -252,9 +252,9 @@ export async function mcpRegistryApis(client: McpClient, absoluteFilePath: strin
 ```ts
 export function mcpClientAdapter(client: McpClient): McpClient {
   return {
-    listTools: params => client.listTools(params),
-    async callTool(params) {
-      const result = await client.callTool(params);
+    listTools: (params, options) => client.listTools(params, options),
+    async callTool(params, options) {
+      const result = await client.callTool(params, options);
       return {
         ...(result.content === undefined ? {} : { content: result.content }),
         ...(result.structuredContent === undefined ? {} : { structuredContent: result.structuredContent }),
@@ -373,9 +373,9 @@ export const rejectedSink: OutputSink = {
 | `tools / mcp / read / write / execute / network` | createDitto({ sandbox }) 或已加载的共享 Sandbox env |
 | `SDK endpoint / token` | 应用 env 与连接代码；不放入 Graph 输入 |
 | `MCP discovery limits` | new McpRegistry({ maxDiscoveryPages, maxCapabilities }) |
-| `workers.interaction YAML` | 当前 schema 不支持；不要添加无效字段 |
+| `workers.interaction YAML` | commands/webSearch 行为参数；通过 config.interaction 显式传给工厂 |
 
-INTERACTION 没有统一的节点级 timeoutMs/signal 参数；超时、取消、重试和 SDK 关闭由执行器/应用负责。Runtime 停止等待不等于底层操作已停止。示例 Linux tool 通过 SandboxExecutor 显式启用真实命令，不作为 Core 默认能力；见 [Linux/macOS 工具示例](../../examples/interaction-tools.ts)。
+取消通过 Runtime 调用选项 signal 传入 WorkerContext，再传给工具/MCP/WebSearch Provider，不放在节点 payload 中。超时、重试和 SDK 关闭由执行器/应用负责。Runtime 停止等待不等于底层操作已停止。示例 Linux tool 通过 SandboxExecutor 显式启用真实命令，不作为 Core 默认能力；见 [Linux/macOS 工具示例](../../examples/interaction-tools.ts)。
 
 ## 8. 高级组合入口
 
@@ -462,3 +462,23 @@ export async function toolToCachedContext(
 ```
 
 [完整 imports 和代码](examples/context.ts)。
+
+## Provider 取消和有界网页响应
+
+`WebSearchProvider.search(input, options?: WebSearchCallOptions)` 的 options 为 `{ signal?: AbortSignal }`；工具自动传入 WorkerContext.signal。Brave 工厂的 maxResponseBytes 默认 1048576，允许 1–16777216；流式计数限制实际响应体，超限停止读取并关闭流，再进行 JSON 解析。timeoutMs 默认 30000，范围 1–2147483647。失败工具输出使用安全错误；取消为 WEB_SEARCH_CANCELLED，其他失败为 WEB_SEARCH_FAILED。应用需主动配置密钥及网络权限。
+
+```ts
+import { createBraveWebSearchProvider, createReadOnlyCommandTools, createWebSearchTool } from "@ditto/core/worker/interaction";
+import { loadRuntimeConfigFile } from "@ditto/core";
+const config = loadRuntimeConfigFile("ditto.yaml", process.env);
+const provider = createBraveWebSearchProvider({
+  apiKey: process.env.DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY!,
+  ...config.interaction.webSearch,
+});
+const tools = [...createReadOnlyCommandTools(config.interaction.commands), createWebSearchTool({ provider })];
+// Pass tools to createInteractionWorker and explicitly configure Sandbox permissions/executor.
+```
+
+`McpClient.listTools(params?, options?: McpCallOptions)` 和 `callTool(params, options?: McpCallOptions)` 同样接收 signal；McpRegistry.execute 的第三个参数也接受它。discover 在每页前后检查取消。中立接口适配到官方 MCP SDK 时，listTools 使用第二参数，callTool 使用第三参数：`client.callTool(params, undefined, options)`；第二参数是结果 schema。完整接线见 [真实 MCP 示例](../../scripts/check-interaction-mcp-live.mjs)。自定义 RegisteredTool 可直接将 context.signal 传给 Sandbox.run 或 SDK。
+
+本地执行器已提供正式工厂 `createLocalSandboxExecutor`，可替换为自有 SandboxExecutor；参数、权限、取消和完整例子见 [Sandbox API](runtime.zh-CN.md#sandbox-api-与本地执行器)。ReAct 的 signal 同时传入采样、动作和观察 Graph，工具可通过 context.signal 接收取消。

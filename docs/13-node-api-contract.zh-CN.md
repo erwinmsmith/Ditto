@@ -9,7 +9,7 @@
 
 ## Runtime 预定义流程
 
-Ditto 从 `src/runtime/graph.ts` 公开四个可直接调用的 Runtime 函数。它们组合既有 Node 并更新当前 Context，不是 Node，也不进入 `NodeContractMap`。
+Ditto 从 `src/runtime/graph.ts` 公开四个可直接调用的 Runtime 函数。它们组合既有 Node，按流程返回选择结果或更新 Context，不是 Node，也不进入 NodeContractMap。
 
 | 函数 | 标准流转 |
 | --- | --- |
@@ -62,8 +62,8 @@ Core 当前包含 21 个可路由叶子 Contract。`INFER.REASONING`、`INFER.CA
 
 ## 2. 能力域边界
 
-- **INFER** 负责模型计算。`REASONING` 组织显式可控的推理，不代表模型隐藏思维。`TRAJECTORY` 通过 `strategy` 承载 CoT/ToT/GoT；`REFLECT` 重新审视已有结果；`DELIBERATE` 增加推理预算；`SAMPLE` 从同一输入产生候选。不存在独立 Generate Node。Provider 是实现适配器，不是 Node。`CACHE` 复用模型计算结果，不属于 Memory。
-- **CONTEXT** 负责当前 invocation/turn 的 working set。`LOAD`、`SELECT`、`UPDATE`、`COMPRESS` 只改变当前上下文。Reset/session 生命周期归 Runtime。Context 到模型输入的组装是内部 `ModelInput` 边界，不是 Node。
+- **INFER** 负责模型计算。`REASONING` 组织显式可控的推理，不代表模型隐藏思维。`TRAJECTORY` 通过 `strategy` 承载 CoT/ToT/GoT；`REFLECT` 重新审视已有结果；`DELIBERATE` 用单次模型调用比较、选择或合并已提供候选（select/merge/consensus/debate）；`SAMPLE` 单次调用模型，返回 assistant message 与可选 actionRequests。Provider 是实现适配器，不是 Node。`CACHE` 复用模型计算结果，不属于 Memory。
+- **CONTEXT** 负责当前 invocation/turn 的 working set。LOAD/UPDATE/COMPRESS 产生新的 working set；SELECT 只投影选择结果，缓存模式不回写。session/turn 标识、缓存失效及重置由应用管理，Runtime 没有 reset API；需要重置缓存时可用 LOAD(scope, sources:[])。应用将 Context 映射为 INFER messages。
 - **MEMORY** 提供 GET / QUERY / SEARCH / WRITE / UPDATE / DELETE，通过注入的 MemoryStore / MemorySearchProvider 访问长期记忆。数据库由外部插件提供。
 - **RAG** 是 CONTEXT.SELECT 的内部策略，embed/retrieve/rank 为可替换服务；独立执行可委托 RETRIEVAL。
 - **SKILL** 由应用解析为 sources，经 LOAD/UPDATE 装入；MEMORY 不管理 Skill。
@@ -199,12 +199,12 @@ export type OutputOf<N extends NodeType> = NodeContractMap[N]["output"];
 
 ## 5. 实现规则
 
-- 每个已确定的叶子 Node 都有 `.ts` 骨架；骨架只固定语义身份和类型绑定，不预设业务实现。
+- 每个已确定的叶子 Node 均有可执行的 `.ts` 实现；类型化叶子描述符供自定义组合时绑定身份与 handler，不是待完成的业务空壳。
 - `INFER.CACHE` 是命名空间，已实现的叶子为 LOOKUP、WRITE、INVALIDATE。
 - Provider 位于 `src/worker/infer/providers/`。Runtime 与 INFER 统一使用 `ModelProvider.invoke/stream` 和 `ProviderRegistry`，详见 [Provider API](worker-api/providers.zh-CN.md)。ReAct 是 Runtime 的预定义 Graph 流程，不属于 INFER 策略。模型/供应商变化不产生 Node。
 - `INTERACTION.ACT.TOOL` 在源码中使用目录表示；应用在 Worker 内注册工具或命令实现，具体工具名不是 Node。
 - Tool 与 MCP registry 保持独立。
-- 四个预定义流程位于 `src/runtime/graph.ts`；不再存在 `src/presets` package 或导出。
+- 四个 Context 预定义流程位于 `src/runtime/graph.ts`；ReAct 位于 `src/runtime/react.ts`。
 - Core 保持轻依赖；数据库、RPC、NATS、MCP SDK、模型 SDK 与分布式 transport 都作为可选适配器。
 - 同一 Graph 与 Node Contract 必须能在本地或远端 Worker 间迁移，且不嵌入部署信息。
 

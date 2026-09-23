@@ -7,12 +7,14 @@ import { externalResult, jsonValue, nonempty, validateMcpInput } from "../valida
 export const interactionMcpNode = createNodeScaffold("INTERACTION.ACT.MCP");
 
 /** Structural boundary for an optional MCP SDK client. */
+export interface McpCallOptions { readonly signal?: AbortSignal; }
+
 export interface McpClient {
-  listTools(params?: { cursor?: string }): Promise<{
+  listTools(params?: { cursor?: string }, options?: McpCallOptions): Promise<{
     tools: readonly { name: string; description?: string; inputSchema: JsonObject; outputSchema?: JsonObject }[];
     nextCursor?: string;
   }>;
-  callTool(params: { name: string; arguments: JsonObject }): Promise<McpToolResult>;
+  callTool(params: { name: string; arguments: JsonObject }, options?: McpCallOptions): Promise<McpToolResult>;
 }
 
 export interface McpToolResult {
@@ -43,11 +45,13 @@ export class McpRegistry {
     return () => this.#clients.get(server) === client && this.#clients.delete(server);
   }
 
-  async execute(input: InteractionMcpInput, sandbox: Sandbox): Promise<InteractionMcpOutput> {
+  async execute(input: InteractionMcpInput, sandbox: Sandbox, options: McpCallOptions = {}): Promise<InteractionMcpOutput> {
+    options.signal?.throwIfAborted();
     validateMcpInput(input);
     if (input.operation === "invoke") {
       const client = this.#client(input.server, sandbox);
-      const response = await client.callTool({ name: input.call.name, arguments: { ...input.call.arguments } });
+      const response = await client.callTool({ name: input.call.name, arguments: { ...input.call.arguments } }, options);
+      options.signal?.throwIfAborted();
       if (!response || typeof response !== "object") throw new Error("Invalid MCP tool result");
       if (response.isError !== undefined && typeof response.isError !== "boolean") throw new Error("Invalid MCP isError");
       const result: ExternalResult = externalResult({
@@ -64,7 +68,7 @@ export class McpRegistry {
     const servers = input.server ? [input.server] : [...this.#clients.keys()];
     const capabilities: McpCapability[] = [];
     const budget = { pages: 0, capabilities: 0 };
-    for (const server of servers) capabilities.push(...await this.#discover(server, sandbox, budget));
+    for (const server of servers) capabilities.push(...await this.#discover(server, sandbox, budget, options));
     return { operation: "discover", capabilities };
   }
 
@@ -76,7 +80,7 @@ export class McpRegistry {
     return client;
   }
 
-  async #discover(server: string, sandbox: Sandbox, budget: { pages: number; capabilities: number }): Promise<readonly McpCapability[]> {
+  async #discover(server: string, sandbox: Sandbox, budget: { pages: number; capabilities: number }, options: McpCallOptions): Promise<readonly McpCapability[]> {
     const client = this.#client(server, sandbox);
     const capabilities: McpCapability[] = [];
     const cursors = new Set<string>();
@@ -84,8 +88,10 @@ export class McpRegistry {
     const maxCapabilities = this.options.maxCapabilities ?? 1000;
     let cursor: string | undefined;
     do {
+      options.signal?.throwIfAborted();
       if (budget.pages >= maxPages) throw new Error("MCP discovery page limit exceeded");
-      const page = await client.listTools(cursor ? { cursor } : {});
+      const page = await client.listTools(cursor ? { cursor } : {}, options);
+      options.signal?.throwIfAborted();
       budget.pages++;
       if (!page || !Array.isArray(page.tools)) throw new Error("Invalid MCP tool page");
       if (budget.capabilities + page.tools.length > maxCapabilities) throw new Error("MCP capability limit exceeded");
@@ -118,5 +124,5 @@ export class McpRegistry {
 export function createMcpHandler<R = undefined, C = undefined>(
   registry: McpRegistry,
 ): import("../../node.js").NodeHandler<"INTERACTION.ACT.MCP", R, C> {
-  return (input, context) => registry.execute(input, context.services.sandbox);
+  return (input, context) => registry.execute(input, context.services.sandbox, context.signal ? { signal: context.signal } : {});
 }

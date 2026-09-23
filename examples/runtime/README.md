@@ -2,10 +2,13 @@
 
 [简体中文](README.zh-CN.md) · [All examples](../README.md) · [API reference](../../docs/worker-api/runtime.md)
 
-Run from the project root with Node 24+ and npm 11+. Install with `npm ci` first. Neither example needs a model key, database or additional SDK. Importing these entrypoint files also executes them.
+Run from the project root with Node 24+ and npm 11+. Install with `npm ci` first. The local entrypoints use public exports without model keys, databases or extra SDKs. graph-loop/placement execute on import; quickstart/api/flows only execute when run directly. Exported MCP/ReAct functions in flows require separately supplied external services.
 
 | File | Purpose | Command |
 | --- | --- | --- |
+| [quickstart.ts](quickstart.ts) | YAML behavior settings, CONTEXT.LOAD → SELECT, execution and close | `npm run example:runtime:quickstart` |
+| [api.ts](api.ts) | Custom/private nodes, separate replicas, event failures, Artifact/Codec and cleanup | `npm run example:runtime:api` |
+| [flows.ts](flows.ts) | Skill loading, actual text RAG and README tool reading; exported MCP/ReAct calls | `npm run example:runtime:flows` |
 | [graph-loop.ts](graph-loop.ts) | Two read/count graphs; select the read graph once and repeat the count graph twice; bind nodes to independently configured Worker sandboxes; emit count events | `npm run example:runtime` |
 | [placement.ts](placement.ts) | Execute one CONTEXT.LOAD graph through direct calls, a real child-process IPC channel and another child-process HTTP server; exchange addresses and clean up resources | `npm run example:runtime:placement` |
 
@@ -14,3 +17,16 @@ Run from the project root with Node 24+ and npm 11+. Install with `npm ci` first
 `placement.ts` prints both child PIDs and direct/ipc/http results. IPC requests use the inherited Node channel. HTTP requests use an authenticated loopback socket; only startup/shutdown control messages use the HTTP child's IPC channel. This exercises the network protocol without claiming to connect two physical machines. For deployment across machines, start the HTTP Worker separately and configure its registered address and HTTPS endpoint on the caller. The graph stays unchanged.
 
 Production credentials belong in `.env`; behavior settings such as graphConcurrency and loopMaxIterations belong in root YAML. Inject a SandboxExecutor to execute tools through a container or another environment. Process isolation and cooperative Sandbox checks serve separate purposes.
+
+## Exported function guide
+
+| Function | Purpose |
+| --- | --- |
+| quickstart | Execute and check LOAD → SELECT |
+| textWorker / simpleTextWorker | Actual text processing using defineWorker and extendWorker |
+| workerLifecycle | Register replicas, verify private nodes/resources, process events, pause/unregister/close |
+| eventFabric | Run consumers, collect failures, unsubscribe |
+| artifacts | put/get/delete, inline/reference encoding and cleanup |
+| readTextTool / contextFlows | File tool plus Skill → text retrieval → tool → observation → Context |
+| mcpFlows | Discover then invoke a tool through a connected MCP client and update Context |
+| reactFlow | Bounded ReAct with a configured model/readTextTool; throw on non-completion |

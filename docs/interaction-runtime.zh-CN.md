@@ -17,7 +17,7 @@ Provider 适配器位于 `src/worker/infer/providers/`。Runtime 与 INFER 使�
 - `INTERACTION.OBSERVE` 标准化环境返回信息；
 - `INTERACTION.OUTPUT` 提交本轮最终结果。
 
-体系中不存在 `INTERACTION.COMMUNICATE`。应用输入从应用/Runtime 边界传入。Worker 之间的 `invoke` 与 `emit` 是 Runtime 通信原语，不是 Interaction Node。
+应用输入从应用/Runtime 边界传入。Worker 之间的 `invoke` 与 `emit` 是 Runtime 通信原语，不是 Interaction Node。
 
 `INTERACTION.ACT.TOOL` 仍是一个可路由 Node，但其实现采用目录组织：
 
@@ -25,6 +25,8 @@ Provider 适配器位于 `src/worker/infer/providers/`。Runtime 与 INFER 使�
 src/worker/interaction/act/tool/
 ├── node.ts
 ├── registry.ts
+├── read-only-commands.ts
+├── web-search.ts
 └── index.ts
 ```
 
@@ -39,7 +41,7 @@ tools.register({
   validate: (args) => {
     if (typeof args.path !== "string") throw new Error("path 必须是字符串");
   },
-  execute: async (args, context) => ({ status: "success", content: await context.services.sandbox.readText(args.path as string) }),
+  execute: async (args, context) => ({ status: "success", content: await context.services.sandbox.readText(args.path as string, context.signal) }),
 });
 ```
 
@@ -91,7 +93,7 @@ const interaction = createInteractionWorker({
 
 ## 四类预定义流程
 
-公开函数直接位于 `src/runtime/graph.ts`，并由 `@ditto/core/runtime` 导出。它们是可复用的 Runtime 组合函数，不是 Node Type；仓库不再保留 `src/presets` package。
+公开函数直接位于 `src/runtime/graph.ts`，并由 `@ditto/core/runtime` 导出。它们是可复用的 Runtime 组合函数，不是 Node Type。
 
 | 函数 | 固定流程 |
 | --- | --- |
@@ -125,7 +127,7 @@ const tool = await runToolCallFlow(runtime, {
 
 ## Sandbox 与部署
 
-文件、命令、Tool、MCP、Skill 和网络访问保持默认拒绝。Sandbox 是协作式权限服务；不可信实现应放入具备相应隔离能力的操作系统进程或容器。
+Sandbox 的文件、命令、Tool、MCP 和网络权限默认拒绝。skills 是供应用显式 assert 的权限类别，runSkillFlow 不检查或执行 Skill。Sandbox 是协作式权限服务；不可信实现应放入具备相应隔离能力的操作系统进程或容器。
 
 Graph 定义与 Node Contract 不包含 Provider 密钥、主机地址或 Worker ID。因此 Runtime 可以在不改变语义 Node 调用的情况下，将同一 Graph 从本地执行迁移到远程 Worker。
 
@@ -133,24 +135,21 @@ Graph 定义与 Node Contract 不包含 Provider 密钥、主机地址或 Worker
 
 ReAct 放在 `src/runtime/react.ts`，是 Graph 的预定义运行流程：SAMPLE → 已声明动作 → 结果回填 → 下一轮 SAMPLE。它不是 INFER Node 或 TRAJECTORY 策略。循环状态、预算和跨 Worker 调度都由 Runtime 流程持有；所有模型计算仍由 SAMPLE 完成。
 
+先配置 .env 中的模型连接、network origin、read 和 read_text 权限，再由 Node --env-file=.env 加载环境。下列代码按位于 docs/ 的文件给出相对导入；在其他目录调整示例路径。工具读取真实工作区文件。
+
 ```ts
-import { runReactFlow, createInferWorker, defineWorker, observeExternalResult } from "@ditto/core";
-runtime.register(createInferWorker());
-runtime.register(defineWorker({ type: "INTERACTION", nodes: {
-  "INTERACTION.ACT.TOOL": async ({ call }) => ({
-    callId: call.id, source: `tool:${call.name}`, status: "success", content: { found: true },
-  }),
-  "INTERACTION.OBSERVE": async ({ result }) => observeExternalResult({ result }),
-} }));
-const result = await runReactFlow(runtime, {
-  model: { provider: "primary", model: "your-model-id" },
-  messages: [{ role: "user", content: "Search and answer." }],
-  actions: [{ name: "search", inputSchema: {
-    type: "object", properties: { query: { type: "string" } }, required: ["query"],
-  } }],
-  constraints: { maxSteps: 8, maxActionCalls: 4, maxTotalTokens: 16_000 },
-}, { graphId: "search-agent", timeoutMs: 20_000 });
-console.log(result.status, result.result, result.observations);
+import { createDitto, createInferWorker, createInteractionWorker, loadRuntimeConfigFile } from "@ditto/core";
+import { readTextTool, reactFlow } from "../examples/runtime/flows.ts";
+
+const config = loadRuntimeConfigFile("ditto.yaml", process.env);
+if (!config.model) throw new Error("Configure DITTO_WORKER_INFER_MODEL_PROVIDER and DITTO_WORKER_INFER_MODEL");
+const runtime = createDitto({
+  config,
+  workers: [createInferWorker(), createInteractionWorker({ tools: [readTextTool] })],
+});
+try {
+  console.log(await reactFlow(runtime, config.model));
+} finally { await runtime.close(); }
 ```
 
 ```ts
@@ -186,14 +185,16 @@ export interface ReactFlowResult {
 | `maxActionCalls` | Runtime config.react.maxActionCalls，回退值为 16，非负整数；0 禁止执行动作，但保留模型产生的请求 |
 | `maxTotalTokens` | Runtime config.react.maxTotalTokens，未配置时不限；已累计 usage 限制后续采样，不是单次请求的付费硬上限 |
 | `timeoutMs` | constraints 与 options/Runtime config.timeoutMs 的较小值；库回退值为 30 秒，根目录 YAML 为 120 秒 |
-| `signal` | 取消等待与后续调度；已派发的远程请求/动作可能继续执行 |
+| `signal` | 向本地模型/动作传递协作取消，停止后续调度；远程请求/动作可能继续执行 |
 
 调用方在 `ActionDescriptor.target` 中绑定直接工具、MCP 服务端及工具，或公开 Node。未指定目标时使用 TOOL。MCP 的 `operation` 固定为 `invoke`；模型参数不能决定服务端或路由。TOOL/MCP 结果经过 OBSERVE 后才反馈给 SAMPLE。多个动作顺序执行；结构化的 `failed` 结果进入下一轮 SAMPLE，`cancelled`、`timeout`、`unknown` 则停止后续动作。基础设施异常不伪造成观察结果。Core 不自动重试可能影响外部系统的操作。
 
 成功返回 completed；预算/超时/错误中止且已有 SAMPLE 时返回 partial，否则 failed。actionRequests 仅保留尚未处理的请求；超时中的动作结果未知，仍保留 pending，调用者不能据此认定动作未发生。成功观察回填到下一轮工具消息，原始供应商 metadata 保持完整。步数耗尽且没有下一轮可消费观察时，不再执行新动作。
 
-Token 计数缺失返回 USAGE_UNAVAILABLE；重复 action ID、未声明动作和非法模型输出均停止流程。与其他 Runtime Graph 一致，没有跨 Worker 取消协议；deadline 只停止本流程等待和后续调度。需要先规划时，在上游 Graph 调用 SAMPLE，再将计划传给此流程；不保留一个重复的 plan-and-act 策略。
+Token 计数缺失返回 USAGE_UNAVAILABLE；重复 action ID、未声明动作和非法模型输出均停止流程。与其他 Runtime Graph 一致，本地 deadline/signal 会传给模型与动作 handler；跨进程调用尚无远端取消协议。需要先规划时，在上游 Graph 调用 SAMPLE，再将计划传给此流程。
 
 采样与预算默认参数见 [统一配置 API](worker-api/configuration.zh-CN.md)。
 
 长期记忆搜索使用 MEMORY.SEARCH，Graph 检查 NodeResult 并显式映射到 CONTEXT.UPDATE；详见 [MEMORY API](worker-api/memory.zh-CN.md)。
+
+完整输入字段、返回值和各流程调用示例见 [预定义流程 API](worker-api/flows.zh-CN.md)。

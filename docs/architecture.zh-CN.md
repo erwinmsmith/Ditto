@@ -17,11 +17,11 @@ flowchart TB
     Entry[公开入口 Node] --> G[内部 Graph]
     G --> Think[模型 Node]
     G --> Tool[工具 / MCP Node]
-    G --> Skill[Skill Node]
+    G --> Context[Context Node]
   end
   Think --> Services[Runtime Services：Provider / Sandbox / Config]
   Tool --> Services
-  Skill --> Services
+  Context --> Services
 ```
 
 | 模块 | 职责 |
@@ -30,18 +30,18 @@ flowchart TB
 | `worker/node.ts`、`worker/execution-context.ts` | 共享 typed handler、`defineNode` 与执行上下文，不放领域操作 |
 | `worker/define-worker.ts` | `defineWorker` / `extendWorker`、公开能力与副本资源 |
 | `worker/memory/` | `contracts.ts`：Memory 实体与 GET / QUERY / SEARCH / WRITE / UPDATE / DELETE 契约 |
-| `worker/context/` | Context Contract 与叶子骨架，包括当前任务 RAG 和 Skill 激活 |
-| `worker/infer/` | `reasoning/`：推理 Contract/骨架；`providers/`：扁平的供应商中立适配器；`cache/`：预留命名空间骨架 |
+| `worker/context/` | LOAD / SELECT / UPDATE / COMPRESS、可替换缓存、引用解析与 RAG 服务 |
+| `worker/infer/` | `reasoning/`：采样、轨迹、反思和审议；`providers/`：模型适配器；`cache/`：查询、写入、失效和可替换存储 |
 | `worker/interaction/` | ACT.TOOL 目录、ACT.MCP、OBSERVE、OUTPUT 与叶子 handler 组合 |
 | `runtime/graph.ts` | 不可变有限 DAG 定义、依赖校验、执行与四个预定义 Context 流程 |
 | `runtime/loop.ts` | Graph 选择、状态推进、停止条件与有界重复执行 |
 | `runtime/runtime.ts` | `invoke` / `run` / `loop`、Worker 注册、路由与生命周期 |
-| `runtime/communication/` | InvokeTransport、HTTP、异步事件；调用与事件语义分离 |
-| `runtime/sandbox/` | 权限检查、工作区文件操作、隔离执行器接口 |
+| `runtime/communication/` | InvokeTransport、同机 IPC、HTTP、异步事件；调用与事件语义分离 |
+| `runtime/sandbox/` | 权限检查、工作区文件操作、可选有界本地执行器及可替换隔离执行器接口 |
 
-Node 表示执行操作。共享类型化 Node 定义位于 `worker/node.ts`，操作 Contract 归各能力模块的 `contracts.ts`。`createInteractionNodes` 返回 ACT.TOOL 与可选 ACT.MCP handler。Graph 构建、调度和四个标准流程函数位于 `runtime/graph.ts`；重复执行位于 `runtime/loop.ts`；注册与生命周期位于 `runtime/runtime.ts`。
+Node 表示执行操作。共享类型化 Node 定义位于 `worker/node.ts`，操作 Contract 归各能力模块的 `contracts.ts`。`createInteractionNodes` 返回已配置的 ACT.TOOL/ACT.MCP/OUTPUT handler 和 OBSERVE。Graph 构建、调度和四个标准流程函数位于 `runtime/graph.ts`；重复执行位于 `runtime/loop.ts`；注册与生命周期位于 `runtime/runtime.ts`。
 
-Memory 与 Context 提供类型化 Contract，存储和检索策略由应用实现。Infer 负责推理和可替换 Provider adapter。Interaction 负责 Tool/MCP 执行、观察和最终输出。应用将能力组合成 Graph 和 Loop；Worker 不拥有内置 Agent 循环。
+Memory 与 Context 提供可执行节点及类型化 Contract；数据库由应用注入，Context 内置默认选择/压缩及可替换缓存，外部检索服务按需注入。Infer 负责推理和可替换 Provider adapter。Interaction 负责 Tool/MCP 执行、观察和最终输出。应用将能力组合成 Graph 和 Loop；Worker 不拥有内置 Agent 循环。
 
 ## contracts 放什么
 
@@ -53,13 +53,13 @@ Memory 与 Context 提供类型化 Contract，存储和检索策略由应用实�
 
 具体类型和 Node 名称的映射一起归属对应 Worker。例如 MemoryItem、MemoryGetInput 和 MEMORY.GET 的声明都在 `worker/memory/contracts.ts`。增加 Memory 的操作时，在 Memory 内补充契约及 handler；不需要修改 Runtime 或中央操作枚举。这些 TypeScript 类型在编译后擦除，不参与运行路由，也不提供网络输入校验。
 
-MEMORY 已在 `worker/memory/<operation>/node.ts` 实现六个节点的校验与执行，通过 createMemoryWorker 注入外部存储和搜索插件。Core 不集成数据库驱动。Context 保留契约与叶子 scaffold。
+MEMORY 已在 `worker/memory/<operation>/node.ts` 实现六个节点的校验与执行，通过 createMemoryWorker 注入外部存储和搜索插件。Core 不集成数据库驱动。CONTEXT 通过 createContext/createContextWorker 执行四个有校验的操作；叶子描述符用于自定义组合时绑定类型和身份，并非待实现业务代码。
 
 ## Worker 是 Node 的容器
 
 内置能力按 `MEMORY`、`CONTEXT`、`INFER`、`INTERACTION` 组织，推荐同名 Worker 作为部署边界。这些名称不是一级 Node。自定义 Worker.type 仍可为任意字符串；保留显式组合不同领域 Node 的能力，例如 Interaction Worker 组合 INFER.REASONING.SAMPLE，不将目录归属误当作运行位置限制。
 
-`defineWorker({ nodes, expose })` 中，`nodes` 是内部实现集合；`expose` 是参与 Runtime 路由、允许远端调用的入口集合。省略 `expose` 时公开全部实现。公开应用 Graph 调用的能力；内部 Graph 仍可使用私有 Node。重复执行通过 `runtime.loop()` 发起，不再使用 RUN Node。
+`defineWorker({ nodes, expose })` 中，`nodes` 是内部实现集合；`expose` 是参与 Runtime 路由、允许远端调用的入口集合。省略 `expose` 时公开全部实现。公开应用 Graph 调用的能力；内部 Graph 仍可使用私有 Node。重复执行通过 `runtime.loop()` 发起。
 
 `defineNode(workerType, nodeType, handler)` 显式记录所属 Worker 类型。Worker 组装时拒绝归属不同或 Node 键不匹配的定义；内联 handler 自动绑定当前 Worker，结构化定义经过校验并复制为不可变定义。归属约束针对 Worker 类型：同类型副本可以共用定义，资源各自独立。只有所属 Worker 注册后，定义才能通过 Runtime 执行；这不阻止应用在 Runtime 之外直接调用 JavaScript 函数。
 
@@ -100,7 +100,7 @@ Graph 中没有 Provider Key、物理地址或副本数量；`bind` 是 TypeScri
 - `await handle.close()`：停止路由，等待本副本已接受的调用，释放资源一次。
 - `await runtime.close()`：拒绝新调用，等待已接受的 Graph/Loop/调用和事件处理，再关闭所持有的 Worker；释放失败以 AggregateError 返回。
 
-Handler 必须 await 自己启动的工作。关闭 Runtime 时未开始的 Graph 下游或新的跨 Worker 请求可能被拒绝，因此应用应先停止接收请求、等待顶层任务，再关闭 Runtime。调用自身 handle.close 并等待会等待自己，不应在本 Worker handler 内这样做。EventFabric、外部 Provider/MCP 客户端与 HTTP Server 的生命周期由应用所有者管理。
+Handler 必须 await 自己启动的工作。Runtime.close 拒绝新顶层任务，但等待已接受 Graph/Loop 及其后续内部调用完成，再释放 Worker。应用关闭时先停止接收新请求。调用自身 handle.close 并等待会等待自己，不应在本 Worker handler 内这样做。EventFabric、外部 Provider/MCP 客户端与 HTTP Server 的生命周期由应用所有者管理。
 
 ## Contract 与最终节点体系
 
@@ -110,9 +110,9 @@ Handler 必须 await 自己启动的工作。关闭 Runtime 时未开始的 Grap
 
 Provider adapter 保持扁平放置在 `worker/infer/providers/`，不进入 Node 名称或 Graph 业务输入。Core 只依赖 `ModelProvider.invoke(SampleInput, { signal })` 和可选的 `stream`；凭证、base URL、模型选择、超时和可选供应商 SDK 仍属于 Runtime 配置或 adapter。
 
-四个可直接调用的标准流程位于 `runtime/graph.ts`：RAG、Skill、MCP 和 Tool Call。它们调用既有叶子 Node 并把结果送入 `CONTEXT.UPDATE`，不会扩展 `NodeContractMap`。
+四个可直接调用的标准流程位于 `runtime/graph.ts`：RAG、Skill、MCP 和 Tool Call。Tool/MCP invoke 将 Observation 送入 UPDATE；Skill 可选合并，RAG 只 SELECT，MCP discover 不更新 Context。它们不会扩展 NodeContractMap。
 
-资源继续使用 `resources: () => ({ ... })`，保证每次注册创建自己的资源。相较草案中的资源对象写法，这里明确保留工厂语义，避免副本意外共享可变状态。Graph 继续用 `.node(id, type, dependencies, bind)` 明确输入映射，避免把检索结果未经转换传给要求 messages 的推理 Node。
+资源继续使用 `resources: () => ({ ... })`，保证每次注册创建自己的资源。工厂每次返回新的资源对象，避免副本意外共享可变状态。Graph 继续用 `.node(id, type, dependencies, bind)` 明确输入映射，避免把检索结果未经转换传给要求 messages 的推理 Node。
 
 运行设置和业务输入分离：`ctx.services.config` 提供环境、默认模型和超时，`ctx.services.providers` 选择适配器，`ctx.services.sandbox` 检查能力。Runtime 执行通用 Graph 和 Loop；应用定义 Agent 状态、显式加载 Skill 并建立 MCP 连接。
 

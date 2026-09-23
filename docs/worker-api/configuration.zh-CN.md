@@ -7,14 +7,17 @@
 ```ts
 import { createDitto, createInfer, createInferWorker, loadRuntimeConfigFile } from "@ditto/core";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
+if (!config.model) throw new Error("Configure the default model in .env");
 const runtime = createDitto({ config, workers: [createInferWorker()] });
-const infer = createInfer({ runtime });
-const result = await infer.reasoning.trajectory({
-  model: { provider: config.model!.provider, model: config.model!.model },
-  messages: [{ role: "user", content: "计算 17 × 23，只返回整数。" }],
-  strategy: { name: "tot" }, // 使用 YAML 中的 breadth / depth / beamWidth
-});
-await runtime.close();
+try {
+  const infer = createInfer({ runtime });
+  const result = await infer.reasoning.trajectory({
+    model: { provider: config.model!.provider, model: config.model!.model },
+    messages: [{ role: "user", content: "计算 17 × 23，只返回整数。" }],
+    strategy: { name: "tot" }, // 使用 YAML 中的 breadth / depth / beamWidth
+  });
+  console.log(result);
+} finally { await runtime.close(); }
 ```
 
 ## 分组结构
@@ -68,9 +71,23 @@ loadRuntimeConfigFile(path = "ditto.yaml", env = process.env): RuntimeConfig
 loadRuntimeConfig(env = process.env, settings: RuntimeSettings = {}): RuntimeConfig
 ```
 
-第一个接口读取 UTF-8 YAML；相对路径基于当前工作目录。第二个是纯配置解析，供测试、嵌入式应用传对象使用，不访问文件。加载后返回不可变配置快照，包含 `environment/workspace/model/providers/timeoutMs/maxTurns/graphConcurrency/loopMaxIterations/infer/context/memory/retrieval/react/sandbox`。配置只读取一次；修改 YAML 后需重新加载并创建 Runtime。Worker 通过 `ctx.services.config` 访问所属 services 的配置快照。
+第一个接口读取 UTF-8 YAML；相对路径基于当前工作目录。第二个是纯配置解析，供测试、嵌入式应用传对象使用，不访问文件。加载后返回不可变配置快照，包含 `environment/workspace/model/providers/timeoutMs/maxTurns/graphConcurrency/loopMaxIterations/infer/context/interaction/memory/retrieval/react/sandbox/sandboxExecution`。配置只读取一次；修改 YAML 后需重新加载并创建 Runtime。Worker 通过 `ctx.services.config` 访问所属 services 的配置快照。
 
 缺失文件、空文件、非对象、未知字段、重复键、YAML alias、非法数字在启动时抛错，不静默退回默认值。只使用标准 YAML 数据结构，不使用自定义 tag 或 merge key。显式自定义 `providers` Registry 时，Runtime 不再从配置构建 HTTP Provider。
+
+不读取 YAML 或环境变量的嵌入式调用：第二个参数使用与 YAML 相同的 RuntimeSettings 结构；实际应用仍推荐根目录统一 YAML。
+
+```ts
+import { createDitto, loadRuntimeConfig } from "@ditto/core/runtime";
+
+const config = loadRuntimeConfig({}, {
+  runtime: { timeoutMs: 15_000, graphConcurrency: 2, loopMaxIterations: 4 },
+  workers: { memory: { queryLimit: 20, searchLimit: 5 } },
+});
+const runtime = createDitto({ config });
+try { console.log(runtime.services.config.graphConcurrency); }
+finally { await runtime.close(); }
+```
 
 ## YAML 字段
 
@@ -148,3 +165,34 @@ workers:
 | cache.keyPrefix | ditto:context: | Nonempty string |
 
 Redis URL 和凭据放 `.env` 的 `DITTO_WORKER_CONTEXT_REDIS_URL`，应用直接交给 SDK；行为参数放 YAML。安装、调用及插件接口见 [CONTEXT API](context.zh-CN.md)。
+
+## CONTEXT 本地资源与 INTERACTION
+
+```yaml
+workers:
+  context:
+    localCache: { ttlMs: 3600000, maxEntries: 1000 }
+    queue: { maxPending: 1024 }
+  interaction:
+    commands: { maxEntries: 1000, maxOutputBytes: 65536, maxErrorBytes: 8192 }
+    webSearch: { timeoutMs: 30000, maxResponseBytes: 1048576 }
+```
+
+| 配置项 | 默认值 / 合法范围 |
+| --- | --- |
+| workers.context.localCache.ttlMs | 3600000 / 1–2147483647 ms |
+| workers.context.localCache.maxEntries | 1000 / 正安全整数 |
+| workers.context.queue.maxPending | 1024 / 正安全整数 |
+| workers.interaction.commands.maxEntries | 1000 / 1–10000 |
+| workers.interaction.commands.maxOutputBytes | 65536 / 1–1048576 |
+| workers.interaction.commands.maxErrorBytes | 8192 / 1–65536 |
+| workers.interaction.webSearch.timeoutMs | 30000 / 1–2147483647 ms |
+| workers.interaction.webSearch.maxResponseBytes | 1048576 / 1–16777216 |
+
+以上默认值在工厂与根 YAML 中一致；加载器输出不可变 config.context / config.interaction。显式传给 createInMemoryContextStore、createContextOperationQueue、createReadOnlyCommandTools、createBraveWebSearchProvider，参数加载不会自动启用工具、缓存或网络权限。[Context 示例](../../examples/worker/context-retrieval.ts) 与 [Interaction API](interaction.zh-CN.md#provider-取消和有界网页响应) 给出完整接线。
+
+Brave 密钥由应用读取 `DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY`；CONTEXT 与 MEMORY 连接信息分别使用 `DITTO_WORKER_CONTEXT_*`、`DITTO_WORKER_MEMORY_*`，见根 .env.example。env 放连接/密钥，YAML 放行为/容量；没有隐式加载插件。
+
+## Runtime Sandbox 执行参数
+
+根 YAML 的 `runtime.sandbox.timeoutMs`（默认 5000，1–2147483647）和 `runtime.sandbox.maxOutputBytes`（默认 65536，1–16777216）加载为不可变 `config.sandboxExecution`。例如 `createLocalSandboxExecutor({ commands: ["uname"], ...config.sandboxExecution })`。这些配置不会自动授予执行权限或创建执行器；命令白名单、环境变量与执行后端由应用显式注入，权限仍由 config.sandbox / Worker services 管理。完整 API 见 [Sandbox](runtime.zh-CN.md#sandbox-api-与本地执行器)。

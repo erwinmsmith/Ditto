@@ -10,6 +10,7 @@
 | --- | --- | --- | --- |
 | [graph-loop-worker.ts](graph-loop-worker.ts) | 用 Graph 编排读取、观察、输出；用 Loop 处理两个文件；在 Worker 内定义文件统计工具 | `npm run example:agent` | Node 24+、npm 11+；无需模型、数据库或 MCP |
 | [interaction-tools.ts](interaction-tools.ts) | 注册可选只读命令和一个底层命令示例，再把命令输出与 SHA-256 工具组合 | `npm run example:tools` | 同上；Linux 或 macOS，系统提供 grep / uname / printf |
+| [runtime/quickstart.ts](runtime/quickstart.ts)、[api.ts](runtime/api.ts)、[flows.ts](runtime/flows.ts) | 入门与公共 API：自定义节点、生命周期、事件/Artifact、预定义流程 | `npm run example:runtime:quickstart` / `example:runtime:api` / `example:runtime:flows` | 本地入口无需外部服务；MCP/ReAct 函数需注入服务 |
 | [runtime/](runtime/README.zh-CN.md) | 多 Graph Loop、独立 Worker Sandbox、同机 IPC 与跨机 HTTP | `npm run example:runtime` / `npm run example:runtime:placement` | 无额外 SDK 或服务 |
 | [worker/](worker/README.zh-CN.md) | CONTEXT 接 Redis；MEMORY 接 SQLite/PostgreSQL/MySQL/Milvus | 见子目录运行命令 | 按需安装 SDK、配置数据库 |
 
@@ -51,7 +52,7 @@ linux tool → OBSERVE → sha256 tool → OBSERVE → OUTPUT
 
 | 导出 | 做什么 |
 | --- | --- |
-| `commandExecutor` | 使用 Node execFile 执行命令，分开传递 command/args；设置工作目录、超时和输出上限 |
+| `commandExecutor` | 使用 createLocalSandboxExecutor 执行命令，分开传递 command/args；设置工作目录、超时和输出上限 |
 | `readOnlyCommandTools` | Core 提供的 14 个可选、有界只读命令注册项 |
 | `linuxTool` | 校验命令参数，通过 SandboxExecutor 执行；返回 stdout、stderr、exitCode，非零退出码转为 failed |
 | `sha256Tool` | 对前一个工具输出的文本计算 SHA-256 |
@@ -81,14 +82,14 @@ npm run example:tools
 | [API 示例说明](../docs/worker-api/examples/README.md) | MEMORY、INFER、INTERACTION、可选 RETRIEVAL；逐个函数说明用途 | 注入应用资源后调用需要的函数；不是自动执行的完整应用 |
 | [MCP 实测脚本](../scripts/check-interaction-mcp-live.mjs) | 真实命令 → MCP 文件读取 → SHA-256 → OUTPUT | 按下方 [MCP](#mcp) 说明安装可选 SDK，并运行 `npm run check:interaction:mcp:live -- <依赖目录>` |
 | [INFER 实测脚本](../scripts/check-infer-live.ts) | 对配置的真实模型验证采样和推理策略 | 按下方 [INFER](#infer) 说明配置 `.env`，再运行 `npm run check:infer:live -- --provider <名称>` |
-| [Web search 实测脚本](../scripts/check-interaction-web-search-live.mjs) | Brave Search → ACT.TOOL → OBSERVE → CONTEXT.UPDATE | 设置 `BRAVE_SEARCH_API_KEY`，再运行 `npm run check:interaction:web-search:live -- "查询"` |
+| [Web search 实测脚本](../scripts/check-interaction-web-search-live.mjs) | Brave Search → ACT.TOOL → OBSERVE → CONTEXT.UPDATE | 设置 `DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY`，再运行 `npm run check:interaction:web-search:live -- "查询"` |
 
 ### Web search
 
 实测脚本显式创建 Brave 适配器和 `web_search` Tool，开放该 Tool 与 Brave 精确 origin，并检查真实结果已生成 Observation 和一条 Context item。脚本只打印规范化结果，不打印 API key。Core 本身不会读取这个环境变量；脚本作为应用层负责注入。
 
 ```bash
-BRAVE_SEARCH_API_KEY="..." npm run check:interaction:web-search:live -- "Ditto agent runtime"
+DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY="..." npm run check:interaction:web-search:live -- "Ditto agent runtime"
 ```
 
 ### MCP
@@ -148,3 +149,9 @@ try {
 ```
 
 [每个 CONTEXT 示例的说明](../docs/worker-api/examples/README.md#contextts) · [完整 API](../docs/worker-api/context.zh-CN.md)
+
+## CONTEXT 与 RETRIEVAL 组合
+
+[worker/context-retrieval.ts](worker/context-retrieval.ts) 使用真实 SQLite FTS5，比较普通 CONTEXT 内联检索与可选 RETRIEVAL Worker，包含本地缓存、队列、引用解析及 LOAD → SELECT Graph。运行 `npm run example:worker:context-retrieval`；无外部凭据，详细说明见 [Worker 示例](worker/README.zh-CN.md#context-缓存与可选检索)。
+
+`interaction-tools.ts` 的 commandExecutor 复用 Core 的 `createLocalSandboxExecutor`，timeoutMs/maxOutputBytes 来自根 YAML 的 runtime.sandbox；示例不再维护另一套进程执行实现。运行 `npm run example:tools` 可验证命令 → OBSERVE → SHA-256 → OUTPUT 的 Graph/Loop。

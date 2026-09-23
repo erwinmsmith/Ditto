@@ -22,7 +22,7 @@ Local IPC / network HTTP are deployment modes. Separately, `invoke` means reques
 import { createDitto, createContextWorker, loadRuntimeConfigFile } from "@ditto/core";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 const runtime = createDitto({ config, hostId: "machine-a", processId: "agent" });
-const context = runtime.register(createContextWorker(), "context-a");
+const context = runtime.register(createContextWorker({ policy: config.context.policy ?? {} }), "context-a");
 try {
   console.log(runtime.workers());
   console.log(await runtime.invoke("CONTEXT.LOAD", {
@@ -173,6 +173,53 @@ app.registerRemote({ address: remoteAddress, capabilities: ["CONTEXT.LOAD"], tra
 // Server: createServer(createWorkerHttpHandler(workerRuntime, { token })).listen(...)
 ```
 
-The HTTP endpoint is `/ditto/invoke`; default request/response limit is 1 MiB, configurable with maxBodyBytes. Both ends must use the same token; use HTTPS between production hosts. [placement.ts](../../examples/runtime/placement.ts) includes startup, address exchange, graph execution and cleanup. `receive(envelope)` is the adapter-facing receiver with target/capability validation; business code should use typed invoke/run.
+HTTP transport requires a nonempty id; timeoutMs defaults to 30000 and accepts 1–2147483647, validated at construction. The HTTP endpoint is `/ditto/invoke`; default request/response limit is 1 MiB, configurable with maxBodyBytes. Both ends must use the same token; use HTTPS between production hosts. [placement.ts](../../examples/runtime/placement.ts) includes startup, address exchange, graph execution and cleanup. `receive(envelope)` is the adapter-facing receiver with target/capability validation; business code should use typed invoke/run.
 
 For `InMemoryArtifactStore`, `PayloadCodec` and external stores, see [communication](../worker-communication.md). Existing `runRagFlow/runSkillFlow/runToolCallFlow/runMcpFlow/runReactFlow` remain available; see [Interaction API](interaction.md).
+
+## Cancellation through built-in Workers
+
+For local execution, the Runtime signal reaches INFER model providers, MEMORY database adapters, CONTEXT services, RETRIEVAL pipelines and INTERACTION tools/MCP clients. SDK adapters must forward it to an underlying implementation that supports cancellation. Cancellation does not undo completed side effects. Shutdown drains already accepted Graph/Loop work, including nested ctx.invoke delegation. HTTP and IPC currently cancel the caller's wait without a remote task cancellation protocol.
+
+## Sandbox API and local execution
+
+Import from `@ditto/core/runtime/sandbox` or the root package. Implementations and replaceable ports require no additional process management dependency.
+
+| API | Arguments and behavior |
+| --- | --- |
+| new Sandbox(workspace, policy?, executor?) | Resolves an absolute workspace; snapshots and freezes permissions; deny by default. read/write/execute must be booleans; tools/mcp/skills/network are arrays of nonempty strings |
+| allows(kind, name) | Synchronous boolean; named permissions support exact matches or `*` |
+| assert(kind, name) | Throws PermissionDeniedError if denied |
+| readText(path, signal?) | UTF-8 read; requires read permission; rejects paths/symlinks outside the workspace |
+| writeText(path, content, signal?) | UTF-8 overwrite/create; requires write permission and an existing parent directory; rejects outside/dangling symlinks; does not create directories |
+| run({ command, args }, signal?) | Requires execute=true and an injected executor; snapshots arguments, resolves the workspace, checks cancellation before/after work and returns stdout/stderr/exitCode |
+| createLocalSandboxExecutor(options) | Explicit trusted host executor for Sandbox or Runtime services |
+
+LocalSandboxExecutorOptions requires commands: exact executable names or absolute paths. An empty array disables commands; relative executable paths are rejected. timeoutMs defaults to 5000 and accepts 1–2147483647 ms. maxOutputBytes defaults to 65536 and accepts 1–16777216, counting combined stdout/stderr UTF-8 bytes. env supplies explicit string values, defaulting to PATH=/usr/bin:/bin without inherited parent credentials or implicit Node coverage settings; the OS may add environment variables. Commands, environment and limits are snapshotted at construction.
+
+Execution uses spawn with shell=false, separate literal arguments and closed stdin. Nonzero exits return their exitCode. Startup errors reject; timeout, cancellation or excess output kills the directly spawned process, closes output streams and rejects after process close. Oversized output never becomes a truncated success. Cancellation cannot roll back completed writes or external side effects.
+
+```ts
+import { Sandbox, createLocalSandboxExecutor } from "@ditto/core/runtime/sandbox";
+import { loadRuntimeConfigFile } from "@ditto/core";
+const config = loadRuntimeConfigFile("ditto.yaml", process.env);
+const executor = createLocalSandboxExecutor({
+  commands: ["uname", "printf"], ...config.sandboxExecution,
+});
+const sandbox = new Sandbox(config.workspace, {
+  read: true, write: true, execute: true, tools: ["inspect"],
+}, executor);
+console.log(sandbox.allows("tools", "inspect")); // true
+sandbox.assert("tools", "inspect");
+const signal = AbortSignal.timeout(3000);
+await sandbox.writeText("example.txt", "hello", signal);
+console.log(await sandbox.readText("example.txt", signal));
+const result = await sandbox.run({ command: "printf", args: ["%s", "$(uname) stays literal"] }, signal);
+console.log(result); // { stdout: "$(uname) stays literal", stderr: "", exitCode: 0 }
+```
+
+Inject with `createDitto({ config, sandbox: { execute: true }, sandboxExecutor: executor })`, or provide independent executors per Worker using createRuntimeServices. Container/remote adapters implement `SandboxExecutor.run(command, { workspace, signal? })` without changing Graphs/Tools.
+
+This is a cooperative capability boundary. Local commands and their descendants have no OS-level filesystem/network isolation; executable allowlists do not constrain files accessible through arguments. Terminating the direct child does not guarantee termination of its entire process tree. Untrusted code needs an external OS/container isolation executor. See the runnable [Linux/macOS tool composition](../../examples/interaction-tools.ts).
+
+See [composition](composition.md) for custom nodes/Workers, resources, events and Artifacts; see [flows](flows.md) for predefined compositions.

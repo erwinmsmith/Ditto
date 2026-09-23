@@ -146,7 +146,7 @@ const search = new RemoteRetrievalSearchProvider({
 runtime.register(createMemoryWorker({ store: applicationMemoryStore, search }));
 ```
 
-`RemoteRetrievalSearchOptions` 包含 `runtime: Pick<RuntimeClient, "invoke">`、`target`、`mapOutput`。candidate.content 为完整 MemoryItem 时可省略 mapOutput，使用默认映射保留 key/content/metadata；其它候选结构需显式提供 mapOutput，可同步或异步返回完整 MemorySearchOutput；它一次接收所有候选，便于在需要时批量补全记录。转接器不会自行创建存储连接、推断 Memory ID 或执行 N 次 SQL GET。
+`RemoteRetrievalSearchOptions` 包含必填 target、可选 `runtime?: Pick<RuntimeClient, "invoke">` 和 mapOutput。candidate.content 为完整 MemoryItem 时可省略 mapOutput，使用默认映射保留 key/content/metadata；其它候选结构需显式提供 mapOutput，可同步或异步返回完整 MemorySearchOutput；它一次接收所有候选，便于在需要时批量补全记录。转接器不会自行创建存储连接、推断 Memory ID 或执行 N 次 SQL GET。
 
 转接关系：MemorySearchInput.query → query.content；strategy/filter/limit/options 原样传递；target 固定在应用配置中。SEARCH 失败时不调用 mapper。转接器通过 Runtime 调用公共节点，只依赖 MEMORY 的类型接口，不导入其执行实现。MEMORY 调用方仍使用原来的输入、输出和 NodeResult。
 
@@ -329,3 +329,9 @@ export function remoteContextRetrieval(runtime: import("@ditto/core").RuntimeCli
 ```
 
 [完整 imports 和代码](examples/context.ts)。
+
+## Worker 调用上下文
+
+内置 RETRIEVAL Worker 将 Runtime 当前 signal 传给 Provider 的 `RetrievalExecutionContext`，向量 embedding、数据库查询、融合与重排适配器继续传递它。直接调用示例：`await runtime.invoke("RETRIEVAL.SEARCH", { query: { content: "question" }, target: { name: "docs" } }, { signal: AbortSignal.timeout(5000) })`。MEMORY 和 CONTEXT 的委托适配器也会继承父调用上下文；CONTEXT 接入见 [Provider API](retrieval-providers.zh-CN.md#context-检索适配器)。HTTP/IPC 取消不等于服务端数据库执行已被取消。
+
+在 MEMORY Worker 内构造 `RemoteRetrievalSearchProvider` 时，可省略 runtime，继承本次执行绑定的 Runtime；显式 runtime 始终优先，独立 SDK 委托则必须提供它。例如 Worker 内可用 `new RemoteRetrievalSearchProvider({ target: { name: "memories" } })`。

@@ -16,9 +16,11 @@ export interface WebSearchResult {
   readonly snippet: string;
 }
 
+export interface WebSearchCallOptions { readonly signal?: AbortSignal; }
+
 export interface WebSearchProvider {
   readonly origin: string;
-  search(input: { readonly query: string; readonly limit: number }): Promise<readonly WebSearchResult[]>;
+  search(input: { readonly query: string; readonly limit: number }, options?: WebSearchCallOptions): Promise<readonly WebSearchResult[]>;
 }
 
 export interface WebSearchToolOptions {
@@ -28,6 +30,7 @@ export interface WebSearchToolOptions {
 export interface BraveWebSearchProviderOptions {
   readonly apiKey: string;
   readonly timeoutMs?: number;
+  readonly maxResponseBytes?: number;
   readonly fetch?: typeof globalThis.fetch;
 }
 
@@ -112,7 +115,9 @@ export function createWebSearchTool(options: WebSearchToolOptions): RegisteredTo
       const search = request(input);
       context.services.sandbox.assert("network", origin);
       try {
-        const normalized = normalizeResults(await options.provider.search(search), search.limit);
+        context.signal?.throwIfAborted();
+        const normalized = normalizeResults(await options.provider.search(search, context.signal ? { signal: context.signal } : {}), search.limit);
+        context.signal?.throwIfAborted();
         const structuredResults: readonly JsonValue[] = normalized.results.map(result => ({
           title: result.title, url: result.url, snippet: result.snippet,
         }));
@@ -122,6 +127,7 @@ export function createWebSearchTool(options: WebSearchToolOptions): RegisteredTo
           references: normalized.results.map(result => ({ uri: result.url })),
         };
       } catch {
+        if (context.signal?.aborted) return { status: "cancelled", error: { code: "WEB_SEARCH_CANCELLED", message: "Web search cancelled", retryable: false } };
         return {
           status: "failed",
           error: { code: "WEB_SEARCH_FAILED", message: "Web search provider failed", retryable: false },
@@ -147,9 +153,14 @@ function providerOptions(options: BraveWebSearchProviderOptions): number {
 /** Brave Web Search REST adapter; credentials and request lifecycle stay outside Node payloads. */
 export function createBraveWebSearchProvider(options: BraveWebSearchProviderOptions): WebSearchProvider {
   const timeoutMs = providerOptions(options);
+  const maxResponseBytes = options.maxResponseBytes ?? 1024 * 1024;
+  if (!Number.isSafeInteger(maxResponseBytes) || maxResponseBytes < 1 || maxResponseBytes > 16 * 1024 * 1024) {
+    throw new Error("Invalid Brave maxResponseBytes");
+  }
   return {
     origin: BRAVE_ORIGIN,
-    async search(input) {
+    async search(input, call = {}) {
+      call.signal?.throwIfAborted();
       providerRequest(input);
       const url = new URL(BRAVE_ENDPOINT);
       url.searchParams.set("q", input.query);
@@ -157,15 +168,24 @@ export function createBraveWebSearchProvider(options: BraveWebSearchProviderOpti
       const deadline = AbortSignal.timeout(timeoutMs);
       try {
         const response = await (options.fetch ?? globalThis.fetch)(url, {
-          method: "GET", redirect: "error", signal: deadline,
+          method: "GET", redirect: "error", signal: call.signal ? AbortSignal.any([deadline, call.signal]) : deadline,
           headers: { accept: "application/json", "X-Subscription-Token": options.apiKey },
         });
         if (!response.ok) {
           await response.body?.cancel();
           throw new Error("Brave web search request failed");
         }
+        const chunks: Uint8Array[] = [];
+        let bytes = 0;
+        if (!response.body) throw new Error("Brave web search returned invalid JSON");
+        for await (const chunk of response.body) {
+          call.signal?.throwIfAborted();
+          bytes += chunk.byteLength;
+          if (bytes > maxResponseBytes) throw new Error("Brave web search response is too large");
+          chunks.push(chunk);
+        }
         let raw: unknown;
-        try { raw = await response.json(); }
+        try { raw = JSON.parse(Buffer.concat(chunks).toString("utf8")); }
         catch { throw new Error("Brave web search returned invalid JSON"); }
         const web = raw && typeof raw === "object" && !Array.isArray(raw)
           ? (raw as Record<string, unknown>).web : undefined;
@@ -182,6 +202,7 @@ export function createBraveWebSearchProvider(options: BraveWebSearchProviderOpti
           return { title: result.title, url: result.url, snippet: result.description ?? "" };
         });
       } catch (error) {
+        if (call.signal?.aborted) throw call.signal.reason;
         if (deadline.aborted) throw new Error("Brave web search timed out");
         if (error instanceof Error && error.message.startsWith("Brave web search")) throw error;
         throw new Error("Brave web search request failed");

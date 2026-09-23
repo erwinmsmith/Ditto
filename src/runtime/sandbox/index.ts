@@ -27,6 +27,15 @@ export class Sandbox {
   readonly policy: SandboxPolicy;
   readonly workspace: string;
   constructor(workspace: string, policy: SandboxPolicy = {}, readonly executor?: SandboxExecutor) {
+    for (const key of ["read", "write", "execute"] as const) {
+      if (policy[key] !== undefined && typeof policy[key] !== "boolean") throw new Error(`Invalid sandbox ${key} permission`);
+    }
+    for (const key of ["tools", "mcp", "skills", "network"] as const) {
+      const values = policy[key];
+      if (values !== undefined && (!Array.isArray(values) || values.some(value => typeof value !== "string" || !value.trim()))) {
+        throw new Error(`Invalid sandbox ${key} permissions`);
+      }
+    }
     this.workspace = resolve(workspace);
     this.policy = Object.freeze({ ...policy,
       ...Object.fromEntries((["tools", "mcp", "skills", "network"] as const)
@@ -61,16 +70,33 @@ export class Sandbox {
     if (!inside(target)) throw new PermissionDeniedError("workspace path");
     return target;
   }
-  async readText(path: string): Promise<string> {
+  async readText(path: string, signal?: AbortSignal): Promise<string> {
+    signal?.throwIfAborted();
     if (!this.policy.read) throw new PermissionDeniedError("filesystem:read");
-    return readFile(await this.#path(path), "utf8");
+    return readFile(await this.#path(path), { encoding: "utf8", ...(signal ? { signal } : {}) });
   }
-  async writeText(path: string, content: string): Promise<void> {
+  async writeText(path: string, content: string, signal?: AbortSignal): Promise<void> {
+    signal?.throwIfAborted();
     if (!this.policy.write) throw new PermissionDeniedError("filesystem:write");
-    await writeFile(await this.#path(path, true), content, "utf8");
+    const target = await this.#path(path, true);
+    signal?.throwIfAborted();
+    await writeFile(target, content, { encoding: "utf8", ...(signal ? { signal } : {}) });
   }
   async run(command: SandboxCommand, signal?: AbortSignal): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     if (!this.policy.execute || !this.executor) throw new PermissionDeniedError("execution requires an enabled SandboxExecutor");
-    return this.executor.run(command, { workspace: await realpath(this.workspace), ...(signal ? { signal } : {}) });
+    signal?.throwIfAborted();
+    if (typeof command.command !== "string" || !command.command.trim() || command.command.includes("\0")
+      || !Array.isArray(command.args) || command.args.some(arg => typeof arg !== "string" || arg.includes("\0"))) {
+      throw new Error("Invalid sandbox command");
+    }
+    const request = { command: command.command, args: [...command.args] };
+    const workspace = await realpath(this.workspace);
+    signal?.throwIfAborted();
+    const result = await this.executor.run(request, { workspace, ...(signal ? { signal } : {}) });
+    signal?.throwIfAborted();
+    return result;
   }
 }
+
+export { createLocalSandboxExecutor } from "./local.js";
+export type { LocalSandboxExecutorOptions } from "./local.js";

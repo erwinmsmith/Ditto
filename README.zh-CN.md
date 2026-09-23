@@ -156,3 +156,5 @@ Runtime 的节点绑定、独立 Sandbox、Loop 和两种部署通信方式详�
 行为参数统一放根目录 [`ditto.yaml`](ditto.yaml)，凭证与部署配置使用 [`.env.example`](.env.example)，Worker 默认共享 Runtime services，也可独立注入。详见 [统一配置 API](docs/worker-api/configuration.zh-CN.md)。运行方式见 [INFER 示例指南](examples/README.zh-CN.md#infer)。
 
 MEMORY 的接入、插件边界、六个节点和配置详见 [MEMORY API](docs/worker-api/memory.zh-CN.md)。
+
+其他公共接口与调用方式：[Worker 组合 / 事件 / Artifact](docs/worker-api/composition.zh-CN.md)、[预定义流程](docs/worker-api/flows.zh-CN.md)、[无需外部服务的入门示例](examples/runtime/quickstart.ts)。

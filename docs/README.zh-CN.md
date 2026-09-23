@@ -16,7 +16,10 @@
 | Worker 通信 | [Read](worker-communication.md) | [阅读](worker-communication.zh-CN.md) | 本地与远程调用、HTTP 部署、生命周期、事件与 Artifact |
 | 交互与运行配置 | [Read](interaction-runtime.md) | [阅读](interaction-runtime.zh-CN.md) | Provider、模型、凭证、工具、MCP、Skill 和 Sandbox 权限 |
 | 节点体系与 API Contract | [Read](13-node-api-contract.md) | [阅读](13-node-api-contract.zh-CN.md) | 最终能力树、公共基础类型、21 个可执行叶子 Contract 与 Runtime 预定义流程 |
-| 节点体系覆盖 | [Read](node-coverage.md) | [阅读](node-coverage.zh-CN.md) | 六个既有案例按最终节点体系重映射及验证证据边界 |
+| 节点体系覆盖 | [Read](node-coverage.md) | [阅读](node-coverage.zh-CN.md) | 当前 21 个 Core 叶子、可选检索及常见调用链 |
+| Worker composition / 组合 | [Read](worker-api/composition.md) | [阅读](worker-api/composition.zh-CN.md) | Node/Worker、resources/dispose、EventFabric、ArtifactStore、PayloadCodec |
+| Predefined flows / 预定义流程 | [Read](worker-api/flows.md) | [阅读](worker-api/flows.zh-CN.md) | RAG / Skill / Tool / MCP / ReAct |
+| Configuration / 配置 | [Read](worker-api/configuration.md) | [阅读](worker-api/configuration.zh-CN.md) | YAML/env、参数分组、优先级、显式加载 |
 
 [环境变量模板](../.env.example) 使用双语注释。
 
@@ -31,7 +34,7 @@
 | `src/runtime/communication/`、`src/runtime/artifact.ts` | [Worker 通信](worker-communication.zh-CN.md) |
 | `src/runtime/config.ts`、`src/runtime/services.ts`、`src/runtime/sandbox/` | [交互与运行配置](interaction-runtime.zh-CN.md)：配置与权限 |
 | `src/worker/infer/providers/` | [交互与运行配置](interaction-runtime.zh-CN.md)：供应商中立的模型 Provider adapter |
-| `src/worker/interaction/` | [交互与运行配置](interaction-runtime.zh-CN.md)：工具/MCP/Skill 叶子能力与应用 Graph + Loop 组合 |
+| `src/worker/interaction/` | [交互与运行配置](interaction-runtime.zh-CN.md)：工具/MCP 叶子能力、Skill 上下文加载与应用 Graph + Loop 组合 |
 
 ## 双语约定
 

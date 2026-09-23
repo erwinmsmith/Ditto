@@ -32,13 +32,14 @@ export function createHybridSearchProvider(options: HybridProviderOptions): Retr
       return normalizeOutput(await branch.provider.search(request, context), request);
     }));
     context.signal?.throwIfAborted();
-    const failure = settled.find(result => result.status === "rejected");
-    if (failure?.status === "rejected") throw failure.reason;
+    const outputs = settled.map(result => {
+      if (result.status === "rejected") throw result.reason;
+      return result.value;
+    });
     const fused = new Map<string, { candidate: RetrievalCandidate; score: number; contributions: { strategy: string; rank: number; score?: number; weight: number; source?: RetrievalCandidate["source"]; metadata?: RetrievalCandidate["metadata"] }[] }>();
-    settled.forEach((result, branchIndex) => {
-      if (result.status !== "fulfilled") return;
+    outputs.forEach((result, branchIndex) => {
       const seen = new Set<string>();
-      result.value.candidates.forEach((candidate, index) => {
+      result.candidates.forEach((candidate, index) => {
         const identity = candidate.id ?? candidate.source?.ref;
         const key = options.key?.(candidate) ?? (identity === undefined ? undefined : JSON.stringify([candidate.source?.target ?? input.target.name, identity]));
         if (!key) throw new RetrievalError("RETRIEVAL_INVALID_BACKEND_OUTPUT", "Hybrid candidates require an id, source ref or explicit identity mapper");
@@ -57,7 +58,7 @@ export function createHybridSearchProvider(options: HybridProviderOptions): Retr
     return { target: input.target, ...(input.strategy === undefined ? {} : { strategy: input.strategy }),
       candidates: entries.map(([, value]) => ({ ...value.candidate, score: value.score })),
       metadata: { fusion: { method: "rrf", k, contributions: Object.fromEntries(entries.map(([key, value]) => [key, value.contributions])),
-        branches: settled.map(result => result.status === "fulfilled" ? result.value.metadata ?? {} : {}) } },
+        branches: outputs.map(result => result.metadata ?? {}) } },
     };
   } };
 }

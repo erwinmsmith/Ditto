@@ -1,5 +1,5 @@
 import type { Context } from "../../contracts/common.js";
-import type { ContextScope, ContextStateStore, StoredContext } from "./types.js";
+import type { ContextScope, ContextStateStore, StoredContext, ContextCallOptions } from "./types.js";
 import { context, ContextError, nonempty, object, check } from "./validation.js";
 import { snapshotContext, stableContextId } from "./execution.js";
 
@@ -30,8 +30,8 @@ export function checkedStoredContext(value: unknown): StoredContext {
   }
 }
 
-export async function readContextState(store: ContextStateStore, scope: ContextScope): Promise<StoredContext | undefined> {
-  const value = await store.get(scope);
+export async function readContextState(store: ContextStateStore, scope: ContextScope, options?: ContextCallOptions): Promise<StoredContext | undefined> {
+  const value = await store.get(scope, options);
   return value === undefined ? undefined : checkedStoredContext(value);
 }
 

@@ -399,9 +399,9 @@ TRAJECTORY 的 delta 包含中间候选、审议 JSON 和最终回答，不能�
 
 ```ts
 interface InferCacheProvider {
-  lookup(input: CacheLookupInput): Promise<CacheLookupOutput>;
-  write(input: CacheWriteInput): Promise<CacheWriteOutput>;
-  invalidate(input: CacheInvalidateInput): Promise<CacheInvalidateOutput>;
+  lookup(input: CacheLookupInput, options?: InferCacheCallOptions): Promise<CacheLookupOutput>;
+  write(input: CacheWriteInput, options?: InferCacheCallOptions): Promise<CacheWriteOutput>;
+  invalidate(input: CacheInvalidateInput, options?: InferCacheCallOptions): Promise<CacheInvalidateOutput>;
 }
 ```
 
@@ -682,3 +682,18 @@ export async function contextToInfer(context: WorkingContext, infer: InferClient
 ```
 
 [完整 imports 和代码](examples/context.ts)。
+
+## Runtime 取消
+
+`runtime.invoke(node, input, { signal })`、`runtime.run(graph, input, { signal })` 的取消信号经内置 INFER Worker 传入执行器和模型 Provider，与直接 SDK 的取消选项一致。Provider 应使用其 HTTP/SDK 的取消机制。例如：
+
+```ts
+await runtime.invoke("INFER.REASONING.SAMPLE", {
+  model: { provider: "openai", model: "configured-model" },
+  messages: [{ role: "user", content: "Explain caching" }],
+}, { signal: AbortSignal.timeout(5000) });
+```
+
+跨机器 HTTP 或同机 IPC 的信号当前只控制调用方等待，不自动中断远端执行；服务端仍应配置模型超时。
+
+外部 `InferCacheProvider.lookup/write/invalidate(input, options?)` 的第二参数为 `InferCacheCallOptions { signal?: AbortSignal }`。例如 `lookup: (input, options) => databaseCache.lookup(input, options)`，由适配器按底层 SDK 约定继续传递取消；INFER 超时停止等待，不会撤销数据库已提交的缓存写入。

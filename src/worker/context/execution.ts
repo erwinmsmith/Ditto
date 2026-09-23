@@ -112,7 +112,9 @@ export function putItem(
 }
 
 export async function estimateTokens(content: MessageContent, execution: ContextExecution): Promise<number> {
-  const supplied = await execution.services.tokenEstimator?.estimate(content);
+  execution.signal?.throwIfAborted();
+  const supplied = await execution.services.tokenEstimator?.estimate(content, execution);
+  execution.signal?.throwIfAborted();
   const estimate = supplied ?? Math.ceil(new TextEncoder().encode(JSON.stringify(content)).byteLength / 4);
   check(Number.isSafeInteger(estimate) && estimate >= 0, "Token estimator returned an invalid value", "INVALID_PROVIDER_OUTPUT");
   return estimate;

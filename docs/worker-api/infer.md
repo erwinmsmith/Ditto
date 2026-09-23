@@ -378,9 +378,9 @@ Models use the unified `ModelProvider.invoke/stream` interface and `ProviderRegi
 
 ```ts
 interface InferCacheProvider {
-  lookup(input: CacheLookupInput): Promise<CacheLookupOutput>;
-  write(input: CacheWriteInput): Promise<CacheWriteOutput>;
-  invalidate(input: CacheInvalidateInput): Promise<CacheInvalidateOutput>;
+  lookup(input: CacheLookupInput, options?: InferCacheCallOptions): Promise<CacheLookupOutput>;
+  write(input: CacheWriteInput, options?: InferCacheCallOptions): Promise<CacheWriteOutput>;
+  invalidate(input: CacheInvalidateInput, options?: InferCacheCallOptions): Promise<CacheInvalidateOutput>;
 }
 ```
 
@@ -663,3 +663,18 @@ export async function contextToInfer(context: WorkingContext, infer: InferClient
 ```
 
 [Complete imports and source](examples/context.ts).
+
+## Runtime cancellation
+
+Cancellation from `runtime.invoke(node, input, { signal })` and `runtime.run(graph, input, { signal })` flows through the built-in INFER Worker into its executor and model provider, matching direct SDK behavior. Providers should use their HTTP/SDK cancellation mechanism. For example:
+
+```ts
+await runtime.invoke("INFER.REASONING.SAMPLE", {
+  model: { provider: "openai", model: "configured-model" },
+  messages: [{ role: "user", content: "Explain caching" }],
+}, { signal: AbortSignal.timeout(5000) });
+```
+
+HTTP and IPC cancellation currently stops the caller's wait without automatically interrupting remote execution. Configure model deadlines on the serving Worker as well.
+
+External `InferCacheProvider.lookup/write/invalidate(input, options?)` methods accept `InferCacheCallOptions { signal?: AbortSignal }` second. For example, `lookup: (input, options) => databaseCache.lookup(input, options)` forwards cancellation to a compatible adapter; map it to the underlying SDK as needed. INFER timeouts stop waiting but do not undo committed cache writes.
