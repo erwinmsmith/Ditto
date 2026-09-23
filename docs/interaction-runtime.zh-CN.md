@@ -189,6 +189,8 @@ export interface ReactFlowResult {
 
 调用方在 `ActionDescriptor.target` 中绑定直接工具、MCP 服务端及工具，或公开 Node。未指定目标时使用 TOOL。MCP 的 `operation` 固定为 `invoke`；模型参数不能决定服务端或路由。TOOL/MCP 结果经过 OBSERVE 后才反馈给 SAMPLE。多个动作顺序执行；结构化的 `failed` 结果进入下一轮 SAMPLE，`cancelled`、`timeout`、`unknown` 则停止后续动作。基础设施异常不伪造成观察结果。Core 不自动重试可能影响外部系统的操作。
 
+当直接 Node 目标是 `INTERACTION.OUTPUT` 时，`accepted` 沿用普通直接 Node 的结果回填路径；它只表示 Sink 接受请求，不证明交付完成或用户已读。`rejected` 或 `unknown` 回执使 ReAct 返回 `partial / dependency_failed` 和固定错误码 `OUTPUT_REJECTED` 或 `OUTPUT_UNKNOWN`，不会把回执中的错误消息复制到流程结果。已尝试的 OUTPUT 动作从 `actionRequests` 移除；同一轮 SAMPLE 中尚未开始的动作保留在该字段中，但不会执行或自动重试。OUTPUT 回执不生成 Observation。其他直接 Node 的结果不受这条 OUTPUT 专用状态规则影响。
+
 成功返回 completed；预算/超时/错误中止且已有 SAMPLE 时返回 partial，否则 failed。actionRequests 仅保留尚未处理的请求；超时中的动作结果未知，仍保留 pending，调用者不能据此认定动作未发生。成功观察回填到下一轮工具消息，原始供应商 metadata 保持完整。步数耗尽且没有下一轮可消费观察时，不再执行新动作。
 
 Token 计数缺失返回 USAGE_UNAVAILABLE；重复 action ID、未声明动作和非法模型输出均停止流程。与其他 Runtime Graph 一致，本地 deadline/signal 会传给模型与动作 handler；跨进程调用尚无远端取消协议。需要先规划时，在上游 Graph 调用 SAMPLE，再将计划传给此流程。

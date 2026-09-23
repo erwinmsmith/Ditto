@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createDitto, defineWorker, runReactFlow, ProviderRegistry, loadRuntimeConfig, observeExternalResult, createInteractionNodes, McpRegistry } from "../src/index.js";
+import { createDitto, defineWorker, runReactFlow, ProviderRegistry, loadRuntimeConfig, observeExternalResult, createInteractionNodes, createInteractionWorker, McpRegistry } from "../src/index.js";
 import { createInfer, createInferWorker, type SampleInput, type SampleOutput } from "../src/worker/infer/index.js";
 const input = { model: { model: "fixture" }, messages: [{ role: "user" as const, content: "lookup" }], actions: [{ name: "lookup", inputSchema: {} }] };
 const action = (id = "call"): SampleOutput => ({ message: { role: "assistant", content: "" }, finishReason: "action_request", actionRequests: [{ id, name: "lookup", arguments: { term: "q" } }], usage: { totalTokens: 3 } });
@@ -110,10 +110,71 @@ test("ReAct reports dependency failure and routes custom action targets using ca
   finally { await f.runtime.close(); }
   const custom = fixture([{ ...action(), actionRequests: [{ id: "c", name: "lookup", arguments: { context: { items: [] }, purpose: "infer", query: "query" } }] }, answer]);
   custom.runtime.register(defineWorker({ type: "CONTEXT", nodes: { "CONTEXT.SELECT": async ({ context, purpose }, ctx) => {
-    assert.equal(ctx.execution?.graphId, "react"); assert.ok(context); return { purpose, context, selectedItemIds: [] };
+    assert.equal(ctx.execution?.graphId, "react"); assert.ok(context); return { purpose, context, selectedItemIds: [], status: "unknown" };
   } } }));
   try { assert.equal((await runReactFlow(custom.runtime, { ...input, actions: [{ ...input.actions[0]!, target: { kind: "node", node: "CONTEXT.SELECT" } }] })).status, "completed"); assert.equal(custom.scopes.length, 0); }
   finally { await custom.runtime.close(); }
+});
+test("ReAct stops on rejected or unknown OUTPUT receipts without replaying delivery", async () => {
+  for (const [status, code, message] of [
+    ["rejected", "OUTPUT_REJECTED", "Output delivery was rejected"],
+    ["unknown", "OUTPUT_UNKNOWN", "Output delivery status is unknown"],
+  ] as const) {
+    let samples = 0; const deliveries: string[] = [];
+    const requests = ["first", "second"].map(id => ({ id, name: "deliver", arguments: { deliveryId: id, message: { role: "assistant", content: id } } }));
+    const providers = new ProviderRegistry({ fixture: { async invoke() { samples++; return samples === 1
+      ? { ...action(), actionRequests: requests }
+      : answer; } } });
+    const runtime = createDitto({ providers, workers: [createInferWorker(), createInteractionWorker({ output: {
+      async deliver(input) { deliveries.push(input.deliveryId); return { deliveryId: input.deliveryId, status, error: { code: "SINK_PRIVATE", message: "Sink detail" } }; },
+    } })] });
+    try {
+      const result = await runReactFlow(runtime, { ...input, actions: [{ name: "deliver", inputSchema: {}, target: { kind: "node", node: "INTERACTION.OUTPUT" } }] });
+      assert.equal(result.status, "partial"); assert.equal(result.stopReason, "dependency_failed");
+      assert.deepEqual(result.error, { code, message }); assert.equal(samples, 1);
+      assert.deepEqual(deliveries, ["first"]); assert.deepEqual(result.actionRequests.map(item => item.id), ["second"]);
+      assert.deepEqual(result.observations, []);
+    } finally { await runtime.close(); }
+  }
+});
+test("ReAct continues after accepted OUTPUT and keeps exceptional delivery failures distinct", async () => {
+  for (const receipt of [
+    { deliveryId: "first", status: "accepted" as const },
+    { deliveryId: "wrong", status: "accepted" as const },
+    { deliveryId: "first", status: "unknown" as const },
+  ]) {
+    let samples = 0; let deliveries = 0;
+    const providers = new ProviderRegistry({ fixture: { async invoke() { samples++; return samples === 1
+      ? { ...action(), actionRequests: [{ id: "first", name: "deliver", arguments: { deliveryId: "first", message: { role: "assistant", content: "hello" } } }] }
+      : answer; } } });
+    const runtime = createDitto({ providers, workers: [createInferWorker(), createInteractionWorker({ output: {
+      async deliver() { deliveries++; return receipt; },
+    } })] });
+    try {
+      const result = await runReactFlow(runtime, { ...input, actions: [{ name: "deliver", inputSchema: {}, target: { kind: "node", node: "INTERACTION.OUTPUT" } }] });
+      if (receipt.status === "accepted" && receipt.deliveryId === "first") {
+        assert.equal(result.status, "completed"); assert.equal(samples, 2);
+      } else {
+        assert.equal(result.status, "partial"); assert.equal(result.stopReason, "dependency_failed"); assert.equal(samples, 1);
+        assert.notEqual(result.error?.code, "OUTPUT_REJECTED"); assert.notEqual(result.error?.code, "OUTPUT_UNKNOWN");
+      }
+      assert.equal(deliveries, 1); assert.deepEqual(result.observations, []);
+    } finally { await runtime.close(); }
+  }
+  for (const validInput of [true, false]) {
+    let deliveries = 0;
+    const request = { ...action(), actionRequests: [{ id: "first", name: "deliver", arguments: validInput
+      ? { deliveryId: "first", message: { role: "assistant", content: "hello" } }
+      : { deliveryId: "first", message: { role: "invalid", content: "hello" } } }] };
+    const runtime = createDitto({ providers: new ProviderRegistry({ fixture: { invoke: async () => request } }), workers: [createInferWorker(), createInteractionWorker({ output: {
+      async deliver() { deliveries++; throw new Error("Sink failed"); },
+    } })] });
+    try {
+      const result = await runReactFlow(runtime, { ...input, actions: [{ name: "deliver", inputSchema: {}, target: { kind: "node", node: "INTERACTION.OUTPUT" } }] });
+      assert.equal(result.stopReason, "dependency_failed"); assert.notEqual(result.error?.code, "OUTPUT_REJECTED");
+      assert.notEqual(result.error?.code, "OUTPUT_UNKNOWN"); assert.equal(deliveries, validInput ? 1 : 0);
+    } finally { await runtime.close(); }
+  }
 });
 test("ReAct deadline and cancellation stop scheduling without claiming to cancel remote work", async () => {
   let resolve!: (output: SampleOutput) => void;

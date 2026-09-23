@@ -89,6 +89,13 @@ export async function runReactFlow(
           if (binding.kind === "node") {
             const envelope = result && typeof result === "object" && "status" in result ? result as unknown as Record<string, unknown> : undefined;
             if (envelope && ["failed", "cancelled", "timeout"].includes(String(envelope.status))) throw new InferError("DEPENDENCY_FAILED", "Action Node returned an unsuccessful result");
+            if (target === "INTERACTION.OUTPUT" && (envelope?.status === "rejected" || envelope?.status === "unknown")) {
+              pending.delete(action.id);
+              output.error = envelope.status === "rejected"
+                ? { code: "OUTPUT_REJECTED", message: "Output delivery was rejected" }
+                : { code: "OUTPUT_UNKNOWN", message: "Output delivery status is unknown" };
+              throw new Stop("dependency_failed");
+            }
             pending.delete(action.id);
             messages.push({ role: "tool", content: JSON.stringify((envelope?.status === "success" ? envelope.output : result) ?? null), metadata: { actionRequestId: action.id, name: action.name } });
             continue;

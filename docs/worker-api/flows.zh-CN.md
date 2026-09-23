@@ -118,4 +118,6 @@ export async function reactFlow(runtime: DittoRuntime, model: ModelConfig) {
 
 返回 ReactFlowResult：result、samples、observations、actionRequests、usage，以及 status（completed/partial/failed）、stopReason 和可选 error，不套 NodeResult。示例把非 completed 转为异常，应用也可展示 partial 并保留未解决动作。
 
+调用方把动作直接绑定到 `INTERACTION.OUTPUT` 时，`accepted` 回执使流程继续，但只确认 Sink 已接受请求；`rejected` 或 `unknown` 则返回 `partial / dependency_failed` 和固定错误码 `OUTPUT_REJECTED` 或 `OUTPUT_UNKNOWN`，不再执行后续动作或 SAMPLE。已尝试动作从 `actionRequests` 移除，未启动动作保留在该字段中但不会自动重试。
+
 约束优先级、动作 target（Tool/MCP/公开 Node）与停止原因见 [ReAct 详细说明](../interaction-runtime.zh-CN.md#react-预定义-graph-流程)。本地信号传递到模型与动作 handler；HTTP/IPC 取消只结束调用端等待。Token 预算依据 Provider usage 限制后续采样，不是硬计费上限；流程不会自动重试外部动作。

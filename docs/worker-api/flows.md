@@ -118,4 +118,6 @@ export async function reactFlow(runtime: DittoRuntime, model: ModelConfig) {
 
 ReactFlowResult contains result/samples/observations/actionRequests/usage, status (completed/partial/failed), stopReason and optional error, without a NodeResult wrapper. This example throws for non-completion; an application may instead display partial output and retain unresolved actions.
 
+If the caller binds an action directly to `INTERACTION.OUTPUT`, an `accepted` receipt continues the flow but confirms sink acceptance only. A `rejected` or `unknown` receipt stops with `partial / dependency_failed` and fixed `OUTPUT_REJECTED` or `OUTPUT_UNKNOWN` error; no later action or SAMPLE runs. The attempted action is removed from `actionRequests`, while unstarted actions remain listed without any automatic retry.
+
 See [ReAct details](../interaction-runtime.md#react-predefined-graph-flow) for constraints, action targets (Tool/MCP/public Node) and stop reasons. Local signals reach model and action handlers; HTTP/IPC cancellation only ends the caller’s wait. Token budgets use Provider usage to limit subsequent sampling, not as a hard billing cap. The flow does not automatically retry external actions.
