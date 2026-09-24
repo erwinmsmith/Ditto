@@ -3,6 +3,7 @@ dist/
 .test-dist/
 *.tsbuildinfo
 *.tgz
+.release/
 .DS_Store
 
 # Local agent instructions (all directory levels).

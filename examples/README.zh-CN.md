@@ -8,6 +8,7 @@
 
 | 目录 | 内容 |
 | --- | --- |
+| [package-basics](package-basics/README.zh-CN.md) | npm 安装、Context、工具、独立检索包及持久化多轮 Agent |
 | [control-flow](control-flow/README.zh-CN.md) | 7 类控制流程：顺序、路由、并行、循环、恢复、人工介入、生命周期 |
 | [capabilities](capabilities/README.zh-CN.md) | 12 类基础能力：理解、规划、检索、分析、上下文、记忆、工具、观察、内容、多模态、数据与代码、验证 |
 | [patterns](patterns/README.zh-CN.md) | 16 种执行模式：RAG、ReAct、研究、反思、多 Agent、自动修复与长任务等 |

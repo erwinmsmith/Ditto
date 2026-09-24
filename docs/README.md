@@ -8,6 +8,7 @@ Start with the architecture and development guides, then follow the references f
 
 | Document | English | 简体中文 | Contents |
 | --- | --- | --- | --- |
+| npm package guide | [Read](package-guide.md) | [阅读](package-guide.zh-CN.md) | Installation, public API, real model, Redis/Memory, complete examples and consumer verification |
 | Project overview | [Read](../README.md) | [阅读](../README.zh-CN.md) | Project goals, capabilities, and setup |
 | Architecture | [Read](architecture.md) | [阅读](architecture.zh-CN.md) | Worker ownership, internal Nodes, Graph/Loop execution, scaling, and module boundaries |
 | Development and Integration | [Read](getting-started.md) | [阅读](getting-started.zh-CN.md) | Installation, checks, package entry points, and custom Workers and Nodes |

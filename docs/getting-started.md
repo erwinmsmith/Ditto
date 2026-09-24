@@ -2,6 +2,8 @@
 
 **English** · [简体中文](getting-started.zh-CN.md)
 
+For npm installation, real models and storage, persistent tasks and independent consumers, follow the [complete package guide](package-guide.md) and [runnable basics](../examples/package-basics/README.md).
+
 ## Install and run
 
 Use Node.js 24+ and npm 11+; `.nvmrc` selects Node 24. From the repository root:
@@ -17,13 +19,12 @@ The npm ci prepare hook builds dist; example commands also build first. check ru
 
 ```ts
 import assert from "node:assert/strict";
-import { createDitto, graph, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createDitto, graph } from "@codesoul-co/ditto/runtime";
 import { createContextWorker } from "@codesoul-co/ditto/worker/context";
 ```
 ```ts
 export async function quickstart() {
-  const config = loadRuntimeConfigFile("ditto.yaml", {});
-  const runtime = createDitto({ config, workers: [createContextWorker({ policy: config.context.policy ?? {} })] });
+  const runtime = createDitto({ workers: [createContextWorker()] });
   const plan = graph<string>("first-context")
     .node("loaded", "CONTEXT.LOAD", [], text => ({ sources: [{ role: "user", content: text }] }))
     .node("selected", "CONTEXT.SELECT", ["loaded"], (_input, { loaded }) => ({

@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url";
-import { createDitto, graph, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createDitto, graph } from "@codesoul-co/ditto/runtime";
 import { createContextWorker } from "@codesoul-co/ditto/worker/context";
 
 // example: quickstart
 export async function quickstart() {
-  const config = loadRuntimeConfigFile("ditto.yaml", {});
-  const runtime = createDitto({ config, workers: [createContextWorker({ policy: config.context.policy ?? {} })] });
+  const runtime = createDitto({ workers: [createContextWorker()] });
   const plan = graph<string>("first-context")
     .node("loaded", "CONTEXT.LOAD", [], text => ({ sources: [{ role: "user", content: text }] }))
     .node("selected", "CONTEXT.SELECT", ["loaded"], (_input, { loaded }) => ({

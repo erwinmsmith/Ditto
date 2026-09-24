@@ -8,6 +8,7 @@ This catalog organizes Agent topics into control flow, capabilities and executio
 
 | Directory | Contents |
 | --- | --- |
+| [package-basics](package-basics/README.md) | npm installation, Context, tools, optional retrieval and a persistent conversation Agent |
 | [control-flow](control-flow/README.md) | 7 categories: sequencing, routing, parallelism, iteration, recovery, human intervention and lifecycle |
 | [capabilities](capabilities/README.md) | 12 categories of reusable Agent capabilities |
 | [patterns](patterns/README.md) | 16 execution patterns, including RAG, ReAct, research and multi-Agent coordination |

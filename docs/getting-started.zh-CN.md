@@ -2,6 +2,8 @@
 
 [English](getting-started.md) · **简体中文**
 
+从 npm 安装、真实模型与存储、多轮任务及独立消费者接入，见[完整包使用教程](package-guide.zh-CN.md)；四个可运行入口见[基础示例](../examples/package-basics/README.zh-CN.md)。
+
 ## 安装与第一次运行
 
 要求 Node.js 24+、npm 11+，`.nvmrc` 指定 Node 24。在仓库根目录执行：
@@ -17,13 +19,12 @@ npm run check
 
 ```ts
 import assert from "node:assert/strict";
-import { createDitto, graph, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createDitto, graph } from "@codesoul-co/ditto/runtime";
 import { createContextWorker } from "@codesoul-co/ditto/worker/context";
 ```
 ```ts
 export async function quickstart() {
-  const config = loadRuntimeConfigFile("ditto.yaml", {});
-  const runtime = createDitto({ config, workers: [createContextWorker({ policy: config.context.policy ?? {} })] });
+  const runtime = createDitto({ workers: [createContextWorker()] });
   const plan = graph<string>("first-context")
     .node("loaded", "CONTEXT.LOAD", [], text => ({ sources: [{ role: "user", content: text }] }))
     .node("selected", "CONTEXT.SELECT", ["loaded"], (_input, { loaded }) => ({

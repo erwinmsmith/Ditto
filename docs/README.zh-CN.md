@@ -8,6 +8,7 @@
 
 | 文档 | English | 简体中文 | 内容 |
 | --- | --- | --- | --- |
+| npm 包基础使用 | [Read](package-guide.md) | [阅读](package-guide.zh-CN.md) | 从空目录安装、公开 API、真实模型、Redis/Memory、完整示例与包外验收 |
 | 项目概览 | [Read](../README.md) | [阅读](../README.zh-CN.md) | 项目目标、能力与环境准备 |
 | 架构 | [Read](architecture.md) | [阅读](architecture.zh-CN.md) | Worker 归属、内部 Node、Graph/Loop 执行、扩容与模块边界 |
 | 开发与接入 | [Read](getting-started.md) | [阅读](getting-started.zh-CN.md) | 安装、检查、包入口以及自定义 Worker 和 Node |

@@ -311,7 +311,13 @@
     "check:examples:long-running:package": "npm run build && node --env-file=.env scripts/check-examples-long-running-package.ts",
     "check:examples:long-running:types": "npm run build && node scripts/check-examples-long-running-package.ts --types-only",
     "build:core": "node scripts/clean.ts dist && tsc -p tsconfig.build.json",
-    "build:retrieval": "npm run build --workspace packages/retrieval"
+    "build:retrieval": "npm run build --workspace packages/retrieval",
+    "example:package:context": "npm run build && node examples/package-basics/context.ts",
+    "example:package:tools": "npm run build && node examples/package-basics/tools.ts",
+    "example:package:retrieval": "npm run build && node examples/package-basics/retrieval.ts",
+    "example:package:agent": "npm run build && node --env-file=.env examples/package-basics/agent.ts",
+    "check:package:basics": "npm run build && node scripts/check-package-basics.ts",
+    "check:package:basics:live": "npm run build && node --env-file=.env scripts/check-package-basics.ts --live"
   },
   "engines": {
     "node": ">=24.0.0",
