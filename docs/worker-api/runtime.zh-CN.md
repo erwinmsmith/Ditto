@@ -1,6 +1,6 @@
 # Runtime、Graph 与 Loop API
 
-[English](runtime.md) · [Worker API](README.zh-CN.md) · [完整示例](../../examples/runtime/README.zh-CN.md)
+[English](runtime.md) · [Worker API](README.zh-CN.md) · [完整示例](examples/runtime/README.zh-CN.md)
 
 从 `@ditto/core` 或 `@ditto/core/runtime` 导入 Runtime API。使用顺序是定义 Graph 的节点与依赖，定义 Loop 的状态规则，注册 Worker 的具体实现，最后由 Runtime 执行。模型、数据库和工具插件仍放在对应 Worker 中。
 
@@ -77,6 +77,25 @@ console.log(result.select.context);
 
 Worker 的 `concurrency` 是副本级上限；Graph 的并发数是每次执行的上限。直调满载会抛 `NoWorkerAvailableError`；Graph 同样不维护额外的容量等待队列。如果将多个并行节点指定到容量为 1 的副本，设置 `concurrency: 1`、增加副本或调整连接关系。并行执行多个 Graph 时，应用也应控制总入口负载。
 
+### 步骤依赖与输入映射
+
+`.node(id, nodeType, dependencies, bind)` 的四个参数分别是图内唯一的步骤 ID、公开 Node 类型、直接依赖步骤 ID 列表和同步输入映射函数。`bind` 的第一个参数始终是 `runtime.run` 的原始输入，第二个参数只包含列出的依赖结果；返回值必须符合 `nodeType` 的输入契约。返回结果保留节点各自的输出类型，不统一包成 `NodeResult`。
+
+例如 `loaded → updated → selected → delivered` 中，如果交付步骤还要读取最初的 `loaded`，依赖应为 `["loaded", "selected"]`。仅声明 `["selected"]` 不会使 `loaded` 可见，即使它是间接上游。这个限制同时作用于 TypeScript 类型和运行时传入的对象。
+
+顺序执行使用明确的依赖链，不需要将并发强制设为 1，也不需要额外的串行执行器。`bind` 负责数据映射；异步工作交由 Node 执行。独立运行一次 Graph 无需定义 Loop。
+
+完整调用方式见[顺序与步骤执行](../../examples/control-flow/sequence/README.zh-CN.md)。示例文件导出 Graph、输入类型、默认输入和运行函数，使用公开包入口，不依赖 TypeScript 路径别名；真实模型入口显式读取应用的 YAML 和环境变量：
+
+```bash
+npm run example:sequence:pipeline
+npm run example:sequence:dependencies
+npm run example:sequence:stages
+npm run example:sequence:batch
+```
+
+真实模型链路可运行 `npm run check:examples:sequence:live`。该验证覆盖四种执行类型：在固定步骤和顺序依赖 Graph 后追加推理与交付，并直接调用阶段式和批量执行函数，检查模型确实读取上游结果。INFER 的 `NodeResult.status` 与 `finishReason` 需要显式检查后再交付，失败不会自动转成 Graph 异常。配置、运行命令和报告说明见[端到端验证](../../examples/control-flow/sequence/README.zh-CN.md#真实模型端到端验证)。
+
 ## Loop：同一 Graph 重复、不同 Graph 切换
 
 ```ts
@@ -102,6 +121,12 @@ console.log(state.round); // 4
 
 `maxIterations` 优先使用定义中的值，其次 YAML `runtime.loopMaxIterations`，最后 32；必须为正安全整数。到达上限而 done 仍为 false 时抛错。执行选项里的 `workers` 按 Graph ID 分组，concurrency/signal 对整个 Loop 生效。状态留在调用端；通过 IPC/HTTP 发送的只有节点请求。不存在隐式持久化、自动重试或检查点。
 
+### 阶段与批次的组合调用
+
+完整 Agent 流程为各阶段定义 Graph，再通过 Loop 执行计划组合：`const a = yield* graphStep(stageA, input); const b = yield* graphStep(stageB, a);`。各阶段保留独立输入输出类型；Loop 控制执行、分支、重复和总 Graph 预算。可运行示例及取消、恢复契约见[通过 Loop 组合 Graph](graph-loops.zh-CN.md)。
+
+批量执行使用固定 Graph 与 Loop：`bind` 按索引选择对象，`update` 检查节点结果并追加到结果集合，`done` 判断索引是否达到对象数。显式设置 `maxIterations` 为批次数量，再用独立 Graph 汇总交付。Loop 至少执行一次，因此空批次由应用直接生成空汇总，不能传 `maxIterations: 0`。若 Graph 抛错或 `update` 拒绝失败结果，Loop 会退出，后续对象与汇总不执行。见 [batch.ts](../../examples/control-flow/sequence/batch.ts)。
+
 ## 每个 Worker 的 Sandbox 与资源
 
 ```ts
@@ -115,7 +140,7 @@ const reader = runtime.register(createInteractionWorker({ tools: [inspectTextToo
 });
 ```
 
-`inspectTextTool` 是应用的 RegisteredTool，完整实现见[示例](../../examples/runtime/graph-loop.ts)。省略 services 时共享 Runtime 默认资源。传入独立 `createRuntimeServices` 结果可以分别配置工作目录、网络/工具/读写/执行权限、ProviderRegistry 和 SandboxExecutor。工作目录属于 `services.config.workspace`，可由应用分别解析配置后注入。
+`inspectTextTool` 是应用的 RegisteredTool，完整实现见[示例](examples/runtime/graph-loop.ts)。省略 services 时共享 Runtime 默认资源。传入独立 `createRuntimeServices` 结果可以分别配置工作目录、网络/工具/读写/执行权限、ProviderRegistry 和 SandboxExecutor。工作目录属于 `services.config.workspace`，可由应用分别解析配置后注入。
 
 HTTP Provider 在创建时绑定对应 Sandbox，不能只替换 sandbox 对象却复用拥有更宽权限的 Provider。独立 createRuntimeServices 会重新构造配置中的 HTTP Provider；应用注入的自定义 SDK/Provider 应自行遵守权限。跨 Worker 的 ctx.invoke 使用目标 Worker 自己的 services，不继承来源 Worker 的权限。跨进程/跨机器配置完全由执行端提供，Envelope 不能覆盖它们。
 
@@ -181,7 +206,7 @@ app.registerRemote({ address: remoteAddress, capabilities: ["CONTEXT.LOAD"], tra
 // Server: createServer(createWorkerHttpHandler(workerRuntime, { token })).listen(...)
 ```
 
-HTTP transport 要求非空 id；timeoutMs 默认 30000，范围 1–2147483647，构造时校验。 HTTP handler 使用 `/ditto/invoke`；默认请求/响应上限 1 MiB，可用 maxBodyBytes 调整。服务端和调用端的 token 必须一致；跨机器生产部署使用 HTTPS。完整启动、地址交换、Graph 调用和关闭代码见 [placement.ts](../../examples/runtime/placement.ts)。`receive(envelope)` 是通信适配器的接收边界，校验目标身份与公开能力；应用业务调用应使用类型化的 invoke/run。
+HTTP transport 要求非空 id；timeoutMs 默认 30000，范围 1–2147483647，构造时校验。 HTTP handler 使用 `/ditto/invoke`；默认请求/响应上限 1 MiB，可用 maxBodyBytes 调整。服务端和调用端的 token 必须一致；跨机器生产部署使用 HTTPS。完整启动、地址交换、Graph 调用和关闭代码见 [placement.ts](examples/runtime/placement.ts)。`receive(envelope)` 是通信适配器的接收边界，校验目标身份与公开能力；应用业务调用应使用类型化的 invoke/run。
 
 Artifact 的 `InMemoryArtifactStore`、`PayloadCodec` 和可替换存储接口见[通信文档](../worker-communication.zh-CN.md#invokeemit-与-artifact)。现有 `runRagFlow/runSkillFlow/runToolCallFlow/runMcpFlow/runReactFlow` 的组合调用继续适用，见 [Interaction 使用 API](interaction.zh-CN.md)。
 
@@ -228,6 +253,28 @@ console.log(result); // { stdout: "$(uname) stays literal", stderr: "", exitCode
 
 Runtime 可使用 `createDitto({ config, sandbox: { execute: true }, sandboxExecutor: executor })`；每 Worker 也可通过 createRuntimeServices 注入不同执行器。容器/远端适配器继续实现 `SandboxExecutor.run(command, { workspace, signal? })`，无需改变 Graph/Tool。
 
-这是协作式能力边界；本地进程及其衍生进程不受 OS 文件/网络隔离，命令白名单也不限制命令参数可访问的文件。终止直接子进程不承诺终止它产生的整个进程树。不可信代码需由外部 OS/容器执行器提供真正隔离。可运行的 Linux/macOS 工具组合见 [interaction-tools.ts](../../examples/interaction-tools.ts)。
+这是协作式能力边界；本地进程及其衍生进程不受 OS 文件/网络隔离，命令白名单也不限制命令参数可访问的文件。终止直接子进程不承诺终止它产生的整个进程树。不可信代码需由外部 OS/容器执行器提供真正隔离。可运行的 Linux/macOS 工具组合见 [interaction-tools.ts](examples/interaction-tools.ts)。
 
 自定义 Worker/节点、资源生命周期、事件和 Artifact 详见 [组合 API](composition.zh-CN.md)；预定义流程详见 [流程 API](flows.zh-CN.md)。
+
+[条件与路由的公开 API 组合](routing.zh-CN.md)：应用选图、依赖汇合、风险与置信度策略及工具注入。
+
+[并行与汇总的公开 API 组合](parallel.zh-CN.md)：单图并发、模型规划构图、严格汇合和独立 Graph 的部分失败处理。
+
+[循环与动态调整的公开 API 组合](iteration.zh-CN.md)：同步状态转换、异步工具检查、模型计划切换 Graph、预算与次数停止，以及持久化产物。
+
+[异常与恢复的公开 API 组合](recovery.zh-CN.md)：Loop 的有限重试、Graph 取消边界、应用持久化检查点、外部副作用查询和补偿。
+
+[人工介入控制 API 与示例](human.zh-CN.md)：确认后执行、中间结果确认、人工编辑后继续、审核发布和异常交接。
+
+[任务生命周期 API 与示例](lifecycle.zh-CN.md)：状态跟踪、执行前状态检查、安全停止、定时触发与事件触发。
+
+[七类控制流程的公开 API 边界与统一包验收](control-flow.zh-CN.md)：38 个示例的能力映射、包外严格类型检查及真实任务验证。
+
+[请求理解与交互的公开 API 组合](understanding.zh-CN.md)：目标、约束、澄清、多轮会话、选项选择和意图处理。
+
+[规划与任务管理 API](planning.zh-CN.md)：任务拆分、依赖构图、预算准入和工具选择，使用 Redis Context 与数据库 Memory。
+
+[Graph 与 Loop 组合](graph-loops.zh-CN.md)：Loop 统一控制阶段 Graph、分支、循环、预算和恢复。
+
+[联网搜索问答](web-search-workflows.zh-CN.md)

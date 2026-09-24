@@ -37,7 +37,7 @@
 
 | 需求 | 组合方式 | 关键输入输出转换 |
 | --- | --- | --- |
-| 第一次运行 | LOAD → SELECT | SELECT 返回 context/selectedItemIds/purpose，直接运行 [quickstart](../examples/runtime/quickstart.ts) |
+| 第一次运行 | LOAD → SELECT | SELECT 返回 context/selectedItemIds/purpose，直接运行 [quickstart](../examples/quickstart.ts) |
 | 文档问答 | LOAD → SELECT(rag) → SAMPLE → OUTPUT | 注入 ragStrategy；应用把选中条目映射为 messages，并检查 SAMPLE 的 NodeResult |
 | 长期记忆问答 | MEMORY.SEARCH → UPDATE → SELECT → SAMPLE | SEARCH 返回完整 MemoryItem；检查 status 后显式映射 ContextIngress，不直接把 MemorySearchResult 当 messages |
 | 多步工具任务 | ReAct：SAMPLE → TOOL/MCP invoke → OBSERVE → 下一次 SAMPLE | 将工具 schema 告诉模型，执行端注册相同工具；[流程 API](worker-api/flows.zh-CN.md) |
@@ -48,7 +48,7 @@
 | 上下文预算控制 | SELECT / COMPRESS | 默认选择或裁剪；需要模型摘要时另行调用 INFER，并按应用规则显式 UPDATE |
 | 独立检索资源 | MEMORY/CONTEXT adapter → RETRIEVAL.SEARCH | 相同 Provider 可先在当前 Worker 内执行，负载需要时再注册独立检索 Worker |
 
-SQL 和 Milvus 本身承担存储及其支持的检索；Ditto 不复制数据库。embedding 可由数据库内置，也可由外部云端/本地 Provider 生成。数据库原生检索无需强制经过 RETRIEVAL。[可运行数据库示例](../examples/worker/README.zh-CN.md) · [检索 Provider](worker-api/retrieval-providers.zh-CN.md)。
+SQL 和 Milvus 本身承担存储及其支持的检索；Ditto 不复制数据库。embedding 可由数据库内置，也可由外部云端/本地 Provider 生成。数据库原生检索无需强制经过 RETRIEVAL。[可运行数据库示例](worker-api/examples/integrations/README.zh-CN.md) · [检索 Provider](worker-api/retrieval-providers.zh-CN.md)。
 
 ## 执行边界
 

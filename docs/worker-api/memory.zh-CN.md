@@ -442,7 +442,7 @@ export const customGet = memoryGetNode.define("MEMORY", async () => ({
 }));
 ```
 
-可直接运行的数据库接入示例：[examples/worker](../../examples/worker/README.zh-CN.md)，包含 SDK 安装、env 配置、调用及资源清理。
+可直接运行的数据库接入示例：[examples/worker](examples/integrations/README.zh-CN.md)，包含 SDK 安装、env 配置、调用及资源清理。
 
 ## 取消与数据库 SDK
 
@@ -456,3 +456,5 @@ if (result.status === "cancelled") console.log(result.error?.code); // MEMORY_CA
 直接 SDK 检测到取消时返回 cancelled NodeResult；Runtime 调用还会根据自身取消语义 reject。取消不回滚已完成的数据库写入，不自动重试。Runtime Worker 自动提供当前 signal 和绑定本次执行的 runtime；MEMORY → RETRIEVAL 转接器复用这两者，普通应用无需设置 runtime。数据库/embedding Provider 仍可直接使用原生 SDK；仅需独立执行时才委托 RETRIEVAL。
 
 在 MEMORY Worker 内构造 `RemoteRetrievalSearchProvider` 时，可省略 runtime，继承本次执行绑定的 Runtime；显式 runtime 始终优先，独立 SDK 委托则必须提供它。例如 Worker 内可用 `new RemoteRetrievalSearchProvider({ target: { name: "memories" } })`。
+
+[完整记忆任务示例](memory-workflows.zh-CN.md) 展示关系型与向量存储、显式 embedding、作用域检索及持久化恢复。

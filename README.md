@@ -106,7 +106,7 @@ Registering more Worker replicas adds capacity without changing this Graph. The 
 
 See the [INFER Worker API](docs/worker-api/infer.md) for setup and all seven leaf contracts.
 
-Define an Agent with Graph → Loop → Worker; run the complete [graph-loop-worker.ts](examples/graph-loop-worker.ts) example using `npm run example:agent`. See [Interaction setup](docs/interaction-runtime.md#graph-loop-and-worker-setup) for Tool and MCP wiring.
+Define an Agent with Graph → Loop → Worker; run the complete [graph-loop-worker.ts](docs/worker-api/examples/graph-loop-worker.ts) example using `npm run example:agent`. See [Interaction setup](docs/interaction-runtime.md#graph-loop-and-worker-setup) for Tool and MCP wiring.
 
 ## Repository Structure
 
@@ -141,10 +141,11 @@ npm run check
 
 The package is currently private and is not published to npm. Other experiment repositories can consume it through a local Git or workspace dependency; the existing package exports are designed to remain valid when npm publication begins.
 
-See the [Runtime API](docs/worker-api/runtime.md) and [complete examples](examples/runtime/README.md) for node bindings, independent sandboxes, loops and local IPC / cross-host HTTP.
+See the [Runtime API](docs/worker-api/runtime.md) and [complete examples](docs/worker-api/examples/runtime/README.md) for node bindings, independent sandboxes, loops and local IPC / cross-host HTTP.
 
 ## Documentation
 
+- [Examples: control flow, capabilities and execution patterns](examples/README.md) (run `npm run example:quickstart` for a local introduction)
 - [Node System and API Contract](docs/13-node-api-contract.md)
 - [Architecture and extension boundaries](docs/architecture.md)
 - [Development and package integration](docs/getting-started.md)
@@ -153,8 +154,8 @@ See the [Runtime API](docs/worker-api/runtime.md) and [complete examples](exampl
 
 Use [GitHub Issues](https://github.com/erwinmsmith/Ditto/issues) for concrete use cases, bugs, and architecture discussions.
 
-Behavior defaults live in root [`ditto.yaml`](ditto.yaml); credentials and deployment bindings use [`.env.example`](.env.example). All Workers share Runtime services; see the [configuration API](docs/worker-api/configuration.md). See the [INFER example guide](examples/README.md#infer) for setup and commands.
+Behavior defaults live in root [`ditto.yaml`](ditto.yaml); credentials and deployment bindings use [`.env.example`](.env.example). All Workers share Runtime services; see the [configuration API](docs/worker-api/configuration.md). See the [INFER example guide](docs/worker-api/examples/guide.md#infer) for setup and commands.
 
 See the [MEMORY API](docs/worker-api/memory.md) for plugin wiring, six node contracts and configuration.
 
-More public APIs and examples: [Worker composition / events / Artifacts](docs/worker-api/composition.md), [predefined flows](docs/worker-api/flows.md), and the [local quickstart](examples/runtime/quickstart.ts).
+More public APIs and examples: [Worker composition / events / Artifacts](docs/worker-api/composition.md), [predefined flows](docs/worker-api/flows.md), and the [local quickstart](examples/quickstart.ts).

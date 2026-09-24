@@ -13,7 +13,7 @@ npm run example:runtime:quickstart
 npm run check
 ```
 
-`npm ci` 的 prepare 构建 dist；示例命令也会先构建。check 执行严格类型检查、构建和行为测试。首次示例只执行本地 Context，不需要 `.env`、模型密钥、Redis 或数据库。完整代码为 [quickstart.ts](../examples/runtime/quickstart.ts)：
+`npm ci` 的 prepare 构建 dist；示例命令也会先构建。check 执行严格类型检查、构建和行为测试。首次示例只执行本地 Context，不需要 `.env`、模型密钥、Redis 或数据库。完整代码为 [quickstart.ts](../examples/quickstart.ts)：
 
 ```ts
 import assert from "node:assert/strict";
@@ -90,9 +90,9 @@ console.log(NODE_API_VERSION);
 
 | 用途 | 文档与可运行调用 |
 | --- | --- |
-| 多轮 Agent，真实工具与输出 | [Graph + Loop + Worker](../examples/graph-loop-worker.ts)：`npm run example:agent` |
+| 多轮 Agent，真实工具与输出 | [Graph + Loop + Worker](worker-api/examples/graph-loop-worker.ts)：`npm run example:agent` |
 | 自定义节点、私有 Graph、副本资源、事件、Artifact | [组合 API](worker-api/composition.zh-CN.md)：`npm run example:runtime:api` |
 | RAG / Skill / Tool / MCP / ReAct | [流程 API](worker-api/flows.zh-CN.md)：`npm run example:runtime:flows` |
 | Graph/Loop、独立 Sandbox、同机/跨机通信 | [Runtime](worker-api/runtime.zh-CN.md)：`npm run example:runtime:placement` |
-| Context Redis、Memory SQL/Milvus、独立 Retrieval | [数据库示例](../examples/worker/README.zh-CN.md) |
+| Context Redis、Memory SQL/Milvus、独立 Retrieval | [数据库示例](worker-api/examples/integrations/README.zh-CN.md) |
 | 全部 Worker、Provider 和具体 API | [API 索引](worker-api/README.zh-CN.md) |

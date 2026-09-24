@@ -1,0 +1,11 @@
+{
+  "name": "ditto-operation-tools",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "electron": "44.4.5",
+    "nodemailer": "10.0.10",
+    "playwright": "1.63.0",
+    "smtp-server": "3.19.13"
+  }
+}

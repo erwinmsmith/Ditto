@@ -132,7 +132,7 @@ RAG 的 candidate.score/metadata 不自动合并到 item.metadata；如需后续
 
 ContextError 的 code/message 可用于应用分支；Redis SDK、用户服务、Runtime 路由和传输异常也可能原样拒绝 Promise。没有后台重试或把异常包装成成功的空 Context。
 
-完整可调用代码见 [examples/context.ts](examples/context.ts)，所有函数共享下方 imports；函数不会在导入时执行。Redis SDK 安装及连接方式见[示例指南](../../examples/README.zh-CN.md#context--redis)。
+完整可调用代码见 [examples/context.ts](examples/context.ts)，所有函数共享下方 imports；函数不会在导入时执行。Redis SDK 安装及连接方式见[示例指南](examples/guide.zh-CN.md#context--redis)。
 
 ```ts
 import {
@@ -412,7 +412,7 @@ export function remoteContextRetrieval(runtime: import("@ditto/core").RuntimeCli
 }
 ```
 
-可直接运行的数据库接入示例：[examples/worker](../../examples/worker/README.zh-CN.md)，包含 SDK 安装、env 配置、调用及资源清理。
+可直接运行的数据库接入示例：[examples/worker](examples/integrations/README.zh-CN.md)，包含 SDK 安装、env 配置、调用及资源清理。
 
 ## 本地缓存、队列与引用加载
 
@@ -448,4 +448,6 @@ await queue.enqueue(scope, async () => "application operation");
 
 所有 SDK 方法在 input 后接受可选 `ContextCallOptions`；execute 是第三个参数。signal 传递至 selector、RAG 各阶段、compressor、tokenEstimator、referenceResolver、stateStore 和 operationQueue；各端口在原参数之后接收 options，compareAndSet 为第四个参数。SDK 取消时 reject，持久化前取消不会提交 CAS，但无法撤回外部已完成的写入。Runtime Worker 自动提供当前 signal 和绑定本次执行的 runtime 以委托其他 Worker；应用通常只需设置 signal。
 
-数据库检索可以直接复用 [Context 检索适配器](retrieval-providers.zh-CN.md#context-检索适配器)，完整可运行代码见 [SQLite 示例](../../examples/worker/context-retrieval.ts)。
+数据库检索可以直接复用 [Context 检索适配器](retrieval-providers.zh-CN.md#context-检索适配器)，完整可运行代码见 [SQLite 示例](examples/integrations/context-retrieval.ts)。
+
+[完整上下文任务示例](context-workflows.zh-CN.md) 展示公开 Runtime 组装、语义摘要、持久化检查点和 npm 消费端验收。

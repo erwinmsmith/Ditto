@@ -429,7 +429,7 @@ export const customGet = memoryGetNode.define("MEMORY", async () => ({
 }));
 ```
 
-Runnable database integration examples: [examples/worker](../../examples/worker/README.md), including SDK installation, env settings, invocation and cleanup.
+Runnable database integration examples: [examples/worker](examples/integrations/README.md), including SDK installation, env settings, invocation and cleanup.
 
 ## Cancellation and database SDKs
 
@@ -443,3 +443,5 @@ if (result.status === "cancelled") console.log(result.error?.code); // MEMORY_CA
 The direct SDK returns a cancelled NodeResult when it detects cancellation. Runtime invocation also enforces its own rejection semantics. Cancellation cannot roll back completed database writes and never triggers retries. Runtime Workers supply their signal and invocation-bound runtime; the MEMORY → RETRIEVAL bridge preserves both. Applications normally omit runtime. Database/embedding providers can still execute directly through their SDKs, delegating to RETRIEVAL only when separate execution is needed.
 
 For `RemoteRetrievalSearchProvider`, omit construction-time runtime inside a MEMORY Worker to inherit its invocation-bound Runtime. An explicit runtime always takes precedence; standalone SDK delegation requires it. Example: `new RemoteRetrievalSearchProvider({ target: { name: "memories" } })` for Worker-owned delegation.
+
+[Complete memory workflows](memory-workflows.md) demonstrate relational and vector storage, explicit embedding, scoped recall and durable recovery.

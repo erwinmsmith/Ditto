@@ -317,3 +317,5 @@ export function remoteContextRetrieval(runtime: import("@ditto/core").RuntimeCli
 The built-in RETRIEVAL Worker forwards the current Runtime signal in the provider's RetrievalExecutionContext; embedding, database, fusion and reranking adapters propagate it. Example: `await runtime.invoke("RETRIEVAL.SEARCH", { query: { content: "question" }, target: { name: "docs" } }, { signal: AbortSignal.timeout(5000) })`. MEMORY and CONTEXT delegation adapters inherit their parent invocation context; see the [Context provider bridge](retrieval-providers.md#context-retrieval-adapter). HTTP/IPC cancellation does not imply that a server-side database operation was canceled.
 
 For `RemoteRetrievalSearchProvider`, omit construction-time runtime inside a MEMORY Worker to inherit its invocation-bound Runtime. An explicit runtime always takes precedence; standalone SDK delegation requires it. Example: `new RemoteRetrievalSearchProvider({ target: { name: "memories" } })` for Worker-owned delegation.
+
+For complete Agent tasks with persistence and citations, see [information retrieval and search workflows](search-workflows.md).

@@ -4,7 +4,7 @@ import { realpath } from "node:fs/promises";
 import { type } from "node:os";
 import test from "node:test";
 import { createDitto, createInteractionWorker, loop } from "../src/index.js";
-import { commandExecutor, linuxTool, sha256Tool, toolGraph, type CommandInput } from "../examples/interaction-tools.js";
+import { commandExecutor, linuxTool, sha256Tool, toolGraph, type CommandInput } from "../docs/worker-api/examples/interaction-tools.js";
 
 test("real POSIX commands compose with a second tool, observations and output in a Loop", { skip: process.platform === "win32" }, async () => {
   const deliveries: string[] = [];

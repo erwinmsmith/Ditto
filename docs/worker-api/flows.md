@@ -2,7 +2,7 @@
 
 [English / 简体中文](flows.zh-CN.md) · [Runtime](runtime.md) · [API](README.md)
 
-Import these functions from `@ditto/core/runtime`; they compose existing public nodes. Complete code is in [flows.ts](../../examples/runtime/flows.ts). `npm run example:runtime:flows` executes Skill loading, text RAG and a real README tool read. MCP/ReAct examples require a connected client or model configuration and do not run automatically.
+Import these functions from `@ditto/core/runtime`; they compose existing public nodes. Complete code is in [flows.ts](examples/runtime/flows.ts). `npm run example:runtime:flows` executes Skill loading, text RAG and a real README tool read. MCP/ReAct examples require a connected client or model configuration and do not run automatically.
 
 ## Context flows
 

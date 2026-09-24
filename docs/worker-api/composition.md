@@ -2,7 +2,7 @@
 
 [English / 简体中文](composition.zh-CN.md) · [Runtime](runtime.md) · [API](README.md)
 
-This reference covers application extension interfaces. See [Runtime](runtime.md) for graphs, loops, placement, cancellation and Sandbox, and [configuration](configuration.md) for loaders. Complete code uses public exports in [api.ts](../../examples/runtime/api.ts); run `npm run example:runtime:api`. Importing the file performs no requests.
+This reference covers application extension interfaces. See [Runtime](runtime.md) for graphs, loops, placement, cancellation and Sandbox, and [configuration](configuration.md) for loaders. Complete code uses public exports in [api.ts](examples/runtime/api.ts); run `npm run example:runtime:api`. Importing the file performs no requests.
 
 ## Node and Worker definitions
 
@@ -217,4 +217,4 @@ export function adaptRpc(request: (
 }
 ```
 
-Then use `createDitto({ transports: [adaptRpc(request)] })` and `registerRemote({address,capabilities,transportId:"application-rpc"})` for an already deployed Worker; request is the connected application client function. See [placement.ts](../../examples/runtime/placement.ts) for complete address exchange and cleanup.
+Then use `createDitto({ transports: [adaptRpc(request)] })` and `registerRemote({address,capabilities,transportId:"application-rpc"})` for an already deployed Worker; request is the connected application client function. See [placement.ts](examples/runtime/placement.ts) for complete address exchange and cleanup.

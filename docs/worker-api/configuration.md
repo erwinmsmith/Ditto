@@ -187,7 +187,7 @@ workers:
 | workers.interaction.webSearch.timeoutMs | 30000 / 1–2147483647 ms |
 | workers.interaction.webSearch.maxResponseBytes | 1048576 / 1–16777216 |
 
-Factory defaults and root YAML agree. Loaders return immutable config.context / config.interaction. Explicitly pass the corresponding groups to createInMemoryContextStore, createContextOperationQueue, createReadOnlyCommandTools and createBraveWebSearchProvider. Loading parameters does not activate tools, caching or network permissions. See the [Context example](../../examples/worker/context-retrieval.ts) and [Interaction API](interaction.md#provider-cancellation-and-bounded-web-responses).
+Factory defaults and root YAML agree. Loaders return immutable config.context / config.interaction. Explicitly pass the corresponding groups to createInMemoryContextStore, createContextOperationQueue, createReadOnlyCommandTools and createBraveWebSearchProvider. Loading parameters does not activate tools, caching or network permissions. See the [Context example](examples/integrations/context-retrieval.ts) and [Interaction API](interaction.md#provider-cancellation-and-bounded-web-responses).
 
 Application code reads `DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY`. CONTEXT and MEMORY connection variables use `DITTO_WORKER_CONTEXT_*` and `DITTO_WORKER_MEMORY_*` in root .env.example. Environment holds credentials/connections; YAML holds behavior/capacity, with no plugin autoloading.
 

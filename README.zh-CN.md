@@ -106,7 +106,7 @@ const review = graph<Message>("review")
 
 详细 INFER 接入与七个叶子接口见 [Worker API](docs/worker-api/infer.zh-CN.md)。
 
-按 Graph → Loop → Worker 定义 Agent，完整示例见 [graph-loop-worker.ts](examples/graph-loop-worker.ts)，运行 `npm run example:agent`。工具与 MCP 接入见 [Interaction API](docs/interaction-runtime.zh-CN.md#graphloop-与-worker-使用入口)。
+按 Graph → Loop → Worker 定义 Agent，完整示例见 [graph-loop-worker.ts](docs/worker-api/examples/graph-loop-worker.ts)，运行 `npm run example:agent`。工具与 MCP 接入见 [Interaction API](docs/interaction-runtime.zh-CN.md#graphloop-与-worker-使用入口)。
 
 ## 仓库结构
 
@@ -141,10 +141,11 @@ npm run check
 
 当前 package 为 private，暂不发布 npm。其他实验仓库可通过本地 Git 或 workspace dependency 使用；现有 package exports 可在后续 npm 发布时继续沿用。
 
-Runtime 的节点绑定、独立 Sandbox、Loop 和两种部署通信方式详见 [Runtime API](docs/worker-api/runtime.zh-CN.md)；完整代码见 [Runtime 示例](examples/runtime/README.zh-CN.md)。
+Runtime 的节点绑定、独立 Sandbox、Loop 和两种部署通信方式详见 [Runtime API](docs/worker-api/runtime.zh-CN.md)；完整代码见 [Runtime 示例](docs/worker-api/examples/runtime/README.zh-CN.md)。
 
 ## 文档
 
+- [示例目录：控制流程、基础能力与执行模式](examples/README.zh-CN.md)（入门运行 `npm run example:quickstart`）
 - [节点体系与 API Contract](docs/13-node-api-contract.zh-CN.md)
 - [架构与扩展边界](docs/architecture.zh-CN.md)
 - [开发与 package 集成](docs/getting-started.zh-CN.md)
@@ -153,8 +154,8 @@ Runtime 的节点绑定、独立 Sandbox、Loop 和两种部署通信方式详�
 
 具体使用案例、缺陷与架构讨论请提交至 [GitHub Issues](https://github.com/erwinmsmith/Ditto/issues)。
 
-行为参数统一放根目录 [`ditto.yaml`](ditto.yaml)，凭证与部署配置使用 [`.env.example`](.env.example)，Worker 默认共享 Runtime services，也可独立注入。详见 [统一配置 API](docs/worker-api/configuration.zh-CN.md)。运行方式见 [INFER 示例指南](examples/README.zh-CN.md#infer)。
+行为参数统一放根目录 [`ditto.yaml`](ditto.yaml)，凭证与部署配置使用 [`.env.example`](.env.example)，Worker 默认共享 Runtime services，也可独立注入。详见 [统一配置 API](docs/worker-api/configuration.zh-CN.md)。运行方式见 [INFER 示例指南](docs/worker-api/examples/guide.zh-CN.md#infer)。
 
 MEMORY 的接入、插件边界、六个节点和配置详见 [MEMORY API](docs/worker-api/memory.zh-CN.md)。
 
-其他公共接口与调用方式：[Worker 组合 / 事件 / Artifact](docs/worker-api/composition.zh-CN.md)、[预定义流程](docs/worker-api/flows.zh-CN.md)、[无需外部服务的入门示例](examples/runtime/quickstart.ts)。
+其他公共接口与调用方式：[Worker 组合 / 事件 / Artifact](docs/worker-api/composition.zh-CN.md)、[预定义流程](docs/worker-api/flows.zh-CN.md)、[无需外部服务的入门示例](examples/quickstart.ts)。

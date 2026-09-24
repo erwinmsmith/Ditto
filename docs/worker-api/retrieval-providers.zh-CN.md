@@ -464,6 +464,6 @@ export function contextSearch(provider: RetrievalSearchProvider, runtime: Runtim
 }
 ```
 
-将策略注入 Context services.ragStrategy。每次调用的 signal 传入本地 Provider 或委托调用；未显式设置 runtime 时，内置 Worker 使用绑定当前执行的 Runtime，使已接收的 Graph 可以在关闭期间正常完成。网络取消目前停止调用方等待，不会终止远端数据库操作。[可运行 SQLite FTS5 示例](../../examples/worker/context-retrieval.ts)。
+将策略注入 Context services.ragStrategy。每次调用的 signal 传入本地 Provider 或委托调用；未显式设置 runtime 时，内置 Worker 使用绑定当前执行的 Runtime，使已接收的 Graph 可以在关闭期间正常完成。网络取消目前停止调用方等待，不会终止远端数据库操作。[可运行 SQLite FTS5 示例](examples/integrations/context-retrieval.ts)。
 
 在 MEMORY Worker 内构造 `RemoteRetrievalSearchProvider` 时，可省略 runtime，继承本次执行绑定的 Runtime；显式 runtime 始终优先，独立 SDK 委托则必须提供它。例如 Worker 内可用 `new RemoteRetrievalSearchProvider({ target: { name: "memories" } })`。

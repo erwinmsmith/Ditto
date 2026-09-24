@@ -13,7 +13,7 @@ npm run example:runtime:quickstart
 npm run check
 ```
 
-The npm ci prepare hook builds dist; example commands also build first. check runs strict type checking, builds and behavior tests. The first example uses local Context and needs no .env, model key, Redis or database. Complete code: [quickstart.ts](../examples/runtime/quickstart.ts).
+The npm ci prepare hook builds dist; example commands also build first. check runs strict type checking, builds and behavior tests. The first example uses local Context and needs no .env, model key, Redis or database. Complete code: [quickstart.ts](../examples/quickstart.ts).
 
 ```ts
 import assert from "node:assert/strict";
@@ -90,9 +90,9 @@ console.log(NODE_API_VERSION);
 
 | Task | Reference and runnable command |
 | --- | --- |
-| Agent loop, real tools and output | [Graph + Loop + Worker](../examples/graph-loop-worker.ts): `npm run example:agent` |
+| Agent loop, real tools and output | [Graph + Loop + Worker](worker-api/examples/graph-loop-worker.ts): `npm run example:agent` |
 | Custom/private nodes, resources, events and Artifacts | [Composition](worker-api/composition.md): `npm run example:runtime:api` |
 | RAG / Skill / Tool / MCP / ReAct | [Flows](worker-api/flows.md): `npm run example:runtime:flows` |
 | Graph/Loop, separate Sandbox, IPC/HTTP | [Runtime](worker-api/runtime.md): `npm run example:runtime:placement` |
-| Context Redis, Memory SQL/Milvus, independent Retrieval | [Database examples](../examples/worker/README.md) |
+| Context Redis, Memory SQL/Milvus, independent Retrieval | [Database examples](worker-api/examples/integrations/README.md) |
 | All Workers, Providers and individual APIs | [API index](worker-api/README.md) |

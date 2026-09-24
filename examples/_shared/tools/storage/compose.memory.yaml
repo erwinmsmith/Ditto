@@ -1,0 +1,27 @@
+name: ditto-memory-examples
+services:
+  redis:
+    image: redis:7-alpine
+    ports: ["127.0.0.1:16579:6379"]
+    volumes: ["context-data:/data"]
+    command: ["redis-server", "--appendonly", "yes"]
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ditto
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ditto_example
+    ports: ["127.0.0.1:15432:5432"]
+    volumes: ["memory-sql-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ditto"]
+      interval: 2s
+      retries: 20
+  qdrant:
+    image: qdrant/qdrant:v1.17.0
+    ports: ["127.0.0.1:16333:6333"]
+    volumes: ["memory-vector-data:/qdrant/storage"]
+volumes:
+  context-data:
+  memory-sql-data:
+  memory-vector-data:

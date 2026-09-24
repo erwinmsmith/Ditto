@@ -6,7 +6,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { createDitto, createInteractionWorker, loadRuntimeConfig } from "@ditto/core";
-import { commandExecutor, commandGraph, linuxTool, sha256Tool } from "../examples/interaction-tools.ts";
+import { commandExecutor, commandGraph, linuxTool, sha256Tool } from "../docs/worker-api/examples/interaction-tools.ts";
 
 if (!process.argv[2]) throw new Error("Pass a directory containing the optional MCP SDK and filesystem server dependencies");
 const requireSdk = createRequire(join(resolve(process.argv[2]), "package.json"));

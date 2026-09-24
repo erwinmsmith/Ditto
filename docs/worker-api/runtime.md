@@ -1,6 +1,6 @@
 # Runtime, Graph and Loop API
 
-[简体中文](runtime.zh-CN.md) · [Worker API](README.md) · [Runnable examples](../../examples/runtime/README.md)
+[简体中文](runtime.zh-CN.md) · [Worker API](README.md) · [Runnable examples](examples/runtime/README.md)
 
 Import Runtime APIs from `@ditto/core` or `@ditto/core/runtime`. Define the graph's nodes and dependencies, define loop state transitions, register concrete Workers, then execute. Model, database and tool plugins stay inside their Workers.
 
@@ -74,6 +74,25 @@ The scheduler builds an O(V+E) dependency index and ready queue. On an exception
 
 Worker concurrency limits each replica; graph concurrency limits each run. Full replicas cause `NoWorkerAvailableError`; no additional capacity queue is created. For parallel tasks pinned to a single-capacity replica, set graph concurrency to 1, add replicas, or change dependencies. Applications also control admission across concurrent graph runs.
 
+### Step dependencies and input binding
+
+The four `.node(id, nodeType, dependencies, bind)` arguments are a unique step ID, public Node type, direct dependency IDs and a synchronous input mapper. The first `bind` argument is always the original `runtime.run` input; the second contains only the declared dependency outputs. The return value must match the selected Node's input contract. Results retain each Node's output type rather than being uniformly wrapped in `NodeResult`.
+
+In `loaded → updated → selected → delivered`, a delivery binding that also reads the original `loaded` result must declare `["loaded", "selected"]`. Declaring only `["selected"]` does not expose transitive dependencies. This restriction applies both to TypeScript types and the object passed at runtime.
+
+Use explicit dependency chains for sequential work; no concurrency override or separate sequential executor is required. Bindings map data; Nodes perform asynchronous work. Running a Graph once does not require a Loop.
+
+See [sequencing and step execution](../../examples/control-flow/sequence/README.md) for complete calls. The examples export Graphs, input types, default inputs and run functions. They use public package entrypoints without TypeScript path aliases; real-model entrypoints explicitly load application YAML and environment variables:
+
+```bash
+npm run example:sequence:pipeline
+npm run example:sequence:dependencies
+npm run example:sequence:stages
+npm run example:sequence:batch
+```
+
+Run `npm run check:examples:sequence:live` for a real-model path. It covers all four execution types by extending the fixed-step and dependency Graphs with inference and delivery, and directly invoking the staged and batch functions to verify upstream data reaches the models. Check INFER NodeResult status and finishReason explicitly before delivery; an unsuccessful result is not automatically a Graph exception. See [end-to-end validation](../../examples/control-flow/sequence/README.md#real-model-end-to-end-validation) for configuration, commands and reports.
+
 ## Loop: repetition and graph selection
 
 ```ts
@@ -99,6 +118,12 @@ console.log(state.round); // 4
 
 The positive integer iteration limit comes from the definition, YAML `runtime.loopMaxIterations`, or 32. Reaching the limit without done throws. Execution worker bindings are grouped by graph ID; concurrency and signal cover the whole loop. State stays on the caller; only Node requests cross transports. There is no implicit persistence, retry or checkpointing.
 
+### Composing stages and batches
+
+For complete Agent workflows, define a Graph per stage and compose them through a Loop plan: `const a = yield* graphStep(stageA, input); const b = yield* graphStep(stageB, a);`. Each stage retains its own input/output types. Loop owns execution, branching, repetition and the total Graph budget. See [Graph composition through Loop](graph-loops.md) for a runnable example and cancellation/recovery contracts.
+
+For batches, use a fixed Graph with Loop: `bind` selects the current object, `update` validates its result and appends it to the collection, and `done` checks whether all objects are processed. Set `maxIterations` to the batch size and run a separate summary Graph afterwards. Loop executes at least once, so an empty batch must bypass it rather than setting `maxIterations: 0`. A Graph failure or an exception from `update` stops later objects and prevents summary execution. See [batch.ts](../../examples/control-flow/sequence/batch.ts).
+
 ## Worker-specific services and Sandbox
 
 ```ts
@@ -112,7 +137,7 @@ const reader = runtime.register(createInteractionWorker({ tools: [inspectTextToo
 });
 ```
 
-`inspectTextTool` is an application RegisteredTool; see the [complete example](../../examples/runtime/graph-loop.ts). Omit services to share Runtime defaults. Independent services can supply a different workspace (`config.workspace`), permission policy, ProviderRegistry and SandboxExecutor. HTTP providers are constructed against their corresponding Sandbox; reusing a broader provider while replacing only sandbox would not isolate its network access. Custom injected providers/SDKs must honor application policy themselves.
+`inspectTextTool` is an application RegisteredTool; see the [complete example](examples/runtime/graph-loop.ts). Omit services to share Runtime defaults. Independent services can supply a different workspace (`config.workspace`), permission policy, ProviderRegistry and SandboxExecutor. HTTP providers are constructed against their corresponding Sandbox; reusing a broader provider while replacing only sandbox would not isolate its network access. Custom injected providers/SDKs must honor application policy themselves.
 
 `ctx.invoke` uses the destination Worker's services. Remote hosts supply their own configuration; envelopes cannot override deployment settings. Sandbox is a cooperative capability guard. For arbitrary JS or SDK isolation, deploy the Worker in a separate process/container and inject the appropriate executor; Runtime does not create containers.
 
@@ -173,7 +198,7 @@ app.registerRemote({ address: remoteAddress, capabilities: ["CONTEXT.LOAD"], tra
 // Server: createServer(createWorkerHttpHandler(workerRuntime, { token })).listen(...)
 ```
 
-HTTP transport requires a nonempty id; timeoutMs defaults to 30000 and accepts 1–2147483647, validated at construction. The HTTP endpoint is `/ditto/invoke`; default request/response limit is 1 MiB, configurable with maxBodyBytes. Both ends must use the same token; use HTTPS between production hosts. [placement.ts](../../examples/runtime/placement.ts) includes startup, address exchange, graph execution and cleanup. `receive(envelope)` is the adapter-facing receiver with target/capability validation; business code should use typed invoke/run.
+HTTP transport requires a nonempty id; timeoutMs defaults to 30000 and accepts 1–2147483647, validated at construction. The HTTP endpoint is `/ditto/invoke`; default request/response limit is 1 MiB, configurable with maxBodyBytes. Both ends must use the same token; use HTTPS between production hosts. [placement.ts](examples/runtime/placement.ts) includes startup, address exchange, graph execution and cleanup. `receive(envelope)` is the adapter-facing receiver with target/capability validation; business code should use typed invoke/run.
 
 For `InMemoryArtifactStore`, `PayloadCodec` and external stores, see [communication](../worker-communication.md). Existing `runRagFlow/runSkillFlow/runToolCallFlow/runMcpFlow/runReactFlow` remain available; see [Interaction API](interaction.md).
 
@@ -220,6 +245,28 @@ console.log(result); // { stdout: "$(uname) stays literal", stderr: "", exitCode
 
 Inject with `createDitto({ config, sandbox: { execute: true }, sandboxExecutor: executor })`, or provide independent executors per Worker using createRuntimeServices. Container/remote adapters implement `SandboxExecutor.run(command, { workspace, signal? })` without changing Graphs/Tools.
 
-This is a cooperative capability boundary. Local commands and their descendants have no OS-level filesystem/network isolation; executable allowlists do not constrain files accessible through arguments. Terminating the direct child does not guarantee termination of its entire process tree. Untrusted code needs an external OS/container isolation executor. See the runnable [Linux/macOS tool composition](../../examples/interaction-tools.ts).
+This is a cooperative capability boundary. Local commands and their descendants have no OS-level filesystem/network isolation; executable allowlists do not constrain files accessible through arguments. Terminating the direct child does not guarantee termination of its entire process tree. Untrusted code needs an external OS/container isolation executor. See the runnable [Linux/macOS tool composition](examples/interaction-tools.ts).
 
 See [composition](composition.md) for custom nodes/Workers, resources, events and Artifacts; see [flows](flows.md) for predefined compositions.
+
+[Conditions and routing with public APIs](routing.md): application-selected Graphs, dependency joins, risk/confidence policies and tool injection.
+
+[Parallel execution with public APIs](parallel.md): per-Graph concurrency, model-planned Graphs, strict joins and partial failures across independent Graphs.
+
+[Loops with public APIs](iteration.md): synchronous state transitions, asynchronous tool checks, model-planned Graph selection, budget/round termination and durable artifacts.
+
+[Recovery with public APIs](recovery.md): bounded Loop retries, Graph cancellation boundaries, application checkpoints, external effect queries and compensation.
+
+[Human intervention APIs and examples](human.md): approval before execution, intermediate confirmation, edited continuations, reviewed publication and human handoff.
+
+[Task lifecycle APIs and examples](lifecycle.md): state tracking, guarded execution, safe stopping, scheduled triggers and event triggers.
+
+[Public API boundaries and unified package acceptance](control-flow.md): capability mapping for 38 examples, strict external consumer types and real task verification.
+
+[Request understanding and interaction through public APIs](understanding.md): goals, constraints, clarification, conversation, choices, and intent handling.
+
+[Planning and task management APIs](planning.md): decomposition, dependency graphs, budget admission, and tool selection with Redis Context and database Memory.
+
+[Graph / Loop composition](graph-loops.md): Loop owns stage Graphs, branches, repetition, budgets and recovery.
+
+[Web search question answering](web-search-workflows.md)

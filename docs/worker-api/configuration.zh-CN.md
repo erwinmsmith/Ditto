@@ -189,7 +189,7 @@ workers:
 | workers.interaction.webSearch.timeoutMs | 30000 / 1–2147483647 ms |
 | workers.interaction.webSearch.maxResponseBytes | 1048576 / 1–16777216 |
 
-以上默认值在工厂与根 YAML 中一致；加载器输出不可变 config.context / config.interaction。显式传给 createInMemoryContextStore、createContextOperationQueue、createReadOnlyCommandTools、createBraveWebSearchProvider，参数加载不会自动启用工具、缓存或网络权限。[Context 示例](../../examples/worker/context-retrieval.ts) 与 [Interaction API](interaction.zh-CN.md#provider-取消和有界网页响应) 给出完整接线。
+以上默认值在工厂与根 YAML 中一致；加载器输出不可变 config.context / config.interaction。显式传给 createInMemoryContextStore、createContextOperationQueue、createReadOnlyCommandTools、createBraveWebSearchProvider，参数加载不会自动启用工具、缓存或网络权限。[Context 示例](examples/integrations/context-retrieval.ts) 与 [Interaction API](interaction.zh-CN.md#provider-取消和有界网页响应) 给出完整接线。
 
 Brave 密钥由应用读取 `DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY`；CONTEXT 与 MEMORY 连接信息分别使用 `DITTO_WORKER_CONTEXT_*`、`DITTO_WORKER_MEMORY_*`，见根 .env.example。env 放连接/密钥，YAML 放行为/容量；没有隐式加载插件。
 

@@ -697,3 +697,5 @@ await runtime.invoke("INFER.REASONING.SAMPLE", {
 跨机器 HTTP 或同机 IPC 的信号当前只控制调用方等待，不自动中断远端执行；服务端仍应配置模型超时。
 
 外部 `InferCacheProvider.lookup/write/invalidate(input, options?)` 的第二参数为 `InferCacheCallOptions { signal?: AbortSignal }`。例如 `lookup: (input, options) => databaseCache.lookup(input, options)`，由适配器按底层 SDK 约定继续传递取消；INFER 超时停止等待，不会撤销数据库已提交的缓存写入。
+
+[内容处理完整流程](content-workflows.zh-CN.md) 组合 SAMPLE 生成与独立复核、Redis Context、数据库 Memory 及校验后的文件发布。

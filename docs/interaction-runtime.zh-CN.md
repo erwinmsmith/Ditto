@@ -57,7 +57,7 @@ OUTPUT 在调用接收端前验证 deliveryId、message.role/content/name 以及
 
 应用中的 Agent 由三部分组成：Graph 定义 Node 及数据依赖，Loop 定义迭代状态和停止条件，Worker 提供具体实现及 SDK 适配。单轮执行使用 `runtime.run(graph, input)`，循环执行使用 `runtime.loop(loopDefinition, state)`。不需要额外定义 Agent 管理层。
 
-完整的[可运行示例](../examples/graph-loop-worker.ts)包含 Graph → Loop → Worker → Runtime 四步。运行 `npm run example:agent` 会通过 TOOL 读取 README 和 package.json，经过 OBSERVE，再由 OUTPUT 打印两次结果；无需模型或数据库密钥。
+完整的[可运行示例](worker-api/examples/graph-loop-worker.ts)包含 Graph → Loop → Worker → Runtime 四步。运行 `npm run example:agent` 会通过 TOOL 读取 README 和 package.json，经过 OBSERVE，再由 OUTPUT 打印两次结果；无需模型或数据库密钥。
 
 ```ts
 import { createInteractionWorker } from "@ditto/core/worker/interaction";
@@ -89,7 +89,7 @@ const interaction = createInteractionWorker({
 
 连接、认证和 SDK 释放由应用负责。工厂不会打开或关闭 MCP/数据库连接，复用同一 Worker definition 会共享传入的实例。需要每个副本独立资源及自动释放时，使用现有 `defineWorker({ resources, dispose, nodes })` 与 `createInteractionNodes()`；不需要新增插件加载框架。env 放密钥和连接信息，YAML 放行为参数；当前工厂的工具函数和 SDK 实例通过代码注入，不能把任意插件名写入 YAML 后自动加载。
 
-命令与其他工具组合的[完整示例](../examples/interaction-tools.ts)可通过 `npm run example:tools` 运行。MCP SDK 安装与运行方式见[示例指南](../examples/README.zh-CN.md#mcp)。
+命令与其他工具组合的[完整示例](worker-api/examples/interaction-tools.ts)可通过 `npm run example:tools` 运行。MCP SDK 安装与运行方式见[示例指南](worker-api/examples/guide.zh-CN.md#mcp)。
 
 ## 四类预定义流程
 
@@ -139,7 +139,7 @@ ReAct 放在 `src/runtime/react.ts`，是 Graph 的预定义运行流程：SAMPL
 
 ```ts
 import { createDitto, createInferWorker, createInteractionWorker, loadRuntimeConfigFile } from "@ditto/core";
-import { readTextTool, reactFlow } from "../examples/runtime/flows.ts";
+import { readTextTool, reactFlow } from "../docs/worker-api/examples/runtime/flows.ts";
 
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 if (!config.model) throw new Error("Configure DITTO_WORKER_INFER_MODEL_PROVIDER and DITTO_WORKER_INFER_MODEL");

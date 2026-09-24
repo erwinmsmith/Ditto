@@ -267,7 +267,7 @@ export function mcpClientAdapter(client: McpClient): McpClient {
 }
 ```
 
-此包装保留客户端方法的 this 绑定及可选字段；传入的 client 已符合中立接口。原生 SDK 的联合返回类型需先适配。官方 SDK 的完整可运行例子见 [真实 MCP 脚本](../../scripts/check-interaction-mcp-live.mjs)及[接入说明](../../examples/README.zh-CN.md#mcp)。Ditto 不安装 MCP SDK，不自动建立 stdio/HTTP 连接。适配器应把特定 SDK 的联合返回类型转换为 McpToolResult。isError=true 映射为 failed；没有安全错误对象时使用固定 MCP_TOOL_ERROR。
+此包装保留客户端方法的 this 绑定及可选字段；传入的 client 已符合中立接口。原生 SDK 的联合返回类型需先适配。官方 SDK 的完整可运行例子见 [真实 MCP 脚本](../../scripts/check-interaction-mcp-live.mjs)及[接入说明](examples/guide.zh-CN.md#mcp)。Ditto 不安装 MCP SDK，不自动建立 stdio/HTTP 连接。适配器应把特定 SDK 的联合返回类型转换为 McpToolResult。isError=true 映射为 failed；没有安全错误对象时使用固定 MCP_TOOL_ERROR。
 
 ## 5. ExternalResult、OBSERVE 与消息
 
@@ -375,7 +375,7 @@ export const rejectedSink: OutputSink = {
 | `MCP discovery limits` | new McpRegistry({ maxDiscoveryPages, maxCapabilities }) |
 | `workers.interaction YAML` | commands/webSearch 行为参数；通过 config.interaction 显式传给工厂 |
 
-取消通过 Runtime 调用选项 signal 传入 WorkerContext，再传给工具/MCP/WebSearch Provider，不放在节点 payload 中。超时、重试和 SDK 关闭由执行器/应用负责。Runtime 停止等待不等于底层操作已停止。示例 Linux tool 通过 SandboxExecutor 显式启用真实命令，不作为 Core 默认能力；见 [Linux/macOS 工具示例](../../examples/interaction-tools.ts)。
+取消通过 Runtime 调用选项 signal 传入 WorkerContext，再传给工具/MCP/WebSearch Provider，不放在节点 payload 中。超时、重试和 SDK 关闭由执行器/应用负责。Runtime 停止等待不等于底层操作已停止。示例 Linux tool 通过 SandboxExecutor 显式启用真实命令，不作为 Core 默认能力；见 [Linux/macOS 工具示例](examples/interaction-tools.ts)。
 
 ## 8. 高级组合入口
 
@@ -438,7 +438,7 @@ export async function interactionGraph() {
 
 同一 Worker definition 注册多次会共享传入的工具/注册表/客户端/接收端。需要独立资源时分别构造 definition，或使用 defineWorker 的 resources/dispose。动态 unregister 只移除后续查找，不取消已开始操作或关闭 SDK。关闭时先 `await runtime.close()` 排空 Worker，再关闭应用拥有的 MCP、数据库、队列等客户端。
 
-命令、普通工具与 MCP 的组合用法见[示例指南](../../examples/README.zh-CN.md)。数据库能力接入 MEMORY，不需要把数据库客户端塞进 Interaction。模型动作循环见 [ReAct Graph](../interaction-runtime.zh-CN.md#react-预定义-graph-流程)。
+命令、普通工具与 MCP 的组合用法见[示例指南](examples/guide.zh-CN.md)。数据库能力接入 MEMORY，不需要把数据库客户端塞进 Interaction。模型动作循环见 [ReAct Graph](../interaction-runtime.zh-CN.md#react-预定义-graph-流程)。
 
 ## 与 CONTEXT 组合
 
@@ -482,3 +482,7 @@ const tools = [...createReadOnlyCommandTools(config.interaction.commands), creat
 `McpClient.listTools(params?, options?: McpCallOptions)` 和 `callTool(params, options?: McpCallOptions)` 同样接收 signal；McpRegistry.execute 的第三个参数也接受它。discover 在每页前后检查取消。中立接口适配到官方 MCP SDK 时，listTools 使用第二参数，callTool 使用第三参数：`client.callTool(params, undefined, options)`；第二参数是结果 schema。完整接线见 [真实 MCP 示例](../../scripts/check-interaction-mcp-live.mjs)。自定义 RegisteredTool 可直接将 context.signal 传给 Sandbox.run 或 SDK。
 
 本地执行器已提供正式工厂 `createLocalSandboxExecutor`，可替换为自有 SandboxExecutor；参数、权限、取消和完整例子见 [Sandbox API](runtime.zh-CN.md#sandbox-api-与本地执行器)。ReAct 的 signal 同时传入采样、动作和观察 Graph，工具可通过 context.signal 接收取消。
+
+[工具和系统操作完整流程](tool-workflows.zh-CN.md)：模型原生工具选择与参数补全、十项应用适配器、持久化恢复与已安装包端到端验收。
+
+[执行结果理解完整流程](observation-workflows.zh-CN.md) 组合 OBSERVE、模型解释、Context/Memory 检查点与实际后续动作工具。

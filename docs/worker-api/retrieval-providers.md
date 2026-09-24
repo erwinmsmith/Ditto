@@ -463,6 +463,6 @@ export function contextSearch(provider: RetrievalSearchProvider, runtime: Runtim
 }
 ```
 
-Register the returned strategy under Context services.ragStrategy. Per-call signal reaches inline providers and delegated invocation. With runtime omitted, built-in Workers use their invocation-bound Runtime so already accepted graphs can complete during shutdown. Network cancellation currently stops the caller's wait, not a remote database operation. [Runnable SQLite FTS5 example](../../examples/worker/context-retrieval.ts).
+Register the returned strategy under Context services.ragStrategy. Per-call signal reaches inline providers and delegated invocation. With runtime omitted, built-in Workers use their invocation-bound Runtime so already accepted graphs can complete during shutdown. Network cancellation currently stops the caller's wait, not a remote database operation. [Runnable SQLite FTS5 example](examples/integrations/context-retrieval.ts).
 
 For `RemoteRetrievalSearchProvider`, omit construction-time runtime inside a MEMORY Worker to inherit its invocation-bound Runtime. An explicit runtime always takes precedence; standalone SDK delegation requires it. Example: `new RemoteRetrievalSearchProvider({ target: { name: "memories" } })` for Worker-owned delegation.

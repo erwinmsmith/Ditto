@@ -1,0 +1,7 @@
+# Customer / order tool adapters
+
+Application-owned `RegisteredTool` implementations used by [tool-chain execution](../../../patterns/tool-chain/README.md). `domain.ts` validates scope, versions, decisions and canonical payloads. `adapters.ts` registers authorized reads, evidence validation, CRM updates, notifications, final verification and publication. `service.ts` provides an actual local HTTP service with a separate SQLite business database, atomic effect receipts and a durable test inbox.
+
+Tools: `chain_authorize`, `chain_customer`, `chain_orders`, `chain_payment`, `chain_shipment`, `chain_validate_reads`, `chain_crm`, `chain_notify`, `chain_verify`, `chain_publish`. They execute through `INTERACTION.ACT.TOOL`; effect results pass through `INTERACTION.OBSERVE`. Receipts are checked before retrying an external write. See the [API guide](../../../../docs/worker-api/tool-chain-workflows.md) for contracts and provider replacement requirements.
+
+`createDemo(directory,scenario,overrides)` creates a dedicated test service and request. `createTask` persists the immutable request and policy. `resumeDemo` reopens the service at its saved address. Always close the service and Runtime/storage handles. Do not expose this test service as a production authentication boundary. No third-party business SDK is required; Node HTTP/SQLite provides the fixture. Redis dependencies belong to [storage](../storage/README.md). No business tool is bundled into Core.

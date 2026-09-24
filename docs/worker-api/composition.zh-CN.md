@@ -2,7 +2,7 @@
 
 [English / 简体中文](composition.md) · [Runtime](runtime.zh-CN.md) · [API](README.zh-CN.md)
 
-本页覆盖构建应用所需的扩展接口。Graph/Loop、部署、取消和 Sandbox 见 [Runtime API](runtime.zh-CN.md)，配置读取见 [配置 API](configuration.zh-CN.md)。所有示例使用公开包入口，完整代码在 [api.ts](../../examples/runtime/api.ts)，执行 `npm run example:runtime:api`。导入文件不会运行请求。
+本页覆盖构建应用所需的扩展接口。Graph/Loop、部署、取消和 Sandbox 见 [Runtime API](runtime.zh-CN.md)，配置读取见 [配置 API](configuration.zh-CN.md)。所有示例使用公开包入口，完整代码在 [api.ts](examples/runtime/api.ts)，执行 `npm run example:runtime:api`。导入文件不会运行请求。
 
 ## Node 与 Worker 定义
 
@@ -217,4 +217,4 @@ export function adaptRpc(request: (
 }
 ```
 
-随后 `createDitto({ transports: [adaptRpc(request)] })`，使用 `registerRemote({address,capabilities,transportId:"application-rpc"})` 登记已部署的 Worker；request 为应用已连接的客户端函数。完整地址交换和资源清理见 [placement.ts](../../examples/runtime/placement.ts)。
+随后 `createDitto({ transports: [adaptRpc(request)] })`，使用 `registerRemote({address,capabilities,transportId:"application-rpc"})` 登记已部署的 Worker；request 为应用已连接的客户端函数。完整地址交换和资源清理见 [placement.ts](examples/runtime/placement.ts)。

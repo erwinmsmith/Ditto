@@ -335,3 +335,5 @@ export function remoteContextRetrieval(runtime: import("@ditto/core").RuntimeCli
 内置 RETRIEVAL Worker 将 Runtime 当前 signal 传给 Provider 的 `RetrievalExecutionContext`，向量 embedding、数据库查询、融合与重排适配器继续传递它。直接调用示例：`await runtime.invoke("RETRIEVAL.SEARCH", { query: { content: "question" }, target: { name: "docs" } }, { signal: AbortSignal.timeout(5000) })`。MEMORY 和 CONTEXT 的委托适配器也会继承父调用上下文；CONTEXT 接入见 [Provider API](retrieval-providers.zh-CN.md#context-检索适配器)。HTTP/IPC 取消不等于服务端数据库执行已被取消。
 
 在 MEMORY Worker 内构造 `RemoteRetrievalSearchProvider` 时，可省略 runtime，继承本次执行绑定的 Runtime；显式 runtime 始终优先，独立 SDK 委托则必须提供它。例如 Worker 内可用 `new RemoteRetrievalSearchProvider({ target: { name: "memories" } })`。
+
+带持久化和来源定位的完整 Agent 任务见[信息检索与搜索工作流](search-workflows.zh-CN.md)。

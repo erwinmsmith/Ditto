@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { join } from "node:path";
 import {
   createContextWorker, createDitto, createInteractionWorker, createReadOnlyCommandTools, runToolCallFlow,
   type Context, type SandboxCommand, type SandboxExecutor,
 } from "../src/index.js";
-import { commandExecutor } from "../examples/interaction-tools.js";
+import { commandExecutor } from "../docs/worker-api/examples/interaction-tools.js";
 
 const toolNames = [
   "grep", "ls", "cat", "find", "head", "tail", "wc", "sort", "uniq", "cut", "stat", "file", "du", "pwd",
@@ -149,6 +151,9 @@ test("read-only command tools require explicit registration plus tool and execut
 });
 
 test("real POSIX read-only commands flow through Observation into Context", { skip: process.platform === "win32" }, async () => {
+  const fixtureDirectory = await mkdtemp(".test-dist/read-only-");
+  const fixturePath = join(fixtureDirectory, "lines.txt");
+  await writeFile(fixturePath, "bravo\nalpha\nalpha\n");
   const runtime = createDitto({
     sandbox: { tools: [...toolNames], execute: true }, sandboxExecutor: commandExecutor,
     workers: [createInteractionWorker({ tools: createReadOnlyCommandTools() }), createContextWorker()],
@@ -158,13 +163,13 @@ test("real POSIX read-only commands flow through Observation into Context", { sk
     const calls = [
       { id: "grep-live", name: "grep", arguments: { pattern: "A lightweight Node-native", paths: ["README.md"], fixedStrings: true } },
       { id: "ls-live", name: "ls", arguments: { path: "src" } },
-      { id: "cat-live", name: "cat", arguments: { path: "package.json" } },
+      { id: "cat-live", name: "cat", arguments: { path: fixturePath } },
       { id: "find-live", name: "find", arguments: { path: "src", name: "index.ts", type: "file", maxDepth: 4 } },
       { id: "head-live", name: "head", arguments: { path: "README.md", lines: 2 } },
       { id: "tail-live", name: "tail", arguments: { path: "README.md", lines: 2 } },
       { id: "wc-live", name: "wc", arguments: { path: "README.md", metric: "lines" } },
-      { id: "sort-live", name: "sort", arguments: { path: "package.json", unique: true } },
-      { id: "uniq-live", name: "uniq", arguments: { path: "package.json", count: true } },
+      { id: "sort-live", name: "sort", arguments: { path: fixturePath, unique: true } },
+      { id: "uniq-live", name: "uniq", arguments: { path: fixturePath, count: true } },
       { id: "cut-live", name: "cut", arguments: { path: "README.md", delimiter: " ", fields: "1" } },
       { id: "stat-live", name: "stat", arguments: { path: "README.md" } },
       { id: "file-live", name: "file", arguments: { path: "README.md" } },
@@ -175,8 +180,12 @@ test("real POSIX read-only commands flow through Observation into Context", { sk
       const result = await runToolCallFlow(runtime, { context, call });
       assert.equal(result.output.status, "success", `${call.name}: ${JSON.stringify(result.output.structuredContent)}`);
       assert.equal(result.observation.source, call.name);
+      if (call.name === "cat") assert.equal(result.output.content, "bravo\nalpha\nalpha\n");
+      if (call.name === "sort") assert.equal(result.output.content, "alpha\nbravo\n");
       context = result.context;
     }
     assert.equal(context.items.length, toolNames.length);
-  } finally { await runtime.close(); }
+  } finally {
+    try { await runtime.close(); } finally { await rm(fixtureDirectory, { recursive: true, force: true }); }
+  }
 });

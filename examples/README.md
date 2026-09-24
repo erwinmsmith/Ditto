@@ -1,157 +1,80 @@
-# Example guide
+# Ditto examples
 
-**English** · [简体中文](README.zh-CN.md) · [Worker API](../docs/worker-api/README.md)
+[简体中文](README.zh-CN.md) · [Project](../README.md) · [API reference](../docs/worker-api/README.md)
 
-This directory contains complete executable flows. Start with `graph-loop-worker.ts` to understand Graph, Loop, and Worker responsibilities, then use `interaction-tools.ts` for real commands and tool composition.
+This catalog organizes Agent topics into control flow, capabilities and execution patterns, describing how individual operations compose into task workflows.
 
-## Examples
+## Directory guide
 
-| File | Purpose | Command | Requirements |
-| --- | --- | --- | --- |
-| [graph-loop-worker.ts](graph-loop-worker.ts) | Compose file inspection, observation, and output in a Graph; iterate over two files with a Loop; implement the tool inside a Worker | `npm run example:agent` | Node 24+, npm 11+; no model, database, or MCP setup |
-| [interaction-tools.ts](interaction-tools.ts) | Register the optional read-only commands plus a low-level command example, then compose command output with SHA-256 | `npm run example:tools` | Same runtime; Linux or macOS with grep / uname / printf |
-| [runtime/quickstart.ts](runtime/quickstart.ts), [api.ts](runtime/api.ts), [flows.ts](runtime/flows.ts) | Starter and public APIs: custom nodes, lifecycle, events/artifacts and flows | `npm run example:runtime:quickstart` / `example:runtime:api` / `example:runtime:flows` | Local entrypoints need no external service; MCP/ReAct functions need injected services |
-| [runtime/](runtime/README.md) | Multiple graphs, independent Worker sandboxes, local IPC and cross-host HTTP | `npm run example:runtime` / `npm run example:runtime:placement` | No additional SDK or service |
-| [worker/](worker/README.md) | CONTEXT with Redis; MEMORY with SQLite/PostgreSQL/MySQL/Milvus | See subfolder commands | Optional SDKs and database connections |
+| Directory | Contents |
+| --- | --- |
+| [control-flow](control-flow/README.md) | 7 categories: sequencing, routing, parallelism, iteration, recovery, human intervention and lifecycle |
+| [capabilities](capabilities/README.md) | 12 categories of reusable Agent capabilities |
+| [patterns](patterns/README.md) | 16 execution patterns, including RAG, ReAct, research and multi-Agent coordination |
+| [_shared](_shared/README.md) | Common configuration and static inputs |
 
-Run all commands from the **repository root**. Install dependencies first:
+Each directory guide describes its topics, workflows and API boundaries. [quickstart.ts](quickstart.ts) provides a local runnable introduction; see the API examples below for model, database and deployment integration code.
+
+## Quickstart
+
+Use Node.js 24+ and npm 11+, from the repository root:
 
 ```bash
 npm ci
+npm run example:quickstart
 ```
 
-The first two example commands build the package before running TypeScript. Both configure Workers and Sandbox explicitly in code, without reading `.env` or `ditto.yaml` or requiring model credentials.
+This runs CONTEXT.LOAD → SELECT and returns a selection containing `Hello Ditto`, without model credentials or external services. Importing the module does not run it.
 
-## graph-loop-worker.ts: minimal Agent execution
+## Organization
 
-Learn how Graph, Loop, and Worker implementations form a complete flow.
+Keep individual topics in separate files and each pattern in its own directory. Use public package exports and keep Graph, Loop and state transitions visible within each example. Place common configuration and inputs in `_shared/`.
 
-| Component | Responsibility |
-| --- | --- |
-| `inspect` Graph | Compose ACT.TOOL → OBSERVE → OUTPUT; bind paths, call IDs, and observations |
-| `inspectFiles` Loop | Maintain paths/index; process two files and stop |
-| `inspect_text` tool | Read real files through Sandbox; count characters and newline-separated segments |
-| Interaction Worker | Register inspect_text and a console OutputSink |
-| Runtime | Grant tool/read permissions, run the Loop, then close |
+Applications own approval, retry, checkpoint persistence and task handoff. Agent roles and Worker deployment boundaries are separate concepts. Configure external services explicitly, supply credentials through environment variables and close resources in `finally`.
 
-```bash
-npm run example:agent
-```
+Run `npm run typecheck` from the repository root to check TypeScript types.
 
-Reads `README.md` and `package.json` and prints two JSON lines. Each contains a deliveryId and assistant message with path, characters, and lines. Counts vary with file contents. Neither input file is modified.
+## Validation requirements
 
-Change paths and maxIterations together to inspect other workspace files. Replace execute to supply another capability, then extend the Graph for additional processing. This file runs at the top level: **importing it also runs the example**. Use it as an executable or application entry-point reference.
+Acceptance covers input, Graph scheduling, real dependencies, result validation and final output. Model workflows must use real providers. Control-flow examples compose real model steps to verify that upstream data participates in inference. Database, tool and other service examples exercise their actual integration paths.
 
-## interaction-tools.ts: system commands and ordinary tools
+Unit tests and type checks provide fast regression coverage. Run end-to-end checks with a separate command that explicitly loads credentials and records the provider or service, timing, key inputs/outputs and pass/fail results. Fail with a nonzero exit code rather than substituting doubles or fixed answers. Use public package entrypoints and verify type resolution and execution against an installed package.
 
-The example explicitly registers all 14 reusable read-only command tools and a lower-level `linux` tool with the same injected executor. A SHA-256 tool consumes low-level command output in the same Worker/Graph.
+See [real-model sequence validation](control-flow/sequence/README.md#real-model-end-to-end-validation) for the runnable acceptance command.
 
-```text
-linux tool → OBSERVE → sha256 tool → OBSERVE → OUTPUT
-```
+## API integration examples
 
-| Export | Responsibility |
-| --- | --- |
-| `commandExecutor` | Use createLocalSandboxExecutor with literal command/args, workspace, timeout and output limit |
-| `readOnlyCommandTools` | The 14 optional bounded read-only command registrations from Core |
-| `linuxTool` | Validate arguments, call SandboxExecutor, return stdout/stderr/exitCode, and report nonzero exits as failed |
-| `sha256Tool` | Hash text from the preceding tool |
-| `CommandInput` | Graph input: id, command, args |
-| `commandGraph` | Command plus OBSERVE, reusable as the start of another flow |
-| `toolGraph` | Extend commandGraph with hashing, observation, and output |
+The [API examples](../docs/worker-api/examples/README.md) document public interfaces and service integration. See the [setup guide](../docs/worker-api/examples/guide.md), [Runtime examples](../docs/worker-api/examples/runtime/README.md) and [database integrations](../docs/worker-api/examples/integrations/README.md).
 
-```bash
-npm run example:tools
-```
+See [six routing examples](control-flow/routing/README.md) for execution and real-model acceptance checks.
 
-Before the Loop, `grep` searches README through ACT.TOOL and OBSERVE. The Loop then executes:
 
-1. `uname -s`: returns Darwin on macOS or Linux in Linux; hashes raw stdout including its trailing newline.
-2. `printf`: prints `Ditto: spaces; $(uname) stay literal` literally and hashes it. No shell is started, so command substitution does not execute.
+Task acceptance ends at a business outcome. Successful inference, a successful tool status or a finished Graph is only intermediate evidence. Run from actual inputs to inspectable artifacts or explicit failure, blocking, approval or human-queue states. File workflows must decode/OCR/transcribe real files; writes must be read back, approvals must cover accept/reject/resume, and retries must verify that effects are not duplicated. Reopen persistent stores to verify durability.
 
-The first JSON line is the grep Observation. Two later lines use delivery IDs `os:delivery` and `literal:delivery`; their messages contain the command result and SHA-256 digest. A failed command prevents hashing.
+Full routing task acceptance: `npm run check:examples:routing:tasks:package`. See [file ingestion tools](_shared/tools/file-ingestion/README.md) for installation and configuration.
 
-The example executor enables the 14 read-only commands plus uname, printf, and false; the latter commands support the lower-level example and integration tests. It limits execution to 5 seconds and output to 64 KiB. This is explicit local process execution, not OS isolation. Inject a container or SSH executor for other deployment needs without changing the Tool contract.
+Parallel task acceptance: `npm run check:examples:parallel:tasks:package`; see [four parallel workflows](control-flow/parallel/README.md).
 
-The example runs only when invoked directly. Importing its exported executor, tools, or Graphs does not execute commands.
+Iteration task acceptance: `npm run check:examples:iteration:tasks:package`; see [six loop workflows](control-flow/iteration/README.md).
 
-## API examples and live checks
+Recovery task acceptance: `npm run check:examples:recovery:tasks:package`; see [eight recovery workflows](control-flow/recovery/README.md).
 
-| Entry | Purpose | Usage |
-| --- | --- | --- |
-| [API example guide](../docs/worker-api/examples/README.md) | MEMORY, INFER, INTERACTION, and optional RETRIEVAL; individual function explanations | Inject application resources and call the chosen function; these are not automatically executed applications |
-| [MCP live script](../scripts/check-interaction-mcp-live.mjs) | Real command → MCP file read → SHA-256 → OUTPUT | Install optional SDKs using the [MCP](#mcp) instructions below, then run `npm run check:interaction:mcp:live -- <dependency-directory>` |
-| [INFER live script](../scripts/check-infer-live.ts) | Validate sampling and reasoning against configured real models | Configure `.env` using the [INFER](#infer) instructions below, then run `npm run check:infer:live -- --provider <name>` |
-| [Web search live script](../scripts/check-interaction-web-search-live.mjs) | Brave Search → ACT.TOOL → OBSERVE → CONTEXT.UPDATE | Set `DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY`, then run `npm run check:interaction:web-search:live -- "query"` |
+[Human intervention APIs and examples](control-flow/human/README.md): approval before execution, intermediate confirmation, edited continuations, reviewed publication and human handoff.
 
-### Web search
+[Task lifecycle APIs and examples](control-flow/lifecycle/README.md): state tracking, guarded execution, safe stopping, scheduled triggers and event triggers.
 
-The live script explicitly creates the Brave adapter and `web_search` Tool, grants the Tool plus the exact Brave origin, and verifies that real results become an Observation and one Context item. It prints normalized results but never the API key. Core does not read this environment variable; the script is the application layer that injects it.
+[Public API boundaries and unified package acceptance](../docs/worker-api/control-flow.md): capability mapping for 38 examples, strict external consumer types and real task verification.
 
-```bash
-DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY="..." npm run check:interaction:web-search:live -- "Ditto agent runtime"
-```
+[Request understanding and interaction](capabilities/understanding/README.md): six capabilities and complete report tasks; package verification: `npm run check:examples:understanding:tasks:package`.
 
-### MCP
+[Context / Memory storage](_shared/tools/storage/README.md): Agent examples use Redis Context and database Memory, with separate business state. Subsequent examples follow the same storage and end-to-end verification contract.
 
-Install the optional MCP SDK and filesystem server used by the script, then run the command, file-reading, and tool composition flow:
+[Planning and task management](capabilities/planning/README.md): five capabilities and actual replenishment tasks; package verification: `npm run check:examples:planning:tasks:package`.
 
-```bash
-mcp_deps="$(mktemp -d)"
-npm install --prefix "$mcp_deps" --no-audit --no-fund --ignore-scripts \
-  @modelcontextprotocol/sdk@1.30.0 \
-  @modelcontextprotocol/server-filesystem@2026.8.31
-npm run check:interaction:mcp:live -- "$mcp_deps"
-```
+[Document and multimodal understanding](capabilities/multimodal/README.md): eight capabilities, real media parsing and complete tasks; package gate `npm run check:examples:multimodal:tasks:package`.
 
-### INFER
+[Data and code capabilities](capabilities/data-and-code/README.md): twelve workflows and complete task acceptance; `npm run check:examples:data-code:tasks:package`.
 
-Create `.env` from root [`.env.example`](../.env.example) and fill in provider settings; set reasoning parameters in [`ditto.yaml`](../ditto.yaml). See the [configuration API](../docs/worker-api/configuration.md) for fields. Use a provider name matching your configuration:
+[Validation and safety](capabilities/validation/README.md): nine workflows, enforced publication gates and complete task acceptance; `npm run check:examples:validation:tasks:package`.
 
-```bash
-npm run check:infer:live -- --provider deepseek
-```
-
-Use `--strategies cot,tot,got` to select strategies, `--cases sample,tot` to select cases, and `--max-tokens 4096` to set the token budget for this run. `--report path` sets the output file; the default is the Git-ignored `.infer-live-results.json`.
-
-## CONTEXT / Redis
-
-`createContext()` runs explicit Context examples without a cache. Cached calls need application-provided Redis and its SDK. Run from the repository root:
-
-```bash
-redis_deps="$(mktemp -d)"
-npm install --prefix "$redis_deps" --no-audit --no-fund --ignore-scripts redis@6.2.1
-DITTO_WORKER_CONTEXT_REDIS_URL=redis://127.0.0.1:6379 npm run check:context:redis:live -- "$redis_deps"
-```
-
-Install `redis` in the application, construct a connection using the URL from `.env`, and inject it into the Worker. Load env explicitly with Node `--env-file=.env` or your application loader:
-
-```ts
-import { createClient } from "redis";
-import { createContextWorker, createDitto, loadRuntimeConfigFile } from "@ditto/core";
-const config = loadRuntimeConfigFile("ditto.yaml", process.env);
-const redis = createClient({ url: process.env.DITTO_WORKER_CONTEXT_REDIS_URL });
-redis.on("error", () => { /* Application logging/health reporting. */ });
-await redis.connect();
-const runtime = createDitto({ config, workers: [createContextWorker({
-  ...(config.context.policy ? { policy: config.context.policy } : {}),
-  redis: { client: redis, ...config.context.cache },
-})] });
-try {
-  const scope = { sessionId: "tenant-a:session-1" };
-  await runtime.invoke("CONTEXT.LOAD", { scope, sources: [{ role: "user", content: "hello" }] });
-  const selected = await runtime.invoke("CONTEXT.SELECT", { scope, purpose: "infer" });
-  console.log(selected.context);
-} finally {
-  await runtime.close();
-  await redis.quit();
-}
-```
-
-[CONTEXT example functions](../docs/worker-api/examples/README.md#contextts) · [Complete API](../docs/worker-api/context.md)
-
-## CONTEXT and RETRIEVAL composition
-
-[worker/context-retrieval.ts](worker/context-retrieval.ts) compares inline CONTEXT retrieval and an optional RETRIEVAL Worker using real SQLite FTS5. It includes local cache/queue resources, reference resolution and a LOAD → SELECT Graph. Run `npm run example:worker:context-retrieval` without external credentials; see the [Worker example guide](worker/README.md#context-caching-and-optional-retrieval).
-
-`interaction-tools.ts` reuses Core's createLocalSandboxExecutor, with timeoutMs/maxOutputBytes from runtime.sandbox in root YAML, instead of maintaining a second process implementation. Run `npm run example:tools` for the command → OBSERVE → SHA-256 → OUTPUT Graph/Loop.
+See [public API composition](../docs/worker-api/capability-composition.md) for the unified release gate across all Agent capabilities.

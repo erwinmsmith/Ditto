@@ -2,7 +2,7 @@
 
 [English / 简体中文](flows.md) · [Runtime](runtime.zh-CN.md) · [API](README.zh-CN.md)
 
-这些函数从 `@ditto/core/runtime` 导出，组合已有公开节点。完整代码见 [flows.ts](../../examples/runtime/flows.ts)。运行 `npm run example:runtime:flows` 会执行 Skill、文本 RAG 和真实 README 工具读取；MCP/ReAct 函数需要调用者提供已连接客户端或模型配置，不会自动运行。
+这些函数从 `@ditto/core/runtime` 导出，组合已有公开节点。完整代码见 [flows.ts](examples/runtime/flows.ts)。运行 `npm run example:runtime:flows` 会执行 Skill、文本 RAG 和真实 README 工具读取；MCP/ReAct 函数需要调用者提供已连接客户端或模型配置，不会自动运行。
 
 ## Context 流程
 

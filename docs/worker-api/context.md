@@ -132,7 +132,7 @@ These two helpers take explicit Context; cached Graphs can invoke the four nodes
 
 ContextError exposes code/message. Redis SDK, user-service, Runtime routing and transport exceptions can also reject directly. There are no background retries or successful empty results hiding failures.
 
-Complete callable source: [examples/context.ts](examples/context.ts). Functions share the imports below and do not execute on import. See the [example guide](../../examples/README.md#context--redis) for SDK installation and connection.
+Complete callable source: [examples/context.ts](examples/context.ts). Functions share the imports below and do not execute on import. See the [example guide](examples/guide.md#context--redis) for SDK installation and connection.
 
 ```ts
 import {
@@ -412,7 +412,7 @@ export function remoteContextRetrieval(runtime: import("@ditto/core").RuntimeCli
 }
 ```
 
-Runnable database integration examples: [examples/worker](../../examples/worker/README.md), including SDK installation, env settings, invocation and cleanup.
+Runnable database integration examples: [examples/worker](examples/integrations/README.md), including SDK installation, env settings, invocation and cleanup.
 
 ## Local cache, queues and reference loading
 
@@ -448,4 +448,6 @@ await queue.enqueue(scope, async () => "application operation");
 
 All SDK methods accept optional `ContextCallOptions` after input; execute accepts it as the third argument. `signal` propagates to selectors, RAG stages, compressors, token estimation, reference resolution, cache and queue ports. These ports accept options after their existing arguments (fourth for compareAndSet). Cancellation rejects the SDK call; cancellation before persistence prevents CAS. Cancellation cannot undo a completed external write. Runtime Workers supply the current signal and an invocation-bound `runtime` for nested delegation; applications normally only set signal.
 
-For reusable inline or delegated database retrieval, see [Context retrieval adapter](retrieval-providers.md#context-retrieval-adapter) and the runnable [SQLite example](../../examples/worker/context-retrieval.ts).
+For reusable inline or delegated database retrieval, see [Context retrieval adapter](retrieval-providers.md#context-retrieval-adapter) and the runnable [SQLite example](examples/integrations/context-retrieval.ts).
+
+[Complete context workflows](context-workflows.md) show public Runtime composition, semantic summarization, durable checkpoints and package-consumer validation.

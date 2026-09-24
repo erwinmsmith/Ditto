@@ -20,7 +20,7 @@ Use `createIpcTransport({ id, channel: child, timeoutMs })` with a ChildProcess 
 
 IPC reuses the inherited channel without a TCP port or network token. Calls still pass through envelopes, target identity checks, public capabilities and capacity limits; business payloads must remain serializable. Timeout, cancellation and disconnect stop the caller's wait without rolling back or forcibly terminating remote work. Applications own process/transport lifetime; call ipc.close() during shutdown. Receiver.close() detaches intake and drains accepted replies.
 
-See [placement.ts](../examples/runtime/placement.ts) for both modes and [Runtime API](worker-api/runtime.md) for detailed interfaces.
+See [placement.ts](worker-api/examples/runtime/placement.ts) for both modes and [Runtime API](worker-api/runtime.md) for detailed interfaces.
 
 ## HTTP Example
 

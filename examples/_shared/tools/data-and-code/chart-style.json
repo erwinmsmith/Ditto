@@ -1,0 +1,36 @@
+{
+  "id": 7,
+  "title": "Order value by region and status",
+  "width": 1094,
+  "height": 752,
+  "dpi": 100,
+  "font": "Arial",
+  "font_size": 22,
+  "line_width": 1.3,
+  "seed": 190913,
+  "annotation_policy": "none",
+  "annotations": [],
+  "groups": [
+    "paid",
+    "pending",
+    "refunded"
+  ],
+  "categories": [
+    "East",
+    "North",
+    "West"
+  ],
+  "colors": [
+    "#383838",
+    "#e8a625",
+    "#58a3ad"
+  ],
+  "axes": [
+    106,
+    127,
+    723,
+    563
+  ],
+  "ylabel": "Order value (USD)",
+  "title_en": "Order value by region and status"
+}
