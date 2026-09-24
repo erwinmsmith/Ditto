@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/erwinmsmith/Ditto/main/logo_project.png" alt="Ditto logo" width="280" />
+  <img src="./logo_project.png" alt="Ditto logo" width="280" />
 </p>
 
 <h1 align="center">Ditto</h1>
@@ -14,6 +14,8 @@
 </p>
 
 > The definition is [Node System and API Contract](https://github.com/erwinmsmith/Ditto/blob/main/docs/13-node-api-contract.md). It contains the final Node tree, semantic boundaries, fixed shared types, and every public Node input/output contract.
+
+[Developer handbook](docs/handbook/index.md) · [Build the documentation site](site/README.md)
 
 ## Install and use
 

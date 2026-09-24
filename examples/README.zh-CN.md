@@ -1,5 +1,7 @@
 # Ditto 示例
 
+[开发者手册示例](handbook/README.zh-CN.md)：自定义 Worker、Skill、数据库排序与真实 MCP。
+
 [English](README.md) · [项目首页](../README.zh-CN.md) · [API 参考](../docs/worker-api/README.zh-CN.md)
 
 本目录围绕控制流程、Agent 基础能力和执行模式组织示例主题，介绍从单项能力到完整任务模式的组合方式。

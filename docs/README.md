@@ -1,5 +1,7 @@
 # Documentation Map
 
+[Developer handbook](handbook/index.md) (中文): project structure, Graph/Loop, tools, MCP, skills, database algorithms and Worker extensions.
+
 **English** · [简体中文](README.zh-CN.md)
 
 Start with the architecture and development guides, then follow the references for Worker communication, configuration, and capability extensions. Every guide is available in English and Simplified Chinese.

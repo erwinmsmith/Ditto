@@ -47,7 +47,7 @@ Run `node --env-file=.env app.ts` on Node.js 24+. TypeScript uses NodeNext witho
 | runPlanning(runtime, { ...input, objective }, options?) | Validate/persist model-proposed tasks, execute their IDs with default concurrency 3; returns `{ plan, planning, report, receipt, output }` |
 | runPartial(runtime, input, { signal }?) | Up to eight independent Graphs collected with Promise.allSettled; returns `{ orders, failures, report, receipt }` |
 
-Runtime is Pick<DittoRuntime, "run"> and remains caller-owned. BatchInput contains id, sources (`{ id, path, description }[]`) and model. Dynamic task IDs use runtime-keyed output maps, while Graph still rejects duplicate nodes and unknown dependencies. Fixed Graph dependency typing remains available.
+Runtime is `Pick<DittoRuntime, "run">` and remains caller-owned. BatchInput contains id, sources (`{ id, path, description }[]`) and model. Dynamic task IDs use runtime-keyed output maps, while Graph still rejects duplicate nodes and unknown dependencies. Fixed Graph dependency typing remains available.
 
 ## Scheduling and failure semantics
 

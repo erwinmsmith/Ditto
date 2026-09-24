@@ -24,7 +24,7 @@ import { createBraveWebSearchProvider, createInteractionWorker, createReadOnlyCo
 | `observeExternalResult(input)` | 同步返回 Observation；纯标准化函数 |
 | `RegisteredTool.validate / execute` | 应用工具接口，execute 返回 ToolExecutionOutcome |
 | `McpClient.listTools / callTool` | 应用拥有的 SDK 客户端适配接口 |
-| `OutputSink.deliver` | Promise<OutputReceipt>；交付通道接口 |
+| `OutputSink.deliver` | `Promise<OutputReceipt>`；交付通道接口 |
 
 | Node | Input | Output |
 | --- | --- | --- |
@@ -143,7 +143,7 @@ export const consoleSink: OutputSink = {
 | Option | 类型 / 默认行为 |
 | --- | --- |
 | `tools?` | readonly RegisteredTool[] 或 ToolRegistry；缺省为空，仍注册 TOOL |
-| `mcp?` | Readonly<Record<string, McpClient>> 或 McpRegistry；省略则不注册 MCP |
+| `mcp?` | `Readonly<Record<string, McpClient>>` 或 McpRegistry；省略则不注册 MCP |
 | `output?` | OutputSink；省略则不注册 OUTPUT |
 | `concurrency?` | 正整数；每副本的并发入口限制，默认不限 |
 
@@ -180,7 +180,7 @@ export async function invokeTool() {
 
 ### ToolRegistry.register / list / call
 
-`new ToolRegistry()` 创建空注册表；`register(tool)` 返回 `() => boolean`，首次移除成功为 true，再次为 false。重复名称或非法名称立即抛错。`list(context)` 只列出 Sandbox 允许的定义，不包含执行函数；`call(call, context)` 返回 Promise<ExternalResult>。context 应来自 Worker handler，不要自行伪造权限上下文。
+`new ToolRegistry()` 创建空注册表；`register(tool)` 返回 `() => boolean`，首次移除成功为 true，再次为 false。重复名称或非法名称立即抛错。`list(context)` 只列出 Sandbox 允许的定义，不包含执行函数；`call(call, context)` 返回 `Promise<ExternalResult>`。context 应来自 Worker handler，不要自行伪造权限上下文。
 ```ts
 export async function toolRegistryApis(context: WorkerContext<unknown, unknown>) {
   const tools = new ToolRegistry();

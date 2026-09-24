@@ -47,7 +47,7 @@ Environment variables use matching ownership prefixes with comment sections:
 | Owner | Prefix |
 | --- | --- |
 | Runtime | DITTO_RUNTIME_* |
-| Shared providers | DITTO_SHARED_PROVIDERS, DITTO_SHARED_PROVIDER_<NAME>_* |
+| Shared providers | DITTO_SHARED_PROVIDERS, `DITTO_SHARED_PROVIDER_<NAME>_*` |
 | Shared permissions | DITTO_SHARED_SANDBOX_ALLOW_* |
 | INFER Worker | DITTO_WORKER_INFER_* |
 | HTTP transport | DITTO_TRANSPORT_HTTP_* |
@@ -58,7 +58,7 @@ INFER, MEMORY and optional RETRIEVAL consume Worker-specific settings; database 
 
 | Source | Settings |
 | --- | --- |
-| `.env` | DITTO_RUNTIME_ENV, DITTO_RUNTIME_WORKSPACE; enabled DITTO_SHARED_PROVIDERS; paired DITTO_WORKER_INFER_MODEL_PROVIDER/DITTO_WORKER_INFER_MODEL; per-provider DITTO_SHARED_PROVIDER_<NAME>_KIND/BASE_URL/API_KEY/MODEL; DITTO_SHARED_SANDBOX_ALLOW_NETWORK/TOOLS/MCP/SKILLS/READ/WRITE/EXECUTE permissions; explicit HTTP Worker bootstrap token |
+| `.env` | DITTO_RUNTIME_ENV, DITTO_RUNTIME_WORKSPACE; enabled DITTO_SHARED_PROVIDERS; paired DITTO_WORKER_INFER_MODEL_PROVIDER/DITTO_WORKER_INFER_MODEL; per-provider `DITTO_SHARED_PROVIDER_<NAME>_KIND`/BASE_URL/API_KEY/MODEL; DITTO_SHARED_SANDBOX_ALLOW_NETWORK/TOOLS/MCP/SKILLS/READ/WRITE/EXECUTE permissions; explicit HTTP Worker bootstrap token |
 | `ditto.yaml` | Runtime timeout and ReAct turns, INFER generation/trajectory budgets/strategy parameters, ReAct action budget, provider request behavior, MEMORY query/search limits |
 | Node input | Messages, model, candidates, criteria and optional per-request overrides |
 
@@ -110,8 +110,8 @@ All fields are optional. Request values take precedence over configuration, then
 | workers.infer.deliberate.generation | Node-specific GenerationConfig, overrides shared INFER generation defaults | Inherit / maxTokens=4096 |
 | runtime.react.maxActionCalls | Maximum ReAct actions, nonnegative safe integer | 16 / 16 |
 | runtime.react.maxTotalTokens | Total ReAct sampling tokens, positive safe integer | Unlimited / 64000 |
-| shared.providers.<name>.maxTokensField | max_tokens or max_completion_tokens; OpenAI-compatible only | Adapter uses max_completion_tokens when omitted |
-| shared.providers.<name>.options | Native provider request object, e.g. thinking settings | Empty |
+| `shared.providers.<name>.maxTokensField` | max_tokens or max_completion_tokens; OpenAI-compatible only | Adapter uses max_completion_tokens when omitted |
+| `shared.providers.<name>.options` | Native provider request object, e.g. thinking settings | Empty |
 
 Provider names in YAML configure behavior without enabling providers. DITTO_SHARED_PROVIDERS selects the active names; inactive YAML entries can remain as shared templates.
 

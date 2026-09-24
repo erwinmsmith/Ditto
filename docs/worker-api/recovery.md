@@ -104,7 +104,7 @@ All tools use INTERACTION.ACT.TOOL and take id:
 | recovery_checkpoint | kind, operation; verify committed receipt/fingerprint and save stage |
 | recovery_state | stage, error; persist allowed pause/timeout/uncertain/review/failure transitions |
 | recovery_context | context, answer; retain restored conversation |
-| recovery_report | Reread Job and write results/<id>.json |
+| recovery_report | Reread Job and write `results/<id>.json` |
 
 Failures may return ExternalResult status or throw. Binders explicitly check status. Successful operation interactions return an Operation; its state:rejected represents business rejection, allowing the application to enter compensation.
 

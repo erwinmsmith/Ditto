@@ -1,5 +1,7 @@
 # Ditto examples
 
+[Handbook examples](handbook/README.md): custom Workers, Skills, database ranking and real MCP.
+
 [简体中文](README.zh-CN.md) · [Project](../README.md) · [API reference](../docs/worker-api/README.md)
 
 This catalog organizes Agent topics into control flow, capabilities and execution patterns, describing how individual operations compose into task workflows.

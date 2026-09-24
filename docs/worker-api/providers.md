@@ -101,7 +101,7 @@ const response = await runtime.invoke("INFER.REASONING.SAMPLE", {
 await runtime.close();
 ```
 
-Load the example configuration explicitly: DITTO_SHARED_PROVIDERS=deepseek,openai,glm,claude,gemini,local, with DITTO_SHARED_PROVIDER_<NAME>_KIND/BASE_URL/API_KEY/MODEL for each entry. Names match [a-z][a-z0-9_]* and must be unique. Default base URLs by kind are https://api.openai.com/v1, https://api.anthropic.com/v1, and https://generativelanguage.googleapis.com/v1beta. Allow the corresponding origins through DITTO_SHARED_SANDBOX_ALLOW_NETWORK.
+Load the example configuration explicitly: DITTO_SHARED_PROVIDERS=deepseek,openai,glm,claude,gemini,local, with `DITTO_SHARED_PROVIDER_<NAME>_KIND`/BASE_URL/API_KEY/MODEL for each entry. Names match [a-z][a-z0-9_]* and must be unique. Default base URLs by kind are https://api.openai.com/v1, https://api.anthropic.com/v1, and https://generativelanguage.googleapis.com/v1beta. Allow the corresponding origins through DITTO_SHARED_SANDBOX_ALLOW_NETWORK.
 
 DITTO_WORKER_INFER_MODEL_PROVIDER and DITTO_WORKER_INFER_MODEL must be configured together; callers supply the model field on each request. Runtime never implicitly loads environment/files. Supplying createDitto({ providers }) skips provider construction from config.providers.
 

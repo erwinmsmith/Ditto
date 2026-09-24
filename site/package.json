@@ -1,0 +1,15 @@
+{
+  "name": "ditto-documentation-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node prepare.mjs && vitepress dev .",
+    "build": "node prepare.mjs && vitepress build . && node check.mjs",
+    "preview": "vitepress preview . --host 127.0.0.1",
+    "check:examples": "node check-examples.mjs"
+  },
+  "devDependencies": {
+    "github-slugger": "^2.0.0",
+    "vitepress": "1.6.4"
+  }
+}

@@ -170,11 +170,11 @@ LocalEventFabric is an in-process asynchronous broadcast with no persistence, ne
 | API | Input, output and semantics |
 | --- | --- |
 | `new InMemoryArtifactStore()` | Process-local Map without TTL, capacity limits or persistence |
-| `store.put(value)` | Promise<Reference>, creating ditto://artifact/...; retains the original object identity |
-| `store.get(reference)` | Promise<unknown>; missing references throw; callers validate the value |
-| `store.delete(reference)` | Promise<boolean>, whether an existing entry was removed |
+| `store.put(value)` | `Promise<Reference>`, creating ditto://artifact/...; retains the original object identity |
+| `store.get(reference)` | `Promise<unknown>`; missing references throw; callers validate the value |
+| `store.delete(reference)` | `Promise<boolean>`, whether an existing entry was removed |
 | `new PayloadCodec(store?, inlineLimitBytes?)` | Defaults to 65536 bytes; finite nonnegative threshold |
-| `codec.encode(value)` | Promise<Payload>; with a store, JSON UTF-8 size above threshold produces a reference, otherwise inline |
+| `codec.encode(value)` | `Promise<Payload>`; with a store, JSON UTF-8 size above threshold produces a reference, otherwise inline |
 | `codec.decode(payload)` | Inline returns value; reference calls store.get and throws if no store exists |
 
 ```ts

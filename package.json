@@ -317,7 +317,10 @@
     "example:package:retrieval": "npm run build && node examples/package-basics/retrieval.ts",
     "example:package:agent": "npm run build && node --env-file=.env examples/package-basics/agent.ts",
     "check:package:basics": "npm run build && node scripts/check-package-basics.ts",
-    "check:package:basics:live": "npm run build && node --env-file=.env scripts/check-package-basics.ts --live"
+    "check:package:basics:live": "npm run build && node --env-file=.env scripts/check-package-basics.ts --live",
+    "docs:build": "npm run build --prefix site",
+    "docs:preview": "npm run preview --prefix site",
+    "docs:dev": "npm run dev --prefix site"
   },
   "engines": {
     "node": ">=24.0.0",

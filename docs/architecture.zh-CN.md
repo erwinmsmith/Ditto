@@ -48,7 +48,7 @@ Memory 与 Context 提供可执行节点及类型化 Contract；数据库由应�
 `contracts/` 是类型协议，不是独立业务层，也没有执行器、存储或模型逻辑：
 
 - `common.ts`：跨 Worker 共享的 Message、Reference 和 JSON 数据类型。
-- `node-contract-map.ts`：通用 NodeContract<Input, Output>、开放的 NodeContractMap 接口，以及 InputOf / OutputOf 类型推导。
+- `node-contract-map.ts`：通用 `NodeContract<Input, Output>`、开放的 NodeContractMap 接口，以及 InputOf / OutputOf 类型推导。
 - `index.ts`：仅用 type 导出，作为 npm 包的统一类型入口；包含各 Worker 的契约声明。
 
 具体类型和 Node 名称的映射一起归属对应 Worker。例如 MemoryItem、MemoryGetInput 和 MEMORY.GET 的声明都在 `worker/memory/contracts.ts`。增加 Memory 的操作时，在 Memory 内补充契约及 handler；不需要修改 Runtime 或中央操作枚举。这些 TypeScript 类型在编译后擦除，不参与运行路由，也不提供网络输入校验。

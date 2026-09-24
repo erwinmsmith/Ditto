@@ -1,5 +1,7 @@
 # 文档地图
 
+[开发者搭建手册](handbook/index.md)：从项目结构、Graph/Loop 到 Tool、MCP、Skill、数据库算法与 Worker 扩展。
+
 [English](README.md) · **简体中文**
 
 建议先读架构和开发指南，再按需要阅读 Worker 通信、配置和能力扩展文档。所有指南均提供英文与简体中文版本。

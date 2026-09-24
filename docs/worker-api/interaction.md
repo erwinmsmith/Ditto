@@ -24,7 +24,7 @@ import { createBraveWebSearchProvider, createInteractionWorker, createReadOnlyCo
 | `observeExternalResult(input)` | Synchronously returns Observation; pure normalization |
 | `RegisteredTool.validate / execute` | Application tool port; execute returns ToolExecutionOutcome |
 | `McpClient.listTools / callTool` | Application-owned SDK client port |
-| `OutputSink.deliver` | Promise<OutputReceipt>; delivery port |
+| `OutputSink.deliver` | `Promise<OutputReceipt>`; delivery port |
 
 | Node | Input | Output |
 | --- | --- | --- |
@@ -143,7 +143,7 @@ export const consoleSink: OutputSink = {
 | Option | Type / default behavior |
 | --- | --- |
 | `tools?` | readonly RegisteredTool[] or ToolRegistry; empty by default, TOOL remains exposed |
-| `mcp?` | Readonly<Record<string, McpClient>> or McpRegistry; omission leaves MCP unexposed |
+| `mcp?` | `Readonly<Record<string, McpClient>>` or McpRegistry; omission leaves MCP unexposed |
 | `output?` | OutputSink; omission leaves OUTPUT unexposed |
 | `concurrency?` | Positive integer limiting concurrent calls per replica; unlimited by default |
 
@@ -180,7 +180,7 @@ export async function invokeTool() {
 
 ### ToolRegistry.register / list / call
 
-new ToolRegistry() starts empty. register(tool) returns an unregister callback: true once, false afterwards. Invalid/duplicate names throw immediately. list(context) returns permitted definitions without executable functions. call(call, context) returns Promise<ExternalResult>. Use a genuine Worker context.
+new ToolRegistry() starts empty. register(tool) returns an unregister callback: true once, false afterwards. Invalid/duplicate names throw immediately. list(context) returns permitted definitions without executable functions. call(call, context) returns `Promise<ExternalResult>`. Use a genuine Worker context.
 ```ts
 export async function toolRegistryApis(context: WorkerContext<unknown, unknown>) {
   const tools = new ToolRegistry();

@@ -33,3 +33,7 @@ __pycache__/
 *.log
 *.pid
 *.tmp
+
+# Generated Markdown staging and documentation output.
+site/.content/
+site/.vitepress/cache/

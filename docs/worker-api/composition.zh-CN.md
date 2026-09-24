@@ -170,11 +170,11 @@ LocalEventFabric 是进程内异步广播，无持久化、跨机传递、容量
 | API | 输入、输出与语义 |
 | --- | --- |
 | `new InMemoryArtifactStore()` | 进程内 Map，无 TTL/容量限制/持久化 |
-| `store.put(value)` | Promise<Reference>，生成 ditto://artifact/... URI；保存原对象引用 |
-| `store.get(reference)` | Promise<unknown>；不存在时抛错，调用者检查数据类型 |
-| `store.delete(reference)` | Promise<boolean>，返回是否存在并已删除 |
+| `store.put(value)` | `Promise<Reference>`，生成 ditto://artifact/... URI；保存原对象引用 |
+| `store.get(reference)` | `Promise<unknown>`；不存在时抛错，调用者检查数据类型 |
+| `store.delete(reference)` | `Promise<boolean>`，返回是否存在并已删除 |
 | `new PayloadCodec(store?, inlineLimitBytes?)` | 默认 65536 字节；阈值为有限非负数 |
-| `codec.encode(value)` | Promise<Payload>；有 store 且 JSON UTF-8 字节数大于阈值时返回 reference，否则 inline |
+| `codec.encode(value)` | `Promise<Payload>`；有 store 且 JSON UTF-8 字节数大于阈值时返回 reference，否则 inline |
 | `codec.decode(payload)` | inline 直接返回 value；reference 使用 store.get，无 store 则抛错 |
 
 ```ts

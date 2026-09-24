@@ -48,7 +48,7 @@ Memory and Context provide executable nodes and typed contracts. Applications in
 `contracts/` defines a type protocol, not an independent business layer. It contains no executors, storage, or model logic:
 
 - `common.ts`: Message, Reference, and JSON data types shared across Workers.
-- `node-contract-map.ts`: generic NodeContract<Input, Output>, the open NodeContractMap interface, and InputOf / OutputOf type inference.
+- `node-contract-map.ts`: generic `NodeContract<Input, Output>`, the open NodeContractMap interface, and InputOf / OutputOf type inference.
 - `index.ts`: type-only exports forming the package's unified type entry, including each Worker's contract declarations.
 
 Concrete data types and Node-name mappings belong to the relevant Worker. For example, MemoryItem, MemoryGetInput, and MEMORY.GET are all declared in `worker/memory/contracts.ts`. Adding a Memory operation means adding its contract and handler within Memory, without modifying the Runtime or a central operation enum. These TypeScript types are erased during compilation; they do not participate in runtime routing or validate network input.

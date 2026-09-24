@@ -117,7 +117,7 @@ Graph 停止调度新节点后会等待已开始节点结束。取消 fetch 可�
 | recovery_checkpoint | kind、operation；校验远端已提交结果的指纹和凭据，保存相应阶段 |
 | recovery_state | stage、error；保存允许的暂停、超时、未知、复核或失败状态 |
 | recovery_context | context、answer；持久保存恢复后的对话 |
-| recovery_report | 重新读取 Job 并写入 results/<id>.json |
+| recovery_report | 重新读取 Job 并写入 `results/<id>.json` |
 
 调用失败可能以 ExternalResult.status 返回，也可能抛异常。绑定函数显式检查状态。`recovery_operation` 查询或提交成功时，structuredContent 是 Operation；其中 state:rejected 是业务拒绝，不是 HTTP 交互失败，应用据此进入补偿分支。
 
@@ -128,7 +128,7 @@ Graph 停止调度新节点后会等待已开始节点结束。取消 fetch 可�
 | 请求 | 语义 |
 | --- | --- |
 | GET /catalog/primary?sku=…、/catalog/backup?sku=… | 读取 `{ sku, available, source }` |
-| GET /operations/<key> | 查询 `{ state, fingerprint?, result?, code? }` |
+| `GET /operations/<key>` | 查询 `{ state, fingerprint?, result?, code? }` |
 | POST /reserve、/ship、/release | `{ key, order, reservationKey }`；提交持久幂等操作 |
 
 稳定 key 为 `<id>-<kind>`，fingerprint 包含操作类型、规范化订单和预留键。服务先登记 pending，再执行事务；重复请求只能看到原操作，参数不一致返回冲突。查询结果：

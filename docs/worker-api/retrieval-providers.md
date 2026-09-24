@@ -166,7 +166,7 @@ const database = createMilvusSearchProvider({
 const vector = createVectorSearchProvider({ backend: database, embedding });
 ```
 
-MilvusSearchOptions<Hit> contains collection/vectorField/outputFields/search/mapHit/scope?/params?. search receives `{ collection_name, anns_field, data, limit, output_fields, filter?, exprValues?, partition_names?, params? }` and context. A single query's data is `[vector]` or `[text]`. Return `{ status: { code?, error_code?, reason? }, results: Hit[] }`, matching the Node client's flattened single-query results; adapt other SDK shapes in the callback. Failed statuses never become empty success.
+`MilvusSearchOptions<Hit>` contains collection/vectorField/outputFields/search/mapHit/scope?/params?. search receives `{ collection_name, anns_field, data, limit, output_fields, filter?, exprValues?, partition_names?, params? }` and context. A single query's data is `[vector]` or `[text]`. Return `{ status: { code?, error_code?, reason? }, results: Hit[] }`, matching the Node client's flattened single-query results; adapt other SDK shapes in the callback. Failed statuses never become empty success.
 
 mapHit owns ID, content and score interpretation. For example, lower L2 distance is better; explicitly transform it if the application needs higher-is-better scores. The adapter does not change scores. namespace/filter requires a scope mapper, which must reject unsupported conditions. input.options is not spread into Milvus requests and cannot override a fixed collection.
 
