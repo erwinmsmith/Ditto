@@ -16,15 +16,15 @@ These workflows reuse exported Runtime, Graph, Context, Memory, Infer and Intera
 
 ## Consumer integration
 
-Install `@ditto/core` plus the Redis SDK, and copy the application capability/tools directories including shared execution/storage utilities. Examples and third-party execution environments are not bundled in Core. See [tool setup](../../examples/_shared/tools/data-and-code/README.md).
+Install `@codesoul-co/ditto` plus the Redis SDK, and copy the application capability/tools directories including shared execution/storage utilities. Examples and third-party execution environments are not bundled in Core. See [tool setup](../../examples/_shared/tools/data-and-code/README.md).
 
 Save this as `data-code-app.ts` at your consumer root:
 
 ```ts
 import { resolve } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { openAgentStorage } from "./examples/_shared/tools/storage/workers.ts";
 import { dataCodeTools } from "./examples/_shared/tools/data-and-code/tools.ts";
 import { resumeFixture } from "./examples/_shared/tools/data-and-code/fixtures.ts";

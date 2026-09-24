@@ -45,7 +45,7 @@ Linux 可安装 `poppler-utils tesseract-ocr ffmpeg espeak`，再执行同样的
 
 ```ts
 import { createFileTools } from "./examples/_shared/tools/file-ingestion/index.ts";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 
 const tools = createFileTools({ root: "/app/uploads", python: "/app/tools/.venv/bin/python" });
 const interaction = createInteractionWorker({ tools, output: applicationOutputSink });

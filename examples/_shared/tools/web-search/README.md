@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md)
 
-These adapters are application dependencies, separate from `@ditto/core`. `providers.ts` supplies a public `WebSearchProvider`; `http.ts` handles bounded reading; `adapters.ts` registers authorization, page reading, snapshot checking and publication tools. `domain.ts` defines the application request/report contracts. Citation and grounding validators are shared with RAG in `../evidence.ts`.
+These adapters are application dependencies, separate from `@codesoul-co/ditto`. `providers.ts` supplies a public `WebSearchProvider`; `http.ts` handles bounded reading; `adapters.ts` registers authorization, page reading, snapshot checking and publication tools. `domain.ts` defines the application request/report contracts. Citation and grounding validators are shared with RAG in `../evidence.ts`.
 
 Install `redis` and `linkedom` using the versions in the existing storage/retrieval dependency manifests. No extra package is added to Core.
 

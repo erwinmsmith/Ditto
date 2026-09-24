@@ -10,7 +10,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadRuntimeConfigFile } from "@ditto/core/runtime";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
 import { createDemo } from "./examples/_shared/tools/handoff/adapters.ts";
 import { openHandoff } from "./examples/patterns/handoff/cli.ts";
 import { runHandoff } from "./examples/patterns/handoff/index.ts";

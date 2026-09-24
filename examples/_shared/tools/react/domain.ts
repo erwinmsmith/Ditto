@@ -1,5 +1,5 @@
-import type { ActionDescriptor, ActionRequest } from "@ditto/core/worker/infer";
-import type { Observation } from "@ditto/core/contracts";
+import type { ActionDescriptor, ActionRequest } from "@codesoul-co/ditto/worker/infer";
+import type { Observation } from "@codesoul-co/ditto/contracts";
 import { object, identifier, text, strings, digest } from "../evidence.ts";
 export interface Request {
   id: string;

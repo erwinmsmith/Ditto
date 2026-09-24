@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url";
-import { createDitto, graph, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createContextWorker } from "@ditto/core/worker/context";
+import { createDitto, graph, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createContextWorker } from "@codesoul-co/ditto/worker/context";
 
 // example: quickstart
 export async function quickstart() {

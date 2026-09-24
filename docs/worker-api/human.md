@@ -6,7 +6,7 @@ Applications compose public `graph`, `runtime.run`, `CONTEXT.LOAD`, `INFER.REASO
 
 ## Integration and complete call
 
-Use Node.js 24+. In an application with `@ditto/core` installed, copy `examples/control-flow/human/` and `examples/_shared/tools/human-review-store.ts`, preserving relative paths. Prepare `ditto.yaml` and `.env`. These are application sources, not Core package exports. The adapter uses only Node.js standard libraries, including `node:sqlite`.
+Use Node.js 24+. In an application with `@codesoul-co/ditto` installed, copy `examples/control-flow/human/` and `examples/_shared/tools/human-review-store.ts`, preserving relative paths. Prepare `ditto.yaml` and `.env`. These are application sources, not Core package exports. The adapter uses only Node.js standard libraries, including `node:sqlite`.
 
 This example creates a pending task and defines a continuation handler for an authenticated human decision. Never register `onHumanDecision` as a model tool. Derive `actor` from a verified session, not an untrusted username in a request.
 
@@ -14,10 +14,10 @@ This example creates a pending task and defines a continuation handler for an au
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createContextWorker } from "@ditto/core/worker/context";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createContextWorker } from "@codesoul-co/ditto/worker/context";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { HumanReviewStore } from "./examples/_shared/tools/human-review-store.ts";
 import { createFixture, reviewers } from "./examples/control-flow/human/fixtures.ts";
 import { runApproval } from "./examples/control-flow/human/approval.ts";

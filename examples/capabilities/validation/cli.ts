@@ -6,9 +6,9 @@ import {
   createDitto,
   loadRuntimeConfigFile,
   type RuntimeConfig,
-} from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+} from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { openAgentStorage } from "../../_shared/tools/storage/workers.ts";
 import {
   openValidationTools,

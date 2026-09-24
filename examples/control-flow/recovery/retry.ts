@@ -1,5 +1,5 @@
-import { loop } from "@ditto/core/runtime";
-import type { ExternalResult } from "@ditto/core/contracts";
+import { loop } from "@codesoul-co/ditto/runtime";
+import type { ExternalResult } from "@codesoul-co/ditto/contracts";
 import { fulfill, prepare, read, report, sourceGraph, state, type Input, type Options, type Runner } from "./shared.ts";
 import { isMain, runCli } from "./cli.ts";
 interface RetryState { attempt: number; maxBytes: number; retry: boolean; result: ExternalResult | null }

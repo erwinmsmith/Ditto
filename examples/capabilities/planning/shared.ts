@@ -1,16 +1,16 @@
-import { loop, graphStep, type GraphPlan } from "@ditto/core/runtime";
+import { loop, graphStep, type GraphPlan } from "@codesoul-co/ditto/runtime";
 import {
   graph,
   type DittoRuntime,
   type ExecutionGraph,
-} from "@ditto/core/runtime";
-import { ContextError, type ContextScope } from "@ditto/core/worker/context";
-import type { ModelConfig } from "@ditto/core/worker/infer";
+} from "@codesoul-co/ditto/runtime";
+import { ContextError, type ContextScope } from "@codesoul-co/ditto/worker/context";
+import type { ModelConfig } from "@codesoul-co/ditto/worker/infer";
 import type {
   ExternalResult,
   NodeResult,
   ContextItem,
-} from "@ditto/core/contracts";
+} from "@codesoul-co/ditto/contracts";
 import {
   catalog,
   object,

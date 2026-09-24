@@ -1,4 +1,4 @@
-import { graph } from "@ditto/core/runtime";
+import { graph } from "@codesoul-co/ditto/runtime";
 import { cli, isMain, json, validateRequest, type Request, type Runner } from "./shared.ts";
 
 export const mergeGraph = graph<Request>("branch-merge")

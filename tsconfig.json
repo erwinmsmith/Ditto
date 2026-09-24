@@ -20,20 +20,23 @@
     "sourceMap": true,
     "skipLibCheck": true,
     "paths": {
-      "@ditto/core": [
+      "@codesoul-co/ditto": [
         "./src/index.ts"
       ],
-      "@ditto/core/*": [
+      "@codesoul-co/ditto/*": [
         "./src/*/index.ts"
       ],
-      "@ditto/core/worker/node": [
+      "@codesoul-co/ditto/worker/node": [
         "./src/worker/node.ts"
       ],
-      "@ditto/core/worker/retrieval/adapters/memory": [
-        "./src/worker/retrieval/adapters/memory.ts"
+      "@codesoul-co/ditto-retrieval": [
+        "./packages/retrieval/src/index.ts"
       ],
-      "@ditto/core/worker/retrieval/adapters/context": [
-        "./src/worker/retrieval/adapters/context.ts"
+      "@codesoul-co/ditto-retrieval/adapters/memory": [
+        "./packages/retrieval/src/adapters/memory.ts"
+      ],
+      "@codesoul-co/ditto-retrieval/adapters/context": [
+        "./packages/retrieval/src/adapters/context.ts"
       ]
     },
     "types": [
@@ -46,7 +49,8 @@
     "test/**/*.ts",
     "scripts/**/*.ts",
     "examples/**/*.ts",
-    "docs/worker-api/examples/**/*.ts"
+    "docs/worker-api/examples/**/*.ts",
+    "packages/retrieval/src/**/*.ts"
   ],
   "exclude": [
     "dist",

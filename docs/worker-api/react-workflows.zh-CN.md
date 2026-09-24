@@ -4,12 +4,12 @@
 
 ## 完整消费者调用
 
-复制 `examples/patterns/react`、应用工具 `react`、`storage`、`evidence.ts`、`execution/files.ts`、`operations/sdk.ts`、`operations/dependencies/package.json` 到消费者工程。安装 `@ditto/core`、`redis`，浏览器路径另装 `playwright` 和 Chromium；配置模型和 Redis，使用 Node 24+ 执行。模块导入不会启动服务、连接数据库或调用模型。
+复制 `examples/patterns/react`、应用工具 `react`、`storage`、`evidence.ts`、`execution/files.ts`、`operations/sdk.ts`、`operations/dependencies/package.json` 到消费者工程。安装 `@codesoul-co/ditto`、`redis`，浏览器路径另装 `playwright` 和 Chromium；配置模型和 Redis，使用 Node 24+ 执行。模块导入不会启动服务、连接数据库或调用模型。
 
 ```ts
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { resolve } from "node:path";
-import { loadRuntimeConfigFile } from "@ditto/core/runtime";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
 import { createDemo } from "./examples/_shared/tools/react/service.ts";
 import { createTask } from "./examples/_shared/tools/react/adapters.ts";
 import { openReact } from "./examples/patterns/react/cli.ts";

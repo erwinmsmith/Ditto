@@ -40,7 +40,7 @@ Quickstart 执行 CONTEXT.LOAD → SELECT，返回包含 `Hello Ditto` 的 Conte
 
 - 控制流程描述步骤如何流转；基础能力描述单项功能；执行模式描述两者的组合。
 - 单项主题使用独立文件；模式使用 `index.ts`，专用工具、状态类型和素材放在同一目录。
-- 使用 `@ditto/core` 公开入口，Graph、Loop 和状态转换保留在各示例中。
+- 使用 `@codesoul-co/ditto` 公开入口，Graph、Loop 和状态转换保留在各示例中。
 - 共用配置与素材放在 `_shared/`，避免从其他示例入口导入任务编排。
 - 审批、重试、检查点持久化和任务交接由应用编排；Agent 角色与 Worker 部署边界分别定义。
 - 外部模型、SDK、存储与执行器由应用配置，凭据通过环境变量提供，资源在 `finally` 中关闭。

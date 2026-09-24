@@ -4,8 +4,8 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdir, readFile, writeFile, rename, rm, link } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { JsonObject } from "@ditto/core/contracts";
-import type { RegisteredTool, OutputSink } from "@ditto/core/worker/interaction";
+import type { JsonObject } from "@codesoul-co/ditto/contracts";
+import type { RegisteredTool, OutputSink } from "@codesoul-co/ditto/worker/interaction";
 import { catalog, integer, object, request, text, validatePlan, preflight, modelCostCents, modelEstimateMs, toolSpec, type Mode, type Request, type Plan, type Schedule, type Role } from "./planning-domain.ts";
 export type Status = "received" | "planning" | "planned" | "running" | "completed" | "blocked" | "failed" | "cancelled";
 export interface Checkpoint { taskId: string; status: "running" | "completed"; output: unknown }

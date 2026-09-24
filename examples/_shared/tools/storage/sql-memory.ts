@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { MemoryError, type MemoryItem, type MemoryStore, type MemorySearchProvider } from "@ditto/core/worker/memory";
+import { MemoryError, type MemoryItem, type MemoryStore, type MemorySearchProvider } from "@codesoul-co/ditto/worker/memory";
 
 export type Row = { id: string; memory_key: string | null; content: string; metadata: string | null };
 export type Rows = (sql: string, values?: unknown[]) => Promise<Row[]>;

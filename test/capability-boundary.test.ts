@@ -13,20 +13,20 @@ test("all twelve capability categories compose public nodes through Runtime", as
 });
 test("capability boundary rejects private modules, computed executors and model transport bypass", () => {
   const file = "/app/examples/capabilities/example/shared.ts",
-    entries = ["@ditto/core/runtime"];
+    entries = ["@codesoul-co/ditto/runtime"];
   for (const source of [
     'import {graph} from "../../src/runtime/index.ts";',
     'await worker["execute"](node,input,context);',
     "definition[`instantiate`]();",
     'await fetch("https://model.example/");',
     "const api=createInferApi();",
-    'readFile("../node_modules/@ditto/core/dist/index.js");',
+    'readFile("../node_modules/@codesoul-co/ditto/dist/index.js");',
     'await runtime.run(g, input);',
   ])
     assert.throws(() => auditCapabilitySource(source, file, entries));
   assert.deepEqual(
     auditCapabilitySource(
-      'import {graph} from "@ditto/core/runtime"; yield* graphStep(g,input);',
+      'import {graph} from "@codesoul-co/ditto/runtime"; yield* graphStep(g,input);',
       file,
       entries,
     ),

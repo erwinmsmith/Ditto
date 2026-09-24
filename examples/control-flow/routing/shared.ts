@@ -1,8 +1,8 @@
 import { pathToFileURL } from "node:url";
-import { createDitto, graph, loadRuntimeConfigFile, type DittoRuntime } from "@ditto/core/runtime";
-import { createInferWorker, type ModelConfig, type NodeResult, type SampleOutput } from "@ditto/core/worker/infer";
-import { createInteractionWorker, type RegisteredTool } from "@ditto/core/worker/interaction";
-import type { JsonObject } from "@ditto/core/contracts";
+import { createDitto, graph, loadRuntimeConfigFile, type DittoRuntime } from "@codesoul-co/ditto/runtime";
+import { createInferWorker, type ModelConfig, type NodeResult, type SampleOutput } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker, type RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
+import type { JsonObject } from "@codesoul-co/ditto/contracts";
 
 export type Runner = Pick<DittoRuntime, "run">;
 export interface Request { readonly id: string; readonly text: string; readonly model: ModelConfig }

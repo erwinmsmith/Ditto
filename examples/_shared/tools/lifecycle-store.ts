@@ -3,8 +3,8 @@ import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { JsonObject } from "@ditto/core/contracts";
-import type { RegisteredTool } from "@ditto/core/worker/interaction";
+import type { JsonObject } from "@codesoul-co/ditto/contracts";
+import type { RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
 export type Stage = "waiting" | "queued" | "running" | "blocked" | "stopped" | "failed" | "completed";
 export type Trigger = { kind: "manual" } | { kind: "time"; dueAt: number } | { kind: "event" };
 export interface Release { id: string; revision: number; status: "draft" | "ready" | "withdrawn"; title: string; change: string }

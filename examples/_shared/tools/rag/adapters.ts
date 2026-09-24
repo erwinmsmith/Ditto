@@ -4,8 +4,8 @@ import { join, relative, isAbsolute } from "node:path";
 import {
   createTextSearchProvider,
   RetrievalTargetRegistry,
-} from "@ditto/core/worker/retrieval";
-import type { RegisteredTool } from "@ditto/core/worker/interaction";
+} from "@codesoul-co/ditto-retrieval";
+import type { RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
 import { immutable } from "../execution/files.ts";
 import {
   answer,

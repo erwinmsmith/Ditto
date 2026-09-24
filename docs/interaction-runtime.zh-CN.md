@@ -31,7 +31,7 @@ src/worker/interaction/act/tool/
 ```
 
 ```ts
-import { ToolRegistry } from "@ditto/core/worker/interaction";
+import { ToolRegistry } from "@codesoul-co/ditto/worker/interaction";
 
 const tools = new ToolRegistry();
 tools.register({
@@ -60,7 +60,7 @@ OUTPUT 在调用接收端前验证 deliveryId、message.role/content/name 以及
 完整的[可运行示例](worker-api/examples/graph-loop-worker.ts)包含 Graph → Loop → Worker → Runtime 四步。运行 `npm run example:agent` 会通过 TOOL 读取 README 和 package.json，经过 OBSERVE，再由 OUTPUT 打印两次结果；无需模型或数据库密钥。
 
 ```ts
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 
 // readTextTool、connectedMcpClient、outputSink 是应用提供的实现。
 const interaction = createInteractionWorker({
@@ -93,7 +93,7 @@ const interaction = createInteractionWorker({
 
 ## 四类预定义流程
 
-公开函数直接位于 `src/runtime/graph.ts`，并由 `@ditto/core/runtime` 导出。它们是可复用的 Runtime 组合函数，不是 Node Type。
+公开函数直接位于 `src/runtime/graph.ts`，并由 `@codesoul-co/ditto/runtime` 导出。它们是可复用的 Runtime 组合函数，不是 Node Type。
 
 | 函数 | 固定流程 |
 | --- | --- |
@@ -105,7 +105,7 @@ const interaction = createInteractionWorker({
 RAG 的 embed/retrieve/rank 由注入的 createRagStrategy 管理。Tool/MCP 调用返回 Observation，并通过 ContextIngress 更新显式 Context；discover 不更新。
 
 ```ts
-import { runSkillFlow, runToolCallFlow } from "@ditto/core/runtime";
+import { runSkillFlow, runToolCallFlow } from "@codesoul-co/ditto/runtime";
 
 const skill = await runSkillFlow(runtime, {
   context,
@@ -138,7 +138,7 @@ ReAct 放在 `src/runtime/react.ts`，是 Graph 的预定义运行流程：SAMPL
 先配置 .env 中的模型连接、network origin、read 和 read_text 权限，再由 Node --env-file=.env 加载环境。下列代码按位于 docs/ 的文件给出相对导入；在其他目录调整示例路径。工具读取真实工作区文件。
 
 ```ts
-import { createDitto, createInferWorker, createInteractionWorker, loadRuntimeConfigFile } from "@ditto/core";
+import { createDitto, createInferWorker, createInteractionWorker, loadRuntimeConfigFile } from "@codesoul-co/ditto";
 import { readTextTool, reactFlow } from "../docs/worker-api/examples/runtime/flows.ts";
 
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);

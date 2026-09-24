@@ -1,4 +1,4 @@
-import { graph, type ExecutionGraph } from "@ditto/core/runtime";
+import { graph, type ExecutionGraph } from "@codesoul-co/ditto/runtime";
 import { runCli, isMain } from "./cli.ts";
 import { sampleInput, saveInput, savedOrder, sourceFor, validateBatch, validateOptions, type BatchInput, type ExecutionOptions, type Runner } from "./shared.ts";
 

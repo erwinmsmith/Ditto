@@ -3,9 +3,9 @@ import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { createOrderFiles } from "../../_shared/tools/order-files.ts";
 import { validateBatch, validateOptions, type BatchInput, type ExecutionOptions, type Runner, type Source } from "./shared.ts";
 

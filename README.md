@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./logo_project.png" alt="Ditto logo" width="280" />
+  <img src="https://raw.githubusercontent.com/erwinmsmith/Ditto/dev/logo_project.png" alt="Ditto logo" width="280" />
 </p>
 
 <h1 align="center">Ditto</h1>
@@ -10,10 +10,10 @@
 </p>
 
 <p align="center">
-  <strong>English</strong> | <a href="./README.zh-CN.md">简体中文</a>
+  <strong>English</strong> | <a href="https://github.com/erwinmsmith/Ditto/blob/dev/README.zh-CN.md">简体中文</a>
 </p>
 
-> The definition is [Node System and API Contract](docs/13-node-api-contract.md). It contains the final Node tree, semantic boundaries, fixed shared types, and every public Node input/output contract.
+> The definition is [Node System and API Contract](https://github.com/erwinmsmith/Ditto/blob/dev/docs/13-node-api-contract.md). It contains the final Node tree, semantic boundaries, fixed shared types, and every public Node input/output contract.
 
 ## Architecture
 
@@ -37,11 +37,11 @@ Changing a model, database, tool Provider, deployment location, or replica count
 
 `INFER/PROVIDERS` is an implementation directory, not a Node. `INFER/REASONING` is also a source directory rather than a `REASONING` Node. Inject tools through `createInteractionWorker({ tools, mcp, output })`; individual tools, Linux commands, and web search providers do not create additional Node Types. `createReadOnlyCommandTools()` offers 14 optional bounded search, reading, text-processing, metadata, disk-usage, and workspace-location commands. `createWebSearchTool()` accepts an application-injected provider; `createBraveWebSearchProvider()` is the first native-fetch adapter. Neither helper is registered or permitted by default.
 
-RETRIEVAL is an optional independently deployable search Worker exposing only `RETRIEVAL.SEARCH`. Import and register `@ditto/core/worker/retrieval` explicitly; Core does not load it by default. Existing direct MEMORY/CONTEXT providers remain available. See the [RETRIEVAL API](docs/worker-api/retrieval.md).
+RETRIEVAL is an optional independently deployable search Worker exposing only `RETRIEVAL.SEARCH`. Import and register `@codesoul-co/ditto-retrieval` explicitly; Core does not load it by default. Existing direct MEMORY/CONTEXT providers remain available. See the [RETRIEVAL API](https://github.com/erwinmsmith/Ditto/blob/dev/docs/worker-api/retrieval.md).
 
 ## Predefined Runtime Flows
 
-Four public compositions live directly in `src/runtime/graph.ts` and are exported from `@ditto/core/runtime`:
+Four public compositions live directly in `src/runtime/graph.ts` and are exported from `@codesoul-co/ditto/runtime`:
 
 ```text
 runRagFlow          CONTEXT.SELECT (rag strategy)
@@ -50,10 +50,10 @@ runToolCallFlow      INTERACTION.ACT.TOOL   -> INTERACTION.OBSERVE -> CONTEXT.UP
 runMcpFlow           INTERACTION.ACT.MCP    -> INTERACTION.OBSERVE -> CONTEXT.UPDATE (invoke)
 ```
 
-These Runtime functions use explicit Context. RAG is an internal SELECT strategy; applications resolve Skill content for LOAD/UPDATE. See the [CONTEXT API](docs/worker-api/context.md) for cached calls, Redis and examples.
+These Runtime functions use explicit Context. RAG is an internal SELECT strategy; applications resolve Skill content for LOAD/UPDATE. See the [CONTEXT API](https://github.com/erwinmsmith/Ditto/blob/dev/docs/worker-api/context.md) for cached calls, Redis and examples.
 
 ```ts
-import { runRagFlow, runToolCallFlow } from "@ditto/core/runtime";
+import { runRagFlow, runToolCallFlow } from "@codesoul-co/ditto/runtime";
 
 const retrieved = await runRagFlow(runtime, {
   context: { items: [] },
@@ -73,7 +73,7 @@ Graphs contain semantic Node Types and data bindings, never Worker IDs or networ
 
 ```ts
 import { randomUUID } from "node:crypto";
-import { graph, type Message } from "@ditto/core";
+import { graph, type Message } from "@codesoul-co/ditto";
 
 const review = graph<Message>("review")
   .node("memories", "MEMORY.GET", [], () => ({
@@ -104,9 +104,9 @@ const review = graph<Message>("review")
 
 Registering more Worker replicas adds capacity without changing this Graph. The same contracts support local execution, multiple Workers, multiple processes, or custom remote transports.
 
-See the [INFER Worker API](docs/worker-api/infer.md) for setup and all seven leaf contracts.
+See the [INFER Worker API](https://github.com/erwinmsmith/Ditto/blob/dev/docs/worker-api/infer.md) for setup and all seven leaf contracts.
 
-Define an Agent with Graph → Loop → Worker; run the complete [graph-loop-worker.ts](docs/worker-api/examples/graph-loop-worker.ts) example using `npm run example:agent`. See [Interaction setup](docs/interaction-runtime.md#graph-loop-and-worker-setup) for Tool and MCP wiring.
+Define an Agent with Graph → Loop → Worker; run the complete [graph-loop-worker.ts](https://github.com/erwinmsmith/Ditto/blob/dev/docs/worker-api/examples/graph-loop-worker.ts) example using `npm run example:agent`. See [Interaction setup](https://github.com/erwinmsmith/Ditto/blob/dev/docs/interaction-runtime.md#graph-loop-and-worker-setup) for Tool and MCP wiring.
 
 ## Repository Structure
 
@@ -124,9 +124,10 @@ src/
     │   └── providers/            # shared provider registry and wire protocols
     ├── context/
     ├── memory/
-    ├── retrieval/                # optional SEARCH worker; explicit subpath import
     └── interaction/act/tool/     # Tool Node, registry, implementation folders
 ```
+
+The optional SEARCH Worker lives in `packages/retrieval/` and is published separately as `@codesoul-co/ditto-retrieval`.
 
 Core uses only the `yaml` parser as a third-party runtime dependency. Heavy RPC, event buses, MCP SDKs, database drivers, and model SDKs remain optional application/adapter choices.
 
@@ -139,23 +140,23 @@ npm ci
 npm run check
 ```
 
-The package is currently private and is not published to npm. Other experiment repositories can consume it through a local Git or workspace dependency; the existing package exports are designed to remain valid when npm publication begins.
+Install the Runtime with `npm install @codesoul-co/ditto`. Applications that use the optional search Worker also install `@codesoul-co/ditto-retrieval`.
 
-See the [Runtime API](docs/worker-api/runtime.md) and [complete examples](docs/worker-api/examples/runtime/README.md) for node bindings, independent sandboxes, loops and local IPC / cross-host HTTP.
+See the [Runtime API](https://github.com/erwinmsmith/Ditto/blob/dev/docs/worker-api/runtime.md) and [complete examples](https://github.com/erwinmsmith/Ditto/blob/dev/docs/worker-api/examples/runtime/README.md) for node bindings, independent sandboxes, loops and local IPC / cross-host HTTP.
 
 ## Documentation
 
-- [Examples: control flow, capabilities and execution patterns](examples/README.md) (run `npm run example:quickstart` for a local introduction)
-- [Node System and API Contract](docs/13-node-api-contract.md)
-- [Architecture and extension boundaries](docs/architecture.md)
-- [Development and package integration](docs/getting-started.md)
-- [Worker communication and deployment](docs/worker-communication.md)
-- [Providers, Interaction, and predefined flows](docs/interaction-runtime.md)
+- [Examples: control flow, capabilities and execution patterns](https://github.com/erwinmsmith/Ditto/blob/dev/examples/README.md) (run `npm run example:quickstart` for a local introduction)
+- [Node System and API Contract](https://github.com/erwinmsmith/Ditto/blob/dev/docs/13-node-api-contract.md)
+- [Architecture and extension boundaries](https://github.com/erwinmsmith/Ditto/blob/dev/docs/architecture.md)
+- [Development and package integration](https://github.com/erwinmsmith/Ditto/blob/dev/docs/getting-started.md)
+- [Worker communication and deployment](https://github.com/erwinmsmith/Ditto/blob/dev/docs/worker-communication.md)
+- [Providers, Interaction, and predefined flows](https://github.com/erwinmsmith/Ditto/blob/dev/docs/interaction-runtime.md)
 
 Use [GitHub Issues](https://github.com/erwinmsmith/Ditto/issues) for concrete use cases, bugs, and architecture discussions.
 
-Behavior defaults live in root [`ditto.yaml`](ditto.yaml); credentials and deployment bindings use [`.env.example`](.env.example). All Workers share Runtime services; see the [configuration API](docs/worker-api/configuration.md). See the [INFER example guide](docs/worker-api/examples/guide.md#infer) for setup and commands.
+Behavior defaults live in root [`ditto.yaml`](https://github.com/erwinmsmith/Ditto/blob/dev/ditto.yaml); credentials and deployment bindings use [`.env.example`](https://github.com/erwinmsmith/Ditto/blob/dev/.env.example). All Workers share Runtime services; see the [configuration API](https://github.com/erwinmsmith/Ditto/blob/dev/docs/worker-api/configuration.md). See the [INFER example guide](https://github.com/erwinmsmith/Ditto/blob/dev/docs/worker-api/examples/guide.md#infer) for setup and commands.
 
-See the [MEMORY API](docs/worker-api/memory.md) for plugin wiring, six node contracts and configuration.
+See the [MEMORY API](https://github.com/erwinmsmith/Ditto/blob/dev/docs/worker-api/memory.md) for plugin wiring, six node contracts and configuration.
 
-More public APIs and examples: [Worker composition / events / Artifacts](docs/worker-api/composition.md), [predefined flows](docs/worker-api/flows.md), and the [local quickstart](examples/quickstart.ts).
+More public APIs and examples: [Worker composition / events / Artifacts](https://github.com/erwinmsmith/Ditto/blob/dev/docs/worker-api/composition.md), [predefined flows](https://github.com/erwinmsmith/Ditto/blob/dev/docs/worker-api/flows.md), and the [local quickstart](https://github.com/erwinmsmith/Ditto/blob/dev/examples/quickstart.ts).

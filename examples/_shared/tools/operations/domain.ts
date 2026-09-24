@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { JsonObject, JsonValue } from "@ditto/core/contracts";
+import type { JsonObject, JsonValue } from "@codesoul-co/ditto/contracts";
 export const modes = ["selection", "parameters", "api", "database", "files", "code", "browser", "desktop", "message", "system-write"] as const;
 export type Mode = typeof modes[number];
 export interface Request { id: string; tenant: string; mode: Mode; authorized: boolean; orderId: string; ticketId: string; quantity: number; unitCents: number; weight: number; country: string; currency: string; recipient: string; origin: string; smtpPort: number }

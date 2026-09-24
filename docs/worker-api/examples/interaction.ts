@@ -1,9 +1,9 @@
-import { createDitto, defineWorker, graph, loop, type WorkerContext } from "@ditto/core";
+import { createDitto, defineWorker, graph, loop, type WorkerContext } from "@codesoul-co/ditto";
 import {
   createInteractionWorker, createInteractionNodes, createToolHandler, createMcpHandler,
   createOutputHandler, observeExternalResult, ToolRegistry, McpRegistry,
   interactionObserveNode, type RegisteredTool, type McpClient, type OutputSink,
-} from "@ditto/core/worker/interaction";
+} from "@codesoul-co/ditto/worker/interaction";
 
 // example: tool
 export const readTextTool: RegisteredTool = {

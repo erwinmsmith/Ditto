@@ -1,4 +1,4 @@
-import { createDitto, createInteractionWorker, graph, loop } from "@ditto/core";
+import { createDitto, createInteractionWorker, graph, loop } from "@codesoul-co/ditto";
 
 // 1. Graph: typed data flow, independent of tool implementations and SDK connections.
 const inspect = graph<{ path: string; callId: string }>("inspect-files")

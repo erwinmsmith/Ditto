@@ -10,7 +10,7 @@ Copy `examples/patterns/supervisor`, `examples/_shared/tools/supervisor`, `examp
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadRuntimeConfigFile } from "@ditto/core/runtime";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
 import { createDemo } from "./examples/_shared/tools/supervisor/adapters.ts";
 import { openSupervisor } from "./examples/patterns/supervisor/cli.ts";
 import { runSupervisor } from "./examples/patterns/supervisor/index.ts";

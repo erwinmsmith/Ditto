@@ -29,13 +29,13 @@ The call chain is application entry → `createDitto({ workers, config, sandbox 
 
 Public imports include:
 
-- `@ditto/core/runtime`: runtime creation, graph/loop composition and configuration.
-- `@ditto/core/worker/context`: Context Worker, Redis store contract, scopes and errors.
-- `@ditto/core/worker/memory`: Memory Worker and persistent store contracts.
-- `@ditto/core/worker/infer`: inference Worker, model and message types.
-- `@ditto/core/worker/interaction`: tools, observations and output adapters.
-- `@ditto/core/worker/retrieval` and explicitly exported adapter subpaths: retrieval providers, Memory/Context wiring and embeddings.
-- `@ditto/core/contracts`: shared JSON and result contracts.
+- `@codesoul-co/ditto/runtime`: runtime creation, graph/loop composition and configuration.
+- `@codesoul-co/ditto/worker/context`: Context Worker, Redis store contract, scopes and errors.
+- `@codesoul-co/ditto/worker/memory`: Memory Worker and persistent store contracts.
+- `@codesoul-co/ditto/worker/infer`: inference Worker, model and message types.
+- `@codesoul-co/ditto/worker/interaction`: tools, observations and output adapters.
+- `@codesoul-co/ditto-retrieval` and explicitly exported adapter subpaths: retrieval providers, Memory/Context wiring and embeddings.
+- `@codesoul-co/ditto/contracts`: shared JSON and result contracts.
 
 Vendor HTTP/SDK calls, PDF/OCR/ASR, browsers and code runners live under `examples/_shared/tools` and are registered through public extension interfaces. Those calls implement adapters. CLI fixture creation, trusted human replies and connection lifecycle are host responsibilities.
 
@@ -43,16 +43,16 @@ Test harness Worker wrappers observe real execution, inject faults and simulate 
 
 ## npm consumption
 
-The `@ditto/core` tarball contains public implementation and declarations under `dist`, accessed through `package.json.exports`. Core `src`, examples, business tools, local credentials and test artifacts are excluded.
+The `@codesoul-co/ditto` tarball contains public implementation and declarations under `dist`, accessed through `package.json.exports`. Optional retrieval code is in the separate `@codesoul-co/ditto-retrieval` tarball. Both exclude source trees, examples, business tools, local credentials and test artifacts.
 
 Install Core, copy the desired example and relative application dependencies, install the relevant `examples/_shared/tools/*/dependencies/package.json` dependencies, and configure real services. Functions such as `run`, `runGoal` and `runPlan` belong to the example application. They are not 86 additional Core package exports. Each category links runnable integration instructions.
 
-Release checks build before `npm pack --ignore-scripts`. The repository's `private: true` still prevents actual `npm publish`; compatibility checks neither change that flag nor publish a package.
+Release checks build before `npm pack --ignore-scripts` and install both tarballs in an isolated consumer. They validate publishable package contents without uploading either package.
 
 ## Unified release gate
 
 ```sh
-# One tarball, strict public types, 86 silent imports and negative boundary probes
+# Installed packages, strict public types, 86 silent imports and negative boundary probes
 npm run check:examples:capabilities:types
 
 # One complete task per capability; Memory covers all three backends by default

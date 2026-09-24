@@ -13,14 +13,14 @@
 
 ## 完整调用
 
-以下代码保存为消费者应用根目录的 `validation-example.ts`。从本仓库复制 `examples/capabilities/validation`、`examples/_shared/tools/validation`、`examples/_shared/tools/storage`、`examples/_shared/tools/execution/files.ts`；安装 `@ditto/core` 的构建包及 Redis 适配器依赖，提供 `ditto.yaml` 和环境变量。源代码不依赖 Core 的内部路径。仓库内可直接运行同样的文件。
+以下代码保存为消费者应用根目录的 `validation-example.ts`。从本仓库复制 `examples/capabilities/validation`、`examples/_shared/tools/validation`、`examples/_shared/tools/storage`、`examples/_shared/tools/execution/files.ts`；安装 `@codesoul-co/ditto` 的构建包及 Redis 适配器依赖，提供 `ditto.yaml` 和环境变量。源代码不依赖 Core 的内部路径。仓库内可直接运行同样的文件。
 
 ```ts
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { resolve } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { openAgentStorage } from "./examples/_shared/tools/storage/workers.ts";
 import { openValidationTools } from "./examples/_shared/tools/validation/tools.ts";
 import { createFixture } from "./examples/_shared/tools/validation/fixtures.ts";

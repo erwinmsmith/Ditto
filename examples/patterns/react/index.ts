@@ -4,10 +4,10 @@ import {
   loop,
   type GraphPlan,
   type DittoRuntime,
-} from "@ditto/core/runtime";
-import { ContextError } from "@ditto/core/worker/context";
-import type { NodeResult, ContextItem } from "@ditto/core/contracts";
-import type { ModelConfig } from "@ditto/core/worker/infer";
+} from "@codesoul-co/ditto/runtime";
+import { ContextError } from "@codesoul-co/ditto/worker/context";
+import type { NodeResult, ContextItem } from "@codesoul-co/ditto/contracts";
+import type { ModelConfig } from "@codesoul-co/ditto/worker/infer";
 import {
   request,
   catalog,
@@ -20,8 +20,8 @@ import {
   type StopReason,
 } from "../../_shared/tools/react/domain.ts";
 import { digest, json, object } from "../../_shared/tools/evidence.ts";
-import type { ExternalResult, Observation } from "@ditto/core/contracts";
-import type { Message, SampleOutput } from "@ditto/core/worker/infer";
+import type { ExternalResult, Observation } from "@codesoul-co/ditto/contracts";
+import type { Message, SampleOutput } from "@codesoul-co/ditto/worker/infer";
 export interface Input {
   request: Request;
   model: ModelConfig;
@@ -76,7 +76,7 @@ const infer = graph<{ r: Request; model: ModelConfig }>("react-reasoning")
       d.context.items.find((x) => x.id === "working-set")!.content,
     ).messages as Message[],
   }));
-const act = graph<{ call: import("@ditto/core/contracts").ToolCall }>(
+const act = graph<{ call: import("@codesoul-co/ditto/contracts").ToolCall }>(
   "react-action",
 ).node("result", "INTERACTION.ACT.TOOL", [], (i) => i);
 const observe = graph<{ result: ExternalResult }>("react-observation").node(

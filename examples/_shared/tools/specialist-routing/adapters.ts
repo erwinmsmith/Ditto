@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { execFile } from "node:child_process";
-import type { RegisteredTool } from "@ditto/core/worker/interaction";
+import type { RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
 import { immutable } from "../execution/files.ts";
 import { digest, json, object } from "../evidence.ts";
 import { original, patched, tests } from "./code-fixture.ts";

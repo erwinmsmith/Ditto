@@ -1,4 +1,4 @@
-import { MemoryError, type MemoryStore, type MemorySearchProvider, type MemoryItem } from "@ditto/core/worker/memory";
+import { MemoryError, type MemoryStore, type MemorySearchProvider, type MemoryItem } from "@codesoul-co/ditto/worker/memory";
 /** Controller-provided scope; enforced for reads, search and mutations on every backend. */
 export function scopedMemory(store: MemoryStore & MemorySearchProvider, namespace: string): MemoryStore & MemorySearchProvider {
   if (!/^[a-zA-Z0-9_-]+:[a-zA-Z0-9_-]+$/.test(namespace)) throw new Error("Invalid Memory namespace");

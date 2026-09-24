@@ -2,12 +2,12 @@
 
 A complete research agent is one `runtime.loop(runResearchLoop, [input, options])`. Its generator yields flat stage Graphs with `graphStep`. The Loop owns decomposition, repeated search/read/assessment, stopping and synthesis; Graph nodes invoke public Context, Memory, Infer and Interaction Workers. No nested runtime or direct Worker execution is needed.
 
-The following consumer example runs a real research task. Copy `examples/patterns/deep-research` and its application tools (`research`, `web-search`, `storage`, `evidence.ts`, `execution/files.ts`, `retrieval/web.ts`, `retrieval/domain.ts` and `retrieval/dependencies/package.json`) into the consumer project. Install `@ditto/core`, `redis` and `linkedom`, configure `ditto.yaml` and environment variables, then run with Node 24+.
+The following consumer example runs a real research task. Copy `examples/patterns/deep-research` and its application tools (`research`, `web-search`, `storage`, `evidence.ts`, `execution/files.ts`, `retrieval/web.ts`, `retrieval/domain.ts` and `retrieval/dependencies/package.json`) into the consumer project. Install `@codesoul-co/ditto`, `redis` and `linkedom`, configure `ditto.yaml` and environment variables, then run with Node 24+.
 
 ```ts
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { resolve } from "node:path";
-import { loadRuntimeConfigFile } from "@ditto/core/runtime";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
 import { createTask } from "./examples/_shared/tools/research/adapters.ts";
 import { searchConfig } from "./examples/_shared/tools/web-search/providers.ts";
 import { defaultRequest } from "./examples/patterns/deep-research/fixtures.ts";

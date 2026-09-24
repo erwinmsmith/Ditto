@@ -1,11 +1,11 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import type { WorkerDefinition } from "@ditto/core/worker";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createRetrievalWorker } from "@ditto/core/worker/retrieval";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import type { WorkerDefinition } from "@codesoul-co/ditto/worker";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createRetrievalWorker } from "@codesoul-co/ditto-retrieval";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { openAgentStorage } from "../../examples/_shared/tools/storage/workers.ts";
 import { AnalysisAdapters } from "../../examples/_shared/tools/analysis/adapters.ts";
 import { request } from "../../examples/_shared/tools/analysis/domain.ts";

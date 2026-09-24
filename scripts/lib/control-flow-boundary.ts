@@ -12,6 +12,11 @@ export const controlFlows = {
   lifecycle: ["status-tracking", "state-check", "safe-stop", "scheduled", "event-triggered"],
 } as const;
 export type Category = keyof typeof controlFlows;
+const optionalEntries = new Set([
+  "@codesoul-co/ditto-retrieval",
+  "@codesoul-co/ditto-retrieval/adapters/memory",
+  "@codesoul-co/ditto-retrieval/adapters/context",
+]);
 export function inside(root: string, path: string): boolean { const rest = relative(root, path); return rest === "" || (!isAbsolute(rest) && rest !== ".." && !rest.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)); }
 export async function sourceFiles(directory: string): Promise<string[]> {
   const paths: string[] = [];
@@ -34,7 +39,7 @@ export function auditSource(source: string, file: string, publicEntries: readonl
     if (specifier === "redis" && file.replaceAll("\\", "/").endsWith("/examples/_shared/tools/storage/redis-context.ts")) continue;
     if (specifier === "pg" && file.replaceAll("\\", "/").endsWith("/examples/_shared/tools/storage/postgres-memory.ts")) continue;
     if (specifier === "linkedom" && file.replaceAll("\\", "/").endsWith("/examples/_shared/tools/retrieval/web.ts")) continue;
-    if (specifier.startsWith("@ditto/core")) { assert.ok(publicEntries.includes(specifier), `${file}: non-public Core import ${specifier}`); continue; }
+    if (specifier.startsWith("@codesoul-co/ditto")) { assert.ok(publicEntries.includes(specifier) || optionalEntries.has(specifier), `${file}: non-public package import ${specifier}`); continue; }
     assert.ok(specifier.startsWith("./") || specifier.startsWith("../"), `${file}: only public Core, Node and application-relative imports are allowed: ${specifier}`);
     assert.ok(!specifier.split("/").some(part => ["src", "dist", "node_modules"].includes(part)), `${file}: internal implementation path ${specifier}`);
   }
@@ -49,7 +54,7 @@ export async function auditControlFlows(root: string) {
   const files = (await Promise.all(folders.map(sourceFiles))).flat(), used = new Set<string>();
   for (const file of files) {
     for (const specifier of auditSource(await readFile(file, "utf8"), file, publicEntries)) {
-      if (specifier.startsWith("@ditto/core")) used.add(specifier);
+      if (specifier.startsWith("@codesoul-co/ditto")) used.add(specifier);
       else if (specifier.startsWith(".")) {
         const target = await realpath(resolve(dirname(file), specifier));
         assert.ok(folders.some(folder => inside(folder, target)), `${file}: import escapes application example tree: ${specifier}`);

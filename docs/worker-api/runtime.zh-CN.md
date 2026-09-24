@@ -2,7 +2,7 @@
 
 [English](runtime.md) · [Worker API](README.zh-CN.md) · [完整示例](examples/runtime/README.zh-CN.md)
 
-从 `@ditto/core` 或 `@ditto/core/runtime` 导入 Runtime API。使用顺序是定义 Graph 的节点与依赖，定义 Loop 的状态规则，注册 Worker 的具体实现，最后由 Runtime 执行。模型、数据库和工具插件仍放在对应 Worker 中。
+从 `@codesoul-co/ditto` 或 `@codesoul-co/ditto/runtime` 导入 Runtime API。使用顺序是定义 Graph 的节点与依赖，定义 Loop 的状态规则，注册 Worker 的具体实现，最后由 Runtime 执行。模型、数据库和工具插件仍放在对应 Worker 中。
 
 ## 通信模式与部署
 
@@ -19,7 +19,7 @@ Runtime 先筛选公开能力、可用状态、并发容量，然后优先同进
 ## 创建、注册与释放
 
 ```ts
-import { createDitto, createContextWorker, loadRuntimeConfigFile } from "@ditto/core";
+import { createDitto, createContextWorker, loadRuntimeConfigFile } from "@codesoul-co/ditto";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 const runtime = createDitto({ config, hostId: "machine-a", processId: "agent" });
 const context = runtime.register(createContextWorker({ policy: config.context.policy ?? {} }), "context-a");
@@ -55,7 +55,7 @@ Runtime 不拥有共享 EventFabric、transport、子进程、HTTP server 或外
 ## Graph：定义 Node 与连接
 
 ```ts
-import { graph } from "@ditto/core";
+import { graph } from "@codesoul-co/ditto";
 const prepare = graph<string>("prepare")
   .node("load", "CONTEXT.LOAD", [], content => ({ sources: [{ role: "user", content }] }))
   .node("select", "CONTEXT.SELECT", ["load"], (_input, { load }) => ({
@@ -99,7 +99,7 @@ npm run example:sequence:batch
 ## Loop：同一 Graph 重复、不同 Graph 切换
 
 ```ts
-import { loop } from "@ditto/core";
+import { loop } from "@codesoul-co/ditto";
 const alternate = graph<string>("alternate")
   .node("load", "CONTEXT.LOAD", [], content => ({ sources: [{ role: "user", content }] }))
   .node("select", "CONTEXT.SELECT", ["load"], (_input, { load }) => ({ context: load, purpose: "infer" }));
@@ -130,7 +130,7 @@ console.log(state.round); // 4
 ## 每个 Worker 的 Sandbox 与资源
 
 ```ts
-import { createRuntimeServices, createInteractionWorker } from "@ditto/core";
+import { createRuntimeServices, createInteractionWorker } from "@codesoul-co/ditto";
 const services = createRuntimeServices({
   config, sandbox: { tools: ["inspect_text"], read: true },
   // sandboxExecutor: applicationContainerExecutor,
@@ -149,7 +149,7 @@ Sandbox 是协作式能力检查。需要隔离任意 JS、数据库 SDK 或系�
 ## Worker 执行上下文与取消
 
 ```ts
-import { defineWorker } from "@ditto/core";
+import { defineWorker } from "@codesoul-co/ditto";
 const loader = defineWorker({ type: "CONTEXT", nodes: {
   "CONTEXT.LOAD": async (input, ctx) => {
     ctx.signal?.throwIfAborted();
@@ -181,7 +181,7 @@ unsubscribe();
 ## 本地 IPC 与远端 HTTP API
 
 ```ts
-import { createIpcTransport, serveWorkerIpc } from "@ditto/core";
+import { createIpcTransport, serveWorkerIpc } from "@codesoul-co/ditto";
 // Parent process; child comes from node:child_process.fork(...).
 const ipc = createIpcTransport({ id: "local-ipc", channel: child, timeoutMs: config.timeoutMs });
 const app = createDitto({ hostId: "machine-a", transports: [ipc] });
@@ -199,7 +199,7 @@ await workerRuntime.close();
 `IpcChannel` 对接 Node 的 `ChildProcess` 或启用 IPC 的 `process`；只有父子进程已有 IPC channel 时可用。`createIpcTransport` 的 timeoutMs 默认 30000，范围 1–2147483647。请求用 invocation ID 关联；超时、取消、disconnect、close 都会清理等待者和监听器。运行错误返回通用消息，业务输出保持 Node 原契约。IPC 不使用网络 token，也不应把该接口暴露给不可信来源。
 
 ```ts
-import { createHttpTransport, createWorkerHttpHandler } from "@ditto/core";
+import { createHttpTransport, createWorkerHttpHandler } from "@codesoul-co/ditto";
 const http = createHttpTransport({ id: "remote", url: endpoint, token, timeoutMs: config.timeoutMs });
 const app = createDitto({ hostId: "machine-a", transports: [http] });
 app.registerRemote({ address: remoteAddress, capabilities: ["CONTEXT.LOAD"], transportId: http.id });
@@ -216,7 +216,7 @@ Artifact 的 `InMemoryArtifactStore`、`PayloadCodec` 和可替换存储接口�
 
 ## Sandbox API 与本地执行器
 
-从 `@ditto/core/runtime/sandbox` 或根包导入；这些是可执行实现及可替换接口，不要求额外进程管理依赖。
+从 `@codesoul-co/ditto/runtime/sandbox` 或根包导入；这些是可执行实现及可替换接口，不要求额外进程管理依赖。
 
 | API | 参数与行为 |
 | --- | --- |
@@ -233,8 +233,8 @@ LocalSandboxExecutorOptions：commands 必填，为可执行文件名或绝对�
 执行使用 spawn、shell=false、独立参数和关闭的 stdin；非零退出返回真实 exitCode。启动失败 reject；超时、取消、输出超限终止直接子进程并关闭输出流，等待其关闭后 reject。超过输出上限不会返回截断后的成功结果。已完成的写文件或外部副作用不会因取消自动回滚。
 
 ```ts
-import { Sandbox, createLocalSandboxExecutor } from "@ditto/core/runtime/sandbox";
-import { loadRuntimeConfigFile } from "@ditto/core";
+import { Sandbox, createLocalSandboxExecutor } from "@codesoul-co/ditto/runtime/sandbox";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 const executor = createLocalSandboxExecutor({
   commands: ["uname", "printf"], ...config.sandboxExecution,

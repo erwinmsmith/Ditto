@@ -31,7 +31,7 @@ src/worker/interaction/act/tool/
 ```
 
 ```ts
-import { ToolRegistry } from "@ditto/core/worker/interaction";
+import { ToolRegistry } from "@codesoul-co/ditto/worker/interaction";
 
 const tools = new ToolRegistry();
 tools.register({
@@ -60,7 +60,7 @@ An application Agent consists of a Graph defining Nodes and data dependencies, a
 The complete [runnable example](worker-api/examples/graph-loop-worker.ts) follows Graph → Loop → Worker → Runtime. Run `npm run example:agent` to read README and package.json through TOOL, normalize results with OBSERVE, and print two OUTPUT deliveries. No model or database credentials are needed.
 
 ```ts
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 
 // readTextTool, connectedMcpClient and outputSink are application implementations.
 const interaction = createInteractionWorker({
@@ -93,7 +93,7 @@ Run the complete [command and tool composition example](worker-api/examples/inte
 
 ## Four Predefined Flows
 
-The public functions live directly in `src/runtime/graph.ts` and are exported from `@ditto/core/runtime`. They are reusable Runtime compositions, not Node Types.
+The public functions live directly in `src/runtime/graph.ts` and are exported from `@codesoul-co/ditto/runtime`. They are reusable Runtime compositions, not Node Types.
 
 | Function | Fixed flow |
 | --- | --- |
@@ -105,7 +105,7 @@ The public functions live directly in `src/runtime/graph.ts` and are exported fr
 Injected createRagStrategy manages optional embed/rank and required retrieve. Tool/MCP calls return Observation and update explicit Context through ContextIngress; discovery does not update it.
 
 ```ts
-import { runSkillFlow, runToolCallFlow } from "@ditto/core/runtime";
+import { runSkillFlow, runToolCallFlow } from "@codesoul-co/ditto/runtime";
 
 const skill = await runSkillFlow(runtime, {
   context,
@@ -138,7 +138,7 @@ ReAct lives in src/runtime/react.ts as a predefined Graph execution flow: SAMPLE
 Configure model bindings, allowed network origins, read and read_text permissions in .env, then load it with Node --env-file=.env. The relative import below assumes a file inside docs/; adjust it for another location. The tool reads a real workspace file.
 
 ```ts
-import { createDitto, createInferWorker, createInteractionWorker, loadRuntimeConfigFile } from "@ditto/core";
+import { createDitto, createInferWorker, createInteractionWorker, loadRuntimeConfigFile } from "@codesoul-co/ditto";
 import { readTextTool, reactFlow } from "../docs/worker-api/examples/runtime/flows.ts";
 
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);

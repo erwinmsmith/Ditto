@@ -111,7 +111,7 @@ export function auditCapabilitySource(
   );
   // The runtime resolver additionally blocks evaluated module URLs and private package paths.
   assert.ok(
-    !/["'`][^"'`\n]*(?:@ditto\/core\/(?:src|dist)|(?:\.\.\/)+src\/)[^"'`\n]*["'`]/.test(
+    !/["'`][^"'`\n]*(?:@codesoul-co\/ditto\/(?:src|dist)|(?:\.\.\/)+src\/)[^"'`\n]*["'`]/.test(
       source,
     ),
     `${file}: private Core file reference`,
@@ -154,7 +154,7 @@ export async function auditCapabilities(root: string) {
       file,
       publicEntries,
     )) {
-      if (specifier.startsWith("@ditto/core")) used.add(specifier);
+      if (specifier.startsWith("@codesoul-co/ditto")) used.add(specifier);
       else if (specifier.startsWith(".")) {
         const target = await realpath(resolve(dirname(file), specifier));
         assert.ok(

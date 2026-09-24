@@ -6,12 +6,12 @@
 
 ## Runnable package consumer
 
-Use Node.js 24+, an installed `@ditto/core` package or tarball, Redis, a configured text model, and `redis` / `linkedom` dependencies. Copy the example and its application dependency closure: `examples/patterns/web-search-qa`, `examples/_shared/tools/web-search`, `examples/_shared/tools/storage`, `examples/_shared/tools/evidence.ts`, `examples/_shared/tools/execution/files.ts`, and `examples/_shared/tools/retrieval/{web.ts,domain.ts,dependencies/package.json}`. Save the following at the consumer root as `web-search-client.ts`:
+Use Node.js 24+, an installed `@codesoul-co/ditto` package or tarball, Redis, a configured text model, and `redis` / `linkedom` dependencies. Copy the example and its application dependency closure: `examples/patterns/web-search-qa`, `examples/_shared/tools/web-search`, `examples/_shared/tools/storage`, `examples/_shared/tools/evidence.ts`, `examples/_shared/tools/execution/files.ts`, and `examples/_shared/tools/retrieval/{web.ts,domain.ts,dependencies/package.json}`. Save the following at the consumer root as `web-search-client.ts`:
 
 ```ts
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { resolve } from "node:path";
-import { loadRuntimeConfigFile } from "@ditto/core/runtime";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
 import { createTask } from "./examples/_shared/tools/web-search/adapters.ts";
 import { searchConfig } from "./examples/_shared/tools/web-search/providers.ts";
 import { defaultRequest } from "./examples/patterns/web-search-qa/fixtures.ts";
@@ -51,7 +51,7 @@ Run `node --env-file=.env web-search-client.ts`. `defaultRequest` is an explicit
 | Interaction Worker `INTERACTION.ACT.TOOL` | Authorized search, actual page reading, snapshot checks and publication |
 | `createWebSearchTool({provider})` | Public WebSearchProvider injection; snippets remain discovery metadata |
 
-Worker factories are imported from `@ditto/core/worker/{context,memory,infer,interaction}`. `createDitto`, `graph`, `loop`, `graphStep` come from `@ditto/core/runtime`. No framework-specific business nodes or third-party framework dependencies are required.
+Worker factories are imported from `@codesoul-co/ditto/worker/{context,memory,infer,interaction}`. `createDitto`, `graph`, `loop`, `graphStep` come from `@codesoul-co/ditto/runtime`. No framework-specific business nodes or third-party framework dependencies are required.
 
 The direct form is `runtime.loop(runWebQaLoop, [input, options], {signal, onGraph})`; `runWebQa()` is the convenience wrapper and forwards its signal to the enclosing Loop. Every cancellation terminates further Graph scheduling. `onGraph` is an actual execution trace, not a static enumeration of all branches.
 

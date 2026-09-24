@@ -128,7 +128,7 @@ DITTO_WORKER_CONTEXT_REDIS_URL=redis://127.0.0.1:6379 npm run check:context:redi
 
 ```ts
 import { createClient } from "redis";
-import { createContextWorker, createDitto, loadRuntimeConfigFile } from "@ditto/core";
+import { createContextWorker, createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 const redis = createClient({ url: process.env.DITTO_WORKER_CONTEXT_REDIS_URL });
 redis.on("error", () => { /* Application logging/health reporting. */ });

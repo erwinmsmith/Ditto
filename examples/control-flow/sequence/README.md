@@ -27,7 +27,7 @@ npm run example:sequence:stages
 npm run example:sequence:batch
 ```
 
-Each command builds `@ditto/core` and runs the example through its public package exports. Each file is self-contained; importing it does not run a task.
+Each command builds `@codesoul-co/ditto` and runs the example through its public package exports. Each file is self-contained; importing it does not run a task.
 
 ## Fixed steps: pipeline.ts
 
@@ -138,7 +138,7 @@ Empty batches bypass Loop and inference, delivering `{ "items": [], "totalQuanti
 
 ## Application usage
 
-Copy the desired example into an application with `@ditto/core` installed, then call it from your entrypoint:
+Copy the desired example into an application with `@codesoul-co/ditto` installed, then call it from your entrypoint:
 
 ```ts
 import { runPipeline } from "./pipeline.ts";
@@ -158,11 +158,11 @@ console.log(result.selected.selectedItemIds); // ["api"]
 
 | Public entrypoint | APIs used |
 | --- | --- |
-| `@ditto/core/contracts` | `ContextItem` |
-| `@ditto/core/runtime` | `graph`, `loop`, `createDitto`, `loadRuntimeConfigFile`, `DittoRuntime` |
-| `@ditto/core/worker/context` | `createContextWorker` |
-| `@ditto/core/worker/interaction` | `createInteractionWorker`, `InteractionOutputInput` |
-| `@ditto/core/worker/infer` | `createInferWorker`, `ModelConfig`, `NodeResult`, `SampleOutput` |
+| `@codesoul-co/ditto/contracts` | `ContextItem` |
+| `@codesoul-co/ditto/runtime` | `graph`, `loop`, `createDitto`, `loadRuntimeConfigFile`, `DittoRuntime` |
+| `@codesoul-co/ditto/worker/context` | `createContextWorker` |
+| `@codesoul-co/ditto/worker/interaction` | `createInteractionWorker`, `InteractionOutputInput` |
+| `@codesoul-co/ditto/worker/infer` | `createInferWorker`, `ModelConfig`, `NodeResult`, `SampleOutput` |
 
 `runStages(runtime, input)` and `runBatch(runtime, input)` use a caller-owned Runtime registered with Context, Infer and Interaction Workers. Supply an OutputSink and close the Runtime in `finally`. Their standalone commands load application configuration and manage cleanup; see the [application call example](README.zh-CN.md#在应用中调用) for complete imports.
 

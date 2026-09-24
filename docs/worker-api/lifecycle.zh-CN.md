@@ -6,7 +6,7 @@
 
 ## 完整调用
 
-使用 Node.js 24+，在安装 `@ditto/core` 的应用内复制 `examples/control-flow/lifecycle/` 和 `examples/_shared/tools/lifecycle-store.ts`，保留相对路径，并准备 `ditto.yaml`、`.env`。这些示例源码不是 Core 的 npm 包导出；适配器仅使用 Node.js 标准库。
+使用 Node.js 24+，在安装 `@codesoul-co/ditto` 的应用内复制 `examples/control-flow/lifecycle/` 和 `examples/_shared/tools/lifecycle-store.ts`，保留相对路径，并准备 `ditto.yaml`、`.env`。这些示例源码不是 Core 的 npm 包导出；适配器仅使用 Node.js 标准库。
 
 下例保存一个绝对触发时间，到期后通过真实模型生成通知，并登记到本地业务表：
 
@@ -14,10 +14,10 @@
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createContextWorker } from "@ditto/core/worker/context";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createContextWorker } from "@codesoul-co/ditto/worker/context";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { LifecycleStore } from "./examples/_shared/tools/lifecycle-store.ts";
 import { createFixture } from "./examples/control-flow/lifecycle/fixtures.ts";
 import { runScheduled } from "./examples/control-flow/lifecycle/scheduled.ts";

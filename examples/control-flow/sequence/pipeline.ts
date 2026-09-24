@@ -1,7 +1,7 @@
 import { pathToFileURL } from "node:url";
-import type { ContextItem } from "@ditto/core/contracts";
-import { createDitto, graph } from "@ditto/core/runtime";
-import { createContextWorker } from "@ditto/core/worker/context";
+import type { ContextItem } from "@codesoul-co/ditto/contracts";
+import { createDitto, graph } from "@codesoul-co/ditto/runtime";
+import { createContextWorker } from "@codesoul-co/ditto/worker/context";
 
 export interface PipelineInput {
   readonly items: readonly ContextItem[];

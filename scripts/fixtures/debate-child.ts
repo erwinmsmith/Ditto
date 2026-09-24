@@ -1,8 +1,8 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { loadRuntimeConfigFile } from "@ditto/core/runtime";
-import type { WorkerDefinition } from "@ditto/core/worker";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import type { WorkerDefinition } from "@codesoul-co/ditto/worker";
 import { request } from "../../examples/_shared/tools/debate/domain.ts";
 import { runDebate } from "../../examples/patterns/debate/index.ts";
 import { observedDebate } from "./debate-runtime.ts";

@@ -5,7 +5,7 @@
 The root [`ditto.yaml`](../../ditto.yaml) contains versioned behavior defaults. [`.env.example`](../../.env.example) is the deployment template; actual `.env` credentials are ignored by Git. Load environment variables with Node `--env-file=.env`, then explicitly load YAML once at application startup. Importing the library or creating an unconfigured Runtime reads neither files nor environment variables.
 
 ```ts
-import { createDitto, createInfer, createInferWorker, loadRuntimeConfigFile } from "@ditto/core";
+import { createDitto, createInfer, createInferWorker, loadRuntimeConfigFile } from "@codesoul-co/ditto";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 if (!config.model) throw new Error("Configure the default model in .env");
 const runtime = createDitto({ config, workers: [createInferWorker()] });
@@ -74,7 +74,7 @@ Missing/empty files, non-object roots, unknown keys, duplicate keys, aliases and
 For embedded use without file or environment reads, the second argument accepts the same RuntimeSettings shape as YAML. Root YAML remains the recommended shared application configuration.
 
 ```ts
-import { createDitto, loadRuntimeConfig } from "@ditto/core/runtime";
+import { createDitto, loadRuntimeConfig } from "@codesoul-co/ditto/runtime";
 
 const config = loadRuntimeConfig({}, {
   runtime: { timeoutMs: 15_000, graphConcurrency: 2, loopMaxIterations: 4 },

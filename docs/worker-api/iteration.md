@@ -6,15 +6,15 @@ Compose graph, loop, runtime.run, runtime.loop and built-in INFER/INTERACTION wo
 
 ## Integration
 
-Copy `examples/control-flow/iteration/` and `examples/_shared/tools/brief-files.ts` into an application with @ditto/core installed, preserving relative paths. Prepare ditto.yaml, .env and the [input directory](../../examples/control-flow/iteration/README.md#run):
+Copy `examples/control-flow/iteration/` and `examples/_shared/tools/brief-files.ts` into an application with @codesoul-co/ditto installed, preserving relative paths. Prepare ditto.yaml, .env and the [input directory](../../examples/control-flow/iteration/README.md#run):
 
 ```ts
 import { mkdtemp } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { createBriefFiles } from "./examples/_shared/tools/brief-files.ts";
 import { runAdaptive } from "./examples/control-flow/iteration/adaptive-loop.ts";
 

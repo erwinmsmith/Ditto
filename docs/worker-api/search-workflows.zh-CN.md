@@ -6,18 +6,18 @@
 
 | 公开入口 / 节点 | 用途 |
 | --- | --- |
-| `@ditto/core/runtime`：`createDitto`、`graph`、`runtime.run` | 注册 Worker，执行查询规划、检索、持久化和发布图 |
-| `@ditto/core/worker/retrieval`：`createRetrievalWorker`、`RetrievalTargetRegistry` | 将 `documents` 和 `knowledge-external` 绑定到允许的检索 Provider |
+| `@codesoul-co/ditto/runtime`：`createDitto`、`graph`、`runtime.run` | 注册 Worker，执行查询规划、检索、持久化和发布图 |
+| `@codesoul-co/ditto-retrieval`：`createRetrievalWorker`、`RetrievalTargetRegistry` | 将 `documents` 和 `knowledge-external` 绑定到允许的检索 Provider |
 | 同上：`createTextSearchProvider`、`createSqlSearchProvider` / `RETRIEVAL.SEARCH` | 文档关键词匹配与带参数的 FTS 查询 |
-| `@ditto/core/worker/interaction`：`createWebSearchTool`、`WebSearchProvider`、`createBraveWebSearchProvider` | 搜索引擎契约和已导出的 Brave 实现 |
+| `@codesoul-co/ditto/worker/interaction`：`createWebSearchTool`、`WebSearchProvider`、`createBraveWebSearchProvider` | 搜索引擎契约和已导出的 Brave 实现 |
 | 同上：`createInteractionWorker`、`RegisteredTool` / `INTERACTION.ACT.TOOL` | 执行 `web_search`、`retrieval_read_page`、`retrieval_publish_local` |
-| `@ditto/core/worker/infer`：`createInferWorker` / `INFER.REASONING.SAMPLE` | 选择查询和逐字引用 |
-| `@ditto/core/worker/context`：`createContextWorker({ redis })` / `CONTEXT.LOAD/UPDATE` | Redis 会话上下文 |
-| `@ditto/core/worker/memory`：`createMemoryWorker({ store })` / `MEMORY.GET/WRITE/SEARCH` | 内部长期知识、会话记忆与恢复检查点 |
+| `@codesoul-co/ditto/worker/infer`：`createInferWorker` / `INFER.REASONING.SAMPLE` | 选择查询和逐字引用 |
+| `@codesoul-co/ditto/worker/context`：`createContextWorker({ redis })` / `CONTEXT.LOAD/UPDATE` | Redis 会话上下文 |
+| `@codesoul-co/ditto/worker/memory`：`createMemoryWorker({ store })` / `MEMORY.GET/WRITE/SEARCH` | 内部长期知识、会话记忆与恢复检查点 |
 
 ## 完整调用
 
-以下代码放在应用根目录。安装 `@ditto/core` 包后，复制 `examples/capabilities/retrieval/`、`examples/_shared/tools/retrieval/`、`examples/_shared/tools/storage/` 和 `ditto.yaml` 到应用。安装 Redis 与 HTML SDK；使用仓库时直接运行[示例命令](../../examples/capabilities/retrieval/README.zh-CN.md)。
+以下代码放在应用根目录。安装 `@codesoul-co/ditto` 包后，复制 `examples/capabilities/retrieval/`、`examples/_shared/tools/retrieval/`、`examples/_shared/tools/storage/` 和 `ditto.yaml` 到应用。安装 Redis 与 HTML SDK；使用仓库时直接运行[示例命令](../../examples/capabilities/retrieval/README.zh-CN.md)。
 
 ```sh
 npm ci --prefix examples/_shared/tools/storage/dependencies
@@ -27,10 +27,10 @@ npm ci --prefix examples/_shared/tools/retrieval/dependencies
 ```ts
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { resolve } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createRetrievalWorker } from "@ditto/core/worker/retrieval";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createRetrievalWorker } from "@codesoul-co/ditto-retrieval";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { openAgentStorage } from "./examples/_shared/tools/storage/workers.ts";
 import { RetrievalAdapters } from "./examples/_shared/tools/retrieval/adapters.ts";
 import { importInternalKnowledge } from "./examples/_shared/tools/retrieval/memory.ts";
@@ -101,7 +101,7 @@ console.log(hits.output); // MemorySearchResult[]，每项包含完整 memory �
 ## 单次外部检索调用
 
 ```ts
-import { graph } from "@ditto/core/runtime";
+import { graph } from "@codesoul-co/ditto/runtime";
 const search = graph<{ query: string; tenant: string }>("knowledge-lookup")
   .node("matches", "RETRIEVAL.SEARCH", [], input => ({
     target: { name: "knowledge-external", namespace: input.tenant },

@@ -2,7 +2,7 @@
 
 [中文](README.zh-CN.md) · [Capabilities](../README.md) · [API and invocation](../../../docs/worker-api/context-workflows.md)
 
-Five release handover examples compose public `@ditto/core` Workers through Runtime Graphs. Each uses Redis working context, SQLite Memory conversation history and checkpoints, a real model, and an `artifacts/brief.json` deliverable.
+Five release handover examples compose public `@codesoul-co/ditto` Workers through Runtime Graphs. Each uses Redis working context, SQLite Memory conversation history and checkpoints, a real model, and an `artifacts/brief.json` deliverable.
 
 | Entry | Operation | Outcome |
 | --- | --- | --- |

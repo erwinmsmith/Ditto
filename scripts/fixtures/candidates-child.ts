@@ -1,8 +1,8 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { loadRuntimeConfigFile } from "@ditto/core/runtime";
-import type { WorkerDefinition } from "@ditto/core/worker";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import type { WorkerDefinition } from "@codesoul-co/ditto/worker";
 import { request } from "../../examples/_shared/tools/candidates/domain.ts";
 import { runCandidates } from "../../examples/patterns/candidate-selection/index.ts";
 import { observedCandidates } from "./candidates-runtime.ts";

@@ -2,7 +2,7 @@
 
 [English](README.md) · [公开 API 调用](../../../docs/worker-api/multimodal-workflows.zh-CN.md) · [媒体工具配置](../../_shared/tools/multimodal/README.zh-CN.md)
 
-八个示例通过 `@ditto/core/runtime` 的 Graph 组装 `INTERACTION`、`CONTEXT`、`MEMORY` 与 `INFER`。解析器和文件操作由应用注册为工具；图片和视频帧通过公开模型消息传入视觉模型。Context 使用真实 Redis，检查点存入文件 SQLite Memory。
+八个示例通过 `@codesoul-co/ditto/runtime` 的 Graph 组装 `INTERACTION`、`CONTEXT`、`MEMORY` 与 `INFER`。解析器和文件操作由应用注册为工具；图片和视频帧通过公开模型消息传入视觉模型。Context 使用真实 Redis，检查点存入文件 SQLite Memory。
 
 | 能力 | 入口 | 输入与交付 |
 | --- | --- | --- |

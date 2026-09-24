@@ -2,7 +2,7 @@ import { lstat, readFile, mkdir, writeFile, link, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
-import type { RegisteredTool } from "@ditto/core/worker/interaction";
+import type { RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
 import { document, json, object, type Request } from "./domain.ts";
 async function immutable(path: string, text: string) {
   const temp = `${path}.${randomUUID()}.tmp`;

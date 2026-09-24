@@ -1,7 +1,7 @@
 import { readFile, lstat, mkdir, writeFile, link, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import type { RegisteredTool } from "@ditto/core/worker/interaction";
+import type { RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
 import { json, object, project } from "./domain.ts";
 export function memoryTools(directory: string, namespace: string): RegisteredTool[] {
   return [

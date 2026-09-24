@@ -7,7 +7,7 @@ Provider 实现在 `src/worker/infer/providers/`。一个 Registry、一套模�
 ## 接口与注册
 
 ```ts
-import type { SampleInput, SampleOutput } from "@ditto/core/worker/infer";
+import type { SampleInput, SampleOutput } from "@codesoul-co/ditto/worker/infer";
 export type ModelStreamEvent =
   | { type: "text_delta"; delta: string }
   | { type: "result"; output: SampleOutput };
@@ -20,7 +20,7 @@ export interface ModelProvider {
 `invoke` 必需，`stream` 可选。stream 返回文本增量，然后恰好一个完整 result，包含 Message、动作和 usage，随后结束。Provider 返回 `SampleOutput`，INFER Node 负责转换为 `NodeResult`。自定义 Provider 应遵守 signal；SDK 会停止等待不配合的调用，但无法强制终止其内部工作。
 
 ```ts
-import { ProviderRegistry } from "@ditto/core/worker/infer/providers";
+import { ProviderRegistry } from "@codesoul-co/ditto/worker/infer/providers";
 const providers = new ProviderRegistry({
   fixture: { invoke: async input => ({
     message: { role: "assistant", content: `Received ${input.messages.length} messages` },
@@ -43,7 +43,7 @@ remove();
 ## HTTP Provider
 
 ```ts
-import { createHttpProvider } from "@ditto/core/worker/infer/providers";
+import { createHttpProvider } from "@codesoul-co/ditto/worker/infer/providers";
 const provider = createHttpProvider({
   kind: "anthropic",
   baseUrl: "https://api.anthropic.com/v1",
@@ -93,7 +93,7 @@ usage 来自供应商，缺少计数不会补成完整计数。Anthropic 的输�
 ## 环境配置与多供应商
 
 ```ts
-import { createDitto, createInferWorker, loadRuntimeConfigFile } from "@ditto/core";
+import { createDitto, createInferWorker, loadRuntimeConfigFile } from "@codesoul-co/ditto";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 const runtime = createDitto({ config, workers: [createInferWorker()] });
 if (!config.model) throw new Error("Configure DITTO_WORKER_INFER_MODEL_PROVIDER and DITTO_WORKER_INFER_MODEL");
@@ -116,14 +116,14 @@ await runtime.close();
 完整代码：[examples/infer.ts](examples/infer.ts)。下列函数共用该文件的 imports；函数不会在导入时自动执行。数据库、模型和 MCP 参数由应用注入，不是 Ditto 内置的模拟后端。选择需要的函数调用；写入、删除、模型调用等会产生对应的真实操作。
 
 ```ts
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto";
 import {
   createInfer, createInferWorker, InMemoryInferCache, inferSampleNode,
   type InferClient, type ModelConfig, type TrajectoryInput, type ReflectInput,
   type DeliberateInput, type TrajectoryStrategy, type InferCacheProvider, type ModelProvider, type SampleInput,
-} from "@ditto/core/worker/infer";
+} from "@codesoul-co/ditto/worker/infer";
 
-import { ProviderRegistry, createHttpProvider, type HttpProviderOptions } from "@ditto/core/worker/infer/providers";
+import { ProviderRegistry, createHttpProvider, type HttpProviderOptions } from "@codesoul-co/ditto/worker/infer/providers";
 ```
 
 ### ProviderRegistry.register / get / unregister 与 invoke

@@ -11,9 +11,9 @@
 ```ts
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { resolve } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { openMemoryStorage } from "./examples/_shared/tools/memory/storage.ts";
 import { memoryTools } from "./examples/_shared/tools/memory/adapters.ts";
 import { namespace, type Backend } from "./examples/_shared/tools/memory/domain.ts";
@@ -52,7 +52,7 @@ try {
 ## Core 接线与节点
 
 ```ts
-import { createMemoryWorker } from "@ditto/core/worker/memory";
+import { createMemoryWorker } from "@codesoul-co/ditto/worker/memory";
 // databaseStore implements MemoryStore and optionally native MemorySearchProvider.
 const worker = createMemoryWorker({
   store: databaseStore,

@@ -23,16 +23,16 @@ Imports for these examples:
 
 ```ts
 import assert from "node:assert/strict";
-import type { NodeContract } from "@ditto/core/contracts";
-import { createNodeScaffold, defineNode, defineWorker, extendWorker } from "@ditto/core/worker";
+import type { NodeContract } from "@codesoul-co/ditto/contracts";
+import { createNodeScaffold, defineNode, defineWorker, extendWorker } from "@codesoul-co/ditto/worker";
 import {
   createDitto, graph, InMemoryArtifactStore, LocalEventFabric,
   NoWorkerAvailableError, PayloadCodec,
-} from "@ditto/core/runtime";
+} from "@codesoul-co/ditto/runtime";
 ```
 
 ```ts
-declare module "@ditto/core/contracts" {
+declare module "@codesoul-co/ditto/contracts" {
   interface NodeContractMap {
     "EXAMPLE.TEXT.NORMALIZE": NodeContract<{ text: string }, { text: string; calls: number }>;
     "EXAMPLE.TEXT.PROCESS": NodeContract<{ text: string }, { text: string; calls: number }>;
@@ -208,7 +208,7 @@ Prefer the supplied [IPC / HTTP APIs](runtime.md#ipc-and-http-adapters). A custo
 Wrap an application-owned, authenticated RPC client as follows:
 
 ```ts
-import type { InvocationEnvelope, InvocationResult, InvokeTransport } from "@ditto/core/runtime";
+import type { InvocationEnvelope, InvocationResult, InvokeTransport } from "@codesoul-co/ditto/runtime";
 
 export function adaptRpc(request: (
   envelope: InvocationEnvelope, signal?: AbortSignal,

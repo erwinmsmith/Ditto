@@ -5,7 +5,7 @@ import { createServer } from "node:http";
 import {
   createContextWorker, createDitto, createHttpTransport, createIpcTransport,
   createWorkerHttpHandler, graph, serveWorkerIpc, type WorkerAddress,
-} from "@ditto/core";
+} from "@codesoul-co/ditto";
 
 // This file is both the application entrypoint and a separately started Worker host.
 // The HTTP child runs on loopback for the demo; production can use a host on another machine.

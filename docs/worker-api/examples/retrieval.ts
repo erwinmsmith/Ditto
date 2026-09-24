@@ -1,5 +1,5 @@
-import { createDitto, createMemoryWorker, loadRuntimeConfigFile } from "@ditto/core";
-import type { MemorySearchProvider, MemoryStore, MemoryItem } from "@ditto/core/worker/memory";
+import { createDitto, createMemoryWorker, loadRuntimeConfigFile } from "@codesoul-co/ditto";
+import type { MemorySearchProvider, MemoryStore, MemoryItem } from "@codesoul-co/ditto/worker/memory";
 import {
   createRetrieval, createRetrievalWorker, RetrievalTargetRegistry, RetrievalError, retrievalSearchNode,
   embedContents, validateVector, createVectorSearchProvider, createTextSearchProvider,
@@ -7,11 +7,11 @@ import {
   createHttpEmbeddingProvider, embeddingConfigFromEnv, createSqlSearchProvider, createMilvusSearchProvider,
   type RetrievalSearchProvider, type RetrievalSearchInput, type RetrievalSearchOutput,
   type EmbeddingProvider, type RerankProvider, type SqlSearchOptions, type MilvusSearchOptions,
-} from "@ditto/core/worker/retrieval";
+} from "@codesoul-co/ditto-retrieval";
 import {
   createMemoryRetrievalProvider, createRetrievalMemorySearchProvider,
   RemoteRetrievalSearchProvider, mapMemoryCandidates,
-} from "@ditto/core/worker/retrieval/adapters/memory";
+} from "@codesoul-co/ditto-retrieval/adapters/memory";
 
 export const request: RetrievalSearchInput = { query: { content: "agent memory" }, target: { name: "kb" }, limit: 5 };
 

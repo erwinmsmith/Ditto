@@ -10,7 +10,7 @@ Agent 处理 → 版本化阶段结果 → 人工确认或编辑 → Agent 继�
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadRuntimeConfigFile } from "@ditto/core/runtime";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
 import {
   createDemo,
   request,

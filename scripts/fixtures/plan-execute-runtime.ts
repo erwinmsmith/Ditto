@@ -1,7 +1,7 @@
-import { createDitto, type RuntimeConfig } from "@ditto/core/runtime";
-import type { WorkerDefinition } from "@ditto/core/worker";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, type RuntimeConfig } from "@codesoul-co/ditto/runtime";
+import type { WorkerDefinition } from "@codesoul-co/ditto/worker";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { openAgentStorage } from "../../examples/_shared/tools/storage/workers.ts";
 import { PlanAdapters } from "../../examples/_shared/tools/plan-execute/adapters.ts";
 import type { Request } from "../../examples/_shared/tools/plan-execute/domain.ts";

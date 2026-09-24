@@ -1,11 +1,11 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import type { WorkerDefinition } from "@ditto/core/worker";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import type { WorkerDefinition } from "@codesoul-co/ditto/worker";
 import { openUnderstandingStorage } from "../../examples/capabilities/understanding/storage.ts";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { UnderstandingStore } from "../../examples/_shared/tools/understanding-store.ts";
 import { runUnderstanding } from "../../examples/capabilities/understanding/shared.ts";
 const { values } = parseArgs({ options: { directory: { type: "string" }, phase: { type: "string" }, provider: { type: "string" } } });

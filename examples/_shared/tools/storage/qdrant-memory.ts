@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
-import { MemoryError, type MemoryItem, type MemoryStore, type MemorySearchProvider, type MemoryCallOptions } from "@ditto/core/worker/memory";
-import { embedContents, type EmbeddingProvider } from "@ditto/core/worker/retrieval";
+import { MemoryError, type MemoryItem, type MemoryStore, type MemorySearchProvider, type MemoryCallOptions } from "@codesoul-co/ditto/worker/memory";
+import { embedContents, type EmbeddingProvider } from "@codesoul-co/ditto-retrieval";
 export interface QdrantOptions { url: string; collection: string; dimensions: number; embedding: EmbeddingProvider; embeddingIdentity: string; apiKey?: string }
 export class QdrantClient {
   readonly url: string; readonly apiKey: string | undefined;

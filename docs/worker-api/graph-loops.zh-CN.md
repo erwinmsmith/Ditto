@@ -11,8 +11,8 @@ Graph 描述单个阶段内的节点与依赖。Loop 组合一个或多个 Graph
 阶段输入输出类型不同、需要复用检查点和恢复分支时，使用执行计划：
 
 ```ts
-import { createDitto, graph, graphStep, loop } from "@ditto/core/runtime";
-import { createContextWorker, createInMemoryContextStore } from "@ditto/core/worker/context";
+import { createDitto, graph, graphStep, loop } from "@codesoul-co/ditto/runtime";
+import { createContextWorker, createInMemoryContextStore } from "@codesoul-co/ditto/worker/context";
 
 // 本例仅演示编排契约，显式使用测试 Context；完整 Agent 使用 Redis。
 const runtime = createDitto({ workers: [createContextWorker({
@@ -22,7 +22,7 @@ const load = graph<{ question: string }>("load-question")
   .node("context", "CONTEXT.LOAD", [], input => ({
     sources: [{ id: "question", content: input.question }]
   }));
-const select = graph<{ context: import("@ditto/core/contracts").Context }>("select-context")
+const select = graph<{ context: import("@codesoul-co/ditto/contracts").Context }>("select-context")
   .node("selected", "CONTEXT.SELECT", [], input => ({
     context: input.context, purpose: "infer", limit: 1
   }));

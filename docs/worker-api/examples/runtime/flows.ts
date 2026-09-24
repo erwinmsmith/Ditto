@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url";
-import type { Context, ToolCall } from "@ditto/core/contracts";
-import type { RuntimeClient } from "@ditto/core/worker";
-import { createContextWorker, createRagStrategy } from "@ditto/core/worker/context";
-import { createInteractionWorker, type RegisteredTool } from "@ditto/core/worker/interaction";
-import type { ModelConfig } from "@ditto/core/worker/infer";
+import type { Context, ToolCall } from "@codesoul-co/ditto/contracts";
+import type { RuntimeClient } from "@codesoul-co/ditto/worker";
+import { createContextWorker, createRagStrategy } from "@codesoul-co/ditto/worker/context";
+import { createInteractionWorker, type RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
+import type { ModelConfig } from "@codesoul-co/ditto/worker/infer";
 import {
   createDitto, runMcpFlow, runRagFlow, runReactFlow, runSkillFlow, runToolCallFlow,
   type DittoRuntime,
-} from "@ditto/core/runtime";
+} from "@codesoul-co/ditto/runtime";
 
 // example: readTextTool
 export const readTextTool: RegisteredTool = {

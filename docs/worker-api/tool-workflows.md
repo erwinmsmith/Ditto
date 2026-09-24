@@ -11,9 +11,9 @@ After [tool environment setup](../../examples/_shared/tools/operations/README.md
 ```ts
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { resolve } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { openAgentStorage } from "./examples/_shared/tools/storage/workers.ts";
 import { OperationAdapters } from "./examples/_shared/tools/operations/adapters.ts";
 import { createFixture } from "./examples/capabilities/tools/fixtures.ts";
@@ -95,6 +95,6 @@ Cancellation and timeout do not imply rollback of an external action. Files and 
 
 ## Package consumption and task acceptance
 
-`npm run check:examples:tools:tasks:package` installs a real npm tarball outside the repository and separately installs application SDKs. Examples use only exported `@ditto/core/runtime`, `@ditto/core/contracts` and `@ditto/core/worker/*` entries. Strict TypeScript has no paths aliases; runtime guards reject private imports and repository fallback. All ten entries import without starting work before the full 40-scenario task suite runs.
+`npm run check:examples:tools:tasks:package` installs a real npm tarball outside the repository and separately installs application SDKs. Examples use only exported `@codesoul-co/ditto/runtime`, `@codesoul-co/ditto/contracts` and `@codesoul-co/ditto/worker/*` entries. Strict TypeScript has no paths aliases; runtime guards reject private imports and repository fallback. All ten entries import without starting work before the full 40-scenario task suite runs.
 
 Acceptance uses a real model, Redis, file SQLite, HTTP/SMTP receivers, Chromium, a visible Electron window and Docker. It covers expiry, dependency failures, policy rejection, invalid arguments, execution failures, process termination and effect reconciliation. See the [task harness](../../scripts/check-examples-operations-tasks.ts). Third-party dependencies, desktop assets and business services remain application-owned and outside the Core package.

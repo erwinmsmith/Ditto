@@ -9,8 +9,8 @@ import {
   createHybridSearchProvider, createRerankSearchProvider, createCosineReranker, rerankCandidates, embedContents,
   createHttpEmbeddingProvider, embeddingConfigFromEnv, createSqlSearchProvider, createMilvusSearchProvider,
   type EmbeddingProvider, type RetrievalSearchInput, type RetrievalSearchProvider, type RetrievalCandidate,
-} from "../src/worker/retrieval/index.js";
-import { createMemoryRetrievalProvider, createRetrievalMemorySearchProvider, RemoteRetrievalSearchProvider, mapMemoryCandidates } from "../src/worker/retrieval/adapters/memory.js";
+} from "@codesoul-co/ditto-retrieval";
+import { createMemoryRetrievalProvider, createRetrievalMemorySearchProvider, RemoteRetrievalSearchProvider, mapMemoryCandidates } from "@codesoul-co/ditto-retrieval/adapters/memory";
 
 const request: RetrievalSearchInput = { target: { name: "memories" }, query: { content: "memory" }, limit: 2 };
 const candidate = (id: string, score = 1): RetrievalCandidate => ({ id, content: id, score, source: { target: "memories", ref: id }, metadata: { original: id } });

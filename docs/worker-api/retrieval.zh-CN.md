@@ -4,16 +4,16 @@
 
 RETRIEVAL v0.1 只提供 `RETRIEVAL.SEARCH`。它是按需启用的通用相关性检索执行层，适用于搜索需要独立 CPU/GPU、连接资源、服务部署或水平扩容的场景。Core Worker 仍然只有 INFER、CONTEXT、MEMORY、INTERACTION。
 
-当前随同一包的可选入口 `@ditto/core/worker/retrieval` 分发，没有新增独立 npm 包或第三方依赖。Core 根入口和 `@ditto/core/worker` 不导出/加载 RETRIEVAL；只有显式导入并注册后才执行。YAML 配置不会启动 Worker。默认 MEMORY/CONTEXT 的本地或外部 Provider 接入不变，普通部署无需增加一跳远程调用。
+RETRIEVAL 作为独立的可选 npm 包 `@codesoul-co/ditto-retrieval` 分发，并将 `@codesoul-co/ditto` 声明为 peer dependency。需要检索时安装两个包。Core 根入口和 `@codesoul-co/ditto/worker` 不导出/加载 RETRIEVAL；只有显式导入并注册后才执行。YAML 配置不会启动 Worker。默认 MEMORY/CONTEXT 的本地或外部 Provider 接入不变，普通部署无需增加一跳远程调用。
 
 ## 按需启用
 
 ```ts
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto";
 import {
   createRetrievalWorker, RetrievalTargetRegistry,
   type RetrievalSearchProvider,
-} from "@ditto/core/worker/retrieval";
+} from "@codesoul-co/ditto-retrieval";
 
 function startRetrieval(kbProvider: RetrievalSearchProvider, codeProvider: RetrievalSearchProvider) {
   const providers = new RetrievalTargetRegistry({
@@ -124,8 +124,8 @@ Provider 返回原始 RetrievalSearchOutput，不返回第二层 NodeResult。Wo
 普通部署继续传入自己的 MemorySearchProvider。需要独立检索服务时，才导入第二个可选入口：
 
 ```ts
-import { createMemoryWorker } from "@ditto/core";
-import { RemoteRetrievalSearchProvider } from "@ditto/core/worker/retrieval/adapters/memory";
+import { createMemoryWorker } from "@codesoul-co/ditto";
+import { RemoteRetrievalSearchProvider } from "@codesoul-co/ditto-retrieval/adapters/memory";
 
 const search = new RemoteRetrievalSearchProvider({
   runtime, // 本地或已配置 HTTP 远程 Worker 的 Runtime
@@ -158,7 +158,7 @@ runtime.register(createMemoryWorker({ store: applicationMemoryStore, search }));
 
 ```ts
 import { createServer } from "node:http";
-import { createWorkerHttpHandler } from "@ditto/core";
+import { createWorkerHttpHandler } from "@codesoul-co/ditto";
 
 const token = process.env.DITTO_TRANSPORT_HTTP_WORKER_TOKEN;
 if (!token) throw new Error("Missing transport token");
@@ -170,7 +170,7 @@ server.listen(8080, "127.0.0.1");
 调用方安装已有 transport 并注册该地址，不在 Node 请求中放网络位置：
 
 ```ts
-import { createHttpTransport } from "@ditto/core";
+import { createHttpTransport } from "@codesoul-co/ditto";
 const transport = createHttpTransport({ id: "retrieval-service", url, token });
 const runtime = createDitto({ transports: [transport] });
 runtime.registerRemote({ address, transportId: transport.id, capabilities: ["RETRIEVAL.SEARCH"] });
@@ -227,8 +227,8 @@ RAG 由用户 Graph 组合 `RETRIEVAL.SEARCH → 显式候选映射 → CONTEXT.
 完整代码：[examples/retrieval.ts](examples/retrieval.ts)。下列函数共用该文件的 imports；函数不会在导入时自动执行。数据库、模型和 MCP 参数由应用注入，不是 Ditto 内置的模拟后端。选择需要的函数调用；写入、删除、模型调用等会产生对应的真实操作。
 
 ```ts
-import { createDitto, createMemoryWorker, loadRuntimeConfigFile } from "@ditto/core";
-import type { MemorySearchProvider, MemoryStore, MemoryItem } from "@ditto/core/worker/memory";
+import { createDitto, createMemoryWorker, loadRuntimeConfigFile } from "@codesoul-co/ditto";
+import type { MemorySearchProvider, MemoryStore, MemoryItem } from "@codesoul-co/ditto/worker/memory";
 import {
   createRetrieval, createRetrievalWorker, RetrievalTargetRegistry, RetrievalError, retrievalSearchNode,
   embedContents, validateVector, createVectorSearchProvider, createTextSearchProvider,
@@ -236,11 +236,11 @@ import {
   createHttpEmbeddingProvider, embeddingConfigFromEnv, createSqlSearchProvider, createMilvusSearchProvider,
   type RetrievalSearchProvider, type RetrievalSearchInput, type RetrievalSearchOutput,
   type EmbeddingProvider, type RerankProvider, type SqlSearchOptions, type MilvusSearchOptions,
-} from "@ditto/core/worker/retrieval";
+} from "@codesoul-co/ditto-retrieval";
 import {
   createMemoryRetrievalProvider, createRetrievalMemorySearchProvider,
   RemoteRetrievalSearchProvider, mapMemoryCandidates,
-} from "@ditto/core/worker/retrieval/adapters/memory";
+} from "@codesoul-co/ditto-retrieval/adapters/memory";
 
 export const request: RetrievalSearchInput = { query: { content: "agent memory" }, target: { name: "kb" }, limit: 5 };
 ```
@@ -319,7 +319,7 @@ export function retrievalDescriptor(provider: RetrievalSearchProvider) {
 CONTEXT.SELECT 的 ragStrategy 可复用当前 SearchProvider，也可通过 Runtime 委托 RETRIEVAL.SEARCH。独立调用须先检查 NodeResult，再显式映射候选，返回 ContextItem[]；SELECT 不自动写回工作集。 [完整 CONTEXT API 与调用示例](context.zh-CN.md)。
 
 ```ts
-export function remoteContextRetrieval(runtime: import("@ditto/core").RuntimeClient, target: RetrievalTarget) {
+export function remoteContextRetrieval(runtime: import("@codesoul-co/ditto").RuntimeClient, target: RetrievalTarget) {
   return contextRetrieval({ async search(input) {
     const result = await runtime.invoke("RETRIEVAL.SEARCH", input);
     if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);

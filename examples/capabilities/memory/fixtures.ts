@@ -1,7 +1,7 @@
 import { randomUUID, randomInt } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { MemoryDraft } from "@ditto/core/worker/memory";
+import type { MemoryDraft } from "@codesoul-co/ditto/worker/memory";
 import { namespace, preferenceKey, type Request, type Mode, type Backend, type Preference } from "../../_shared/tools/memory/domain.ts";
 export async function createFixture(directory: string, mode: Mode, backend: Backend) {
   const r: Request = { id: randomUUID(), tenant: "team-a", user: randomUUID(), mode, backend, statement: "For future project updates, use English with detailed explanations.", remember: true };

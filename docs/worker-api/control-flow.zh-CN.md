@@ -26,12 +26,12 @@ Graph 的依赖绑定只能读取明确声明的上游结果。节点返回的�
 
 | 入口 | 用途 |
 | --- | --- |
-| `@ditto/core/runtime` | `createDitto`、`graph`、`loop`、运行时类型与配置加载 |
-| `@ditto/core/contracts` | Context、JSON、外部结果等公共契约 |
-| `@ditto/core/worker/context` | `createContextWorker` |
-| `@ditto/core/worker/infer` | `createInferWorker`、模型配置和公开结果类型 |
-| `@ditto/core/worker/interaction` | `createInteractionWorker`、`RegisteredTool`、`OutputSink` 等契约 |
-| `@ditto/core/worker/node` | 应用工具适配器使用的公开 `WorkerContext` 类型 |
+| `@codesoul-co/ditto/runtime` | `createDitto`、`graph`、`loop`、运行时类型与配置加载 |
+| `@codesoul-co/ditto/contracts` | Context、JSON、外部结果等公共契约 |
+| `@codesoul-co/ditto/worker/context` | `createContextWorker` |
+| `@codesoul-co/ditto/worker/infer` | `createInferWorker`、模型配置和公开结果类型 |
+| `@codesoul-co/ditto/worker/interaction` | `createInteractionWorker`、`RegisteredTool`、`OutputSink` 等契约 |
+| `@codesoul-co/ditto/worker/node` | 应用工具适配器使用的公开 `WorkerContext` 类型 |
 
 模型请求经 `INFER.REASONING.SAMPLE` 与配置的 Provider 执行。业务副作用经 `INTERACTION.ACT.TOOL` 调用显式注册的工具；输出通过 `INTERACTION.OUTPUT` 和注入的 Sink 交付。示例不从 `src/`、`dist/`、未导出的深层路径加载实现，也不调用 `WorkerExecutor.execute()` 或 `WorkerDefinition.instantiate()` 自行执行能力。
 
@@ -45,7 +45,7 @@ Graph 的依赖绑定只能读取明确声明的上游结果。节点返回的�
 # 无需模型凭据：检查全部示例的公开类型和包外加载
 npm run check:examples:control-flow:types
 
-# 配置 .env 后：同一个 npm tarball 运行全部七类真实任务实验
+# 配置 .env 后：安装两个独立包并运行全部七类真实任务实验
 npm run check:examples:control-flow:package
 
 # 单独运行顺序执行的包验收
@@ -60,8 +60,8 @@ npm run check:examples:control-flow:package -- --category human,lifecycle
 [统一验收脚本](../../scripts/check-control-flow-package.ts) 执行以下检查：
 
 1. 扫描全部控制流程及共享工具，限制导入为 package.json 已导出的 Core 入口、Node 标准库和应用相对路径；禁止示例直接调用 Worker 执行器。
-2. 构建并 `npm pack` 一次，记录 tarball 的 integrity；包内容仅包含编译后的 `dist/`、包清单和 README。
-3. 在仓库外创建消费应用，安装该 tarball、Node 类型和 TypeScript；复制应用示例、工具及验收脚本，不复制 Core 源码、仓库 tsconfig 或 `.env`。
+2. 分别构建、打包 Core 与可选检索包，记录 Core tarball 的 integrity；Core 包内容仅包含编译后的 `dist/`、包清单和 README。
+3. 在仓库外创建消费应用，安装两个 tarball、Node 类型和 TypeScript；复制应用示例、工具及验收脚本，不复制包源码、仓库 tsconfig 或 `.env`。
 4. 使用消费应用自己的严格 TypeScript 配置检查全部源码，不设置 `paths`、`baseUrl` 或源码符号链接。
 5. 静默导入全部 38 个示例。运行时模块加载限制禁止访问消费应用外的模块，应用进入 Core 时必须使用公开包名入口；以源码路径、内部 dist 路径和绝对路径进行反向验证。
 6. 对同一安装包依次运行选定类别的任务实验。模块限制继承到 Node 子进程，模型凭据仅通过环境变量传入。
@@ -70,4 +70,4 @@ npm run check:examples:control-flow:package -- --category human,lifecycle
 
 汇总报告是 `.examples-control-flow-package-live-results.json`，各类报告为 `.examples-control-flow-<category>-live-results.json`。报告记录同一 tarball 的摘要、导入检查、类型检查、每类场景结果和模型调用次数；真实任务产物仍保存在各自 `.examples-<category>-tasks/` 目录。顺序执行的验收检查 Context 依赖、阶段结果、批量汇总和输出 Sink，不要求外部业务数据库。
 
-[边界回归测试](../../test/control-flow-boundary.test.ts) 随 `npm run check` 运行，用于阻止后续引入源码路径、未导出入口或直接执行 Worker。统一验收检查可安装和运行的产物，不执行 `npm publish`。正式发布需要为目标版本配置包元数据，并确保未设置 `private: true`；报告中的 `packagePublishEnabled` 单独记录该开关，不能把安装测试通过等同于已允许发布。
+[边界回归测试](../../test/control-flow-boundary.test.ts) 随 `npm run check` 运行，用于阻止后续引入源码路径、未导出入口或直接执行 Worker。统一验收检查可安装和运行的产物，不执行 `npm publish`；报告中的 `packagePublishEnabled` 单独记录发布配置，不把安装测试通过等同于已发布。

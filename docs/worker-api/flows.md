@@ -2,7 +2,7 @@
 
 [English / 简体中文](flows.zh-CN.md) · [Runtime](runtime.md) · [API](README.md)
 
-Import these functions from `@ditto/core/runtime`; they compose existing public nodes. Complete code is in [flows.ts](examples/runtime/flows.ts). `npm run example:runtime:flows` executes Skill loading, text RAG and a real README tool read. MCP/ReAct examples require a connected client or model configuration and do not run automatically.
+Import these functions from `@codesoul-co/ditto/runtime`; they compose existing public nodes. Complete code is in [flows.ts](examples/runtime/flows.ts). `npm run example:runtime:flows` executes Skill loading, text RAG and a real README tool read. MCP/ReAct examples require a connected client or model configuration and do not run automatically.
 
 ## Context flows
 
@@ -24,15 +24,15 @@ Imports and tool definition for the complete example:
 
 ```ts
 import assert from "node:assert/strict";
-import type { Context, ToolCall } from "@ditto/core/contracts";
-import type { RuntimeClient } from "@ditto/core/worker";
-import { createContextWorker, createRagStrategy } from "@ditto/core/worker/context";
-import { createInteractionWorker, type RegisteredTool } from "@ditto/core/worker/interaction";
-import type { ModelConfig } from "@ditto/core/worker/infer";
+import type { Context, ToolCall } from "@codesoul-co/ditto/contracts";
+import type { RuntimeClient } from "@codesoul-co/ditto/worker";
+import { createContextWorker, createRagStrategy } from "@codesoul-co/ditto/worker/context";
+import { createInteractionWorker, type RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
+import type { ModelConfig } from "@codesoul-co/ditto/worker/infer";
 import {
   createDitto, runMcpFlow, runRagFlow, runReactFlow, runSkillFlow, runToolCallFlow,
   type DittoRuntime,
-} from "@ditto/core/runtime";
+} from "@codesoul-co/ditto/runtime";
 ```
 ```ts
 export const readTextTool: RegisteredTool = {

@@ -10,7 +10,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadRuntimeConfigFile } from "@ditto/core/runtime";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
 import { createDemo } from "./examples/_shared/tools/plan-execute/adapters.ts";
 import { openPlanExecute } from "./examples/patterns/plan-and-execute/cli.ts";
 import { runPlanExecute } from "./examples/patterns/plan-and-execute/index.ts";

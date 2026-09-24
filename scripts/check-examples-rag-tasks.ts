@@ -5,12 +5,12 @@ import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { setTimeout as delay } from "node:timers/promises";
 import { parseArgs } from "node:util";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import type { WorkerDefinition } from "@ditto/core/worker";
-import { contextScopeKey } from "@ditto/core/worker/context";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
-import { createRetrievalWorker } from "@ditto/core/worker/retrieval";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import type { WorkerDefinition } from "@codesoul-co/ditto/worker";
+import { contextScopeKey } from "@codesoul-co/ditto/worker/context";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
+import { createRetrievalWorker } from "@codesoul-co/ditto-retrieval";
 import { openAgentStorage } from "../examples/_shared/tools/storage/workers.ts";
 import { RagAdapters } from "../examples/_shared/tools/rag/adapters.ts";
 import {

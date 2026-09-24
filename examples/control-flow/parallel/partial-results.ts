@@ -1,4 +1,4 @@
-import { graph } from "@ditto/core/runtime";
+import { graph } from "@codesoul-co/ditto/runtime";
 import { toJsonObject, type OrderFailure } from "../../_shared/tools/order-files.ts";
 import { runCli, isMain } from "./cli.ts";
 import { accepted, deliveryInput, orderGraph, OrderTaskError, savedOrder, toolData, validateBatch, type BatchInput, type Runner } from "./shared.ts";

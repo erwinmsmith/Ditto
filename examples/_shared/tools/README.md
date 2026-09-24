@@ -9,8 +9,8 @@ Keep example business tools, third-party SDK adapters and registration configura
 Register explicitly, retaining configured network permissions:
 
 ```ts
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { createPickupTool, type PickupRecord } from "./pickup-ledger.ts";
 
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);

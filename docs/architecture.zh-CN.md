@@ -126,6 +126,6 @@ Router 用一次遍历筛选能力、容量与位置，保留同级轮询；没�
 
 ## 可选 RETRIEVAL 扩展
 
-四个 Core Worker 的 21 个叶子保持不变。可选入口 `@ditto/core/worker/retrieval` 增加 `RETRIEVAL.SEARCH` 的契约与实现，仅在应用显式导入/注册时启用。它通过 Target/Strategy Registry 调用用户 Provider，不拥有数据、不执行 RAG，也不要求 MEMORY/CONTEXT 经由它检索。需要独立执行资源或水平扩容时，可使用现有 Runtime/HTTP 部署多个副本。[详细 API 与部署边界](worker-api/retrieval.zh-CN.md)。
+四个 Core Worker 的 21 个叶子保持不变。可选入口 `@codesoul-co/ditto-retrieval` 增加 `RETRIEVAL.SEARCH` 的契约与实现，仅在应用显式导入/注册时启用。它通过 Target/Strategy Registry 调用用户 Provider，不拥有数据、不执行 RAG，也不要求 MEMORY/CONTEXT 经由它检索。需要独立执行资源或水平扩容时，可使用现有 Runtime/HTTP 部署多个副本。[详细 API 与部署边界](worker-api/retrieval.zh-CN.md)。
 
 [Runtime API](worker-api/runtime.zh-CN.md) 提供并发与取消、节点部署绑定、独立 services/Sandbox 和 IPC 的完整调用示例。

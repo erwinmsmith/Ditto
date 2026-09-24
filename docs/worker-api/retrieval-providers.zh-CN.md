@@ -2,7 +2,7 @@
 
 [English](retrieval-providers.md) · [SEARCH 契约与部署](retrieval.zh-CN.md) · [MEMORY](memory.zh-CN.md)
 
-这些实现都在可选入口 `@ditto/core/worker/retrieval` 中。只冻结 `RETRIEVAL.SEARCH` 一个 Node；embedding、融合、重排是可组合的内部 Provider，也可以直接供 MEMORY 的进程内搜索使用。没有新增数据库驱动、数据库实例或索引管理模块。
+这些实现都在可选入口 `@codesoul-co/ditto-retrieval` 中。只冻结 `RETRIEVAL.SEARCH` 一个 Node；embedding、融合、重排是可组合的内部 Provider，也可以直接供 MEMORY 的进程内搜索使用。没有新增数据库驱动、数据库实例或索引管理模块。
 
 ## 存储与检索的接线
 
@@ -90,8 +90,8 @@ const memory = createMemoryWorker({
 ## HTTP embedding 与根目录配置
 
 ```ts
-import { Sandbox } from "@ditto/core/runtime/sandbox";
-import { createHttpEmbeddingProvider, embeddingConfigFromEnv } from "@ditto/core/worker/retrieval";
+import { Sandbox } from "@codesoul-co/ditto/runtime/sandbox";
+import { createHttpEmbeddingProvider, embeddingConfigFromEnv } from "@codesoul-co/ditto-retrieval";
 const embedding = createHttpEmbeddingProvider({
   ...embeddingConfigFromEnv(process.env),
   sandbox: new Sandbox(config.workspace, config.sandbox),
@@ -192,7 +192,7 @@ const providers = new RetrievalTargetRegistry({
 // Graph/temporal/custom 等策略直接注册自己的 SearchProvider，执行数据库遍历或专用算法；无需 embedding。
 ```
 
-MEMORY 转接函数来自 `@ditto/core/worker/retrieval/adapters/memory`，仅通过类型依赖 MEMORY：
+MEMORY 转接函数来自 `@codesoul-co/ditto-retrieval/adapters/memory`，仅通过类型依赖 MEMORY：
 
 | API | 用法 |
 | --- | --- |
@@ -208,8 +208,8 @@ MEMORY 转接函数来自 `@ditto/core/worker/retrieval/adapters/memory`，仅�
 完整代码：[examples/retrieval.ts](examples/retrieval.ts)。下列函数共用该文件的 imports；函数不会在导入时自动执行。数据库、模型和 MCP 参数由应用注入，不是 Ditto 内置的模拟后端。选择需要的函数调用；写入、删除、模型调用等会产生对应的真实操作。
 
 ```ts
-import { createDitto, createMemoryWorker, loadRuntimeConfigFile } from "@ditto/core";
-import type { MemorySearchProvider, MemoryStore, MemoryItem } from "@ditto/core/worker/memory";
+import { createDitto, createMemoryWorker, loadRuntimeConfigFile } from "@codesoul-co/ditto";
+import type { MemorySearchProvider, MemoryStore, MemoryItem } from "@codesoul-co/ditto/worker/memory";
 import {
   createRetrieval, createRetrievalWorker, RetrievalTargetRegistry, RetrievalError, retrievalSearchNode,
   embedContents, validateVector, createVectorSearchProvider, createTextSearchProvider,
@@ -217,11 +217,11 @@ import {
   createHttpEmbeddingProvider, embeddingConfigFromEnv, createSqlSearchProvider, createMilvusSearchProvider,
   type RetrievalSearchProvider, type RetrievalSearchInput, type RetrievalSearchOutput,
   type EmbeddingProvider, type RerankProvider, type SqlSearchOptions, type MilvusSearchOptions,
-} from "@ditto/core/worker/retrieval";
+} from "@codesoul-co/ditto-retrieval";
 import {
   createMemoryRetrievalProvider, createRetrievalMemorySearchProvider,
   RemoteRetrievalSearchProvider, mapMemoryCandidates,
-} from "@ditto/core/worker/retrieval/adapters/memory";
+} from "@codesoul-co/ditto-retrieval/adapters/memory";
 
 export const request: RetrievalSearchInput = { query: { content: "agent memory" }, target: { name: "kb" }, limit: 5 };
 ```
@@ -431,7 +431,7 @@ export function mapTextCandidates(output: RetrievalSearchOutput) {
 
 ## Context 检索适配器
 
-从 `@ditto/core/worker/retrieval/adapters/context` 导入 `createRetrievalContextStrategy` 和 `mapContextCandidates`；Core 不导入这个可选模块。
+从 `@codesoul-co/ditto-retrieval/adapters/context` 导入 `createRetrievalContextStrategy` 和 `mapContextCandidates`；Core 不导入这个可选模块。
 
 `createRetrievalContextStrategy(options)` 返回 ContextRagStrategy。provider 与 runtime 不能同时设置：provider 在本地执行 RetrievalSearchProvider，可复用 SQL、Milvus、向量/embedding、hybrid 流水线；runtime 调用 RETRIEVAL.SEARCH；在 CONTEXT Worker 内可同时省略二者以继承本次执行的 Runtime，显式 runtime 始终优先。需预先注册本地或远端 RETRIEVAL Worker，按现有 direct/IPC/HTTP 方式部署。
 
@@ -448,9 +448,9 @@ export function mapTextCandidates(output: RetrievalSearchOutput) {
 `mapContextCandidates(output)` 要求内容为 JSON。ID 由 target.name/type/namespace 及候选 ID 生成稳定哈希；无 ID 时用 source.ref，再回退 content。source.ref 映射为 source.uri，保留 metadata 和 score，补充 retrievalTarget。内容不合法抛 INVALID_PROVIDER_OUTPUT；业务记录需自定义 mapOutput。Context.SELECT 负责去重和预算，不覆盖缓存。例如 `mapContextCandidates({ target: { name: "docs" }, candidates: [{ id: "1", content: "Evidence", score: 0.8 }] })` 返回一个稳定 ContextItem，含对应内容和 score 元数据。
 
 ```ts
-import { createContext, type RuntimeClient } from "@ditto/core";
-import type { RetrievalSearchProvider } from "@ditto/core/worker/retrieval";
-import { createRetrievalContextStrategy, mapContextCandidates } from "@ditto/core/worker/retrieval/adapters/context";
+import { createContext, type RuntimeClient } from "@codesoul-co/ditto";
+import type { RetrievalSearchProvider } from "@codesoul-co/ditto-retrieval";
+import { createRetrievalContextStrategy, mapContextCandidates } from "@codesoul-co/ditto-retrieval/adapters/context";
 export function contextSearch(provider: RetrievalSearchProvider, runtime: RuntimeClient) {
   const inline = createContext({ services: { ragStrategy: createRetrievalContextStrategy({
     provider, target: { name: "documents" }, strategy: "vector",

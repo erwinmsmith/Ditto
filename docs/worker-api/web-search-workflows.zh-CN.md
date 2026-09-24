@@ -6,12 +6,12 @@
 
 ## 可运行的包消费者
 
-使用 Node.js 24+、已安装的 `@ditto/core` 包或 tarball、Redis、文本模型，以及 `redis` / `linkedom` 依赖。复制 `examples/patterns/web-search-qa`、`examples/_shared/tools/web-search`、`examples/_shared/tools/storage`、`examples/_shared/tools/evidence.ts`、`examples/_shared/tools/execution/files.ts` 和 `examples/_shared/tools/retrieval/{web.ts,domain.ts,dependencies/package.json}`，保留相对路径。准备 ditto.yaml 和模型环境变量，设置 DITTO_WORKER_CONTEXT_REDIS_URL。将以下入口保存为应用根目录的 web-search-client.ts：
+使用 Node.js 24+、已安装的 `@codesoul-co/ditto` 包或 tarball、Redis、文本模型，以及 `redis` / `linkedom` 依赖。复制 `examples/patterns/web-search-qa`、`examples/_shared/tools/web-search`、`examples/_shared/tools/storage`、`examples/_shared/tools/evidence.ts`、`examples/_shared/tools/execution/files.ts` 和 `examples/_shared/tools/retrieval/{web.ts,domain.ts,dependencies/package.json}`，保留相对路径。准备 ditto.yaml 和模型环境变量，设置 DITTO_WORKER_CONTEXT_REDIS_URL。将以下入口保存为应用根目录的 web-search-client.ts：
 
 ```ts
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { resolve } from "node:path";
-import { loadRuntimeConfigFile } from "@ditto/core/runtime";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
 import { createTask } from "./examples/_shared/tools/web-search/adapters.ts";
 import { searchConfig } from "./examples/_shared/tools/web-search/providers.ts";
 import { defaultRequest } from "./examples/patterns/web-search-qa/fixtures.ts";
@@ -51,7 +51,7 @@ try {
 | INTERACTION.ACT.TOOL | 搜索、实际网页阅读、权限/快照核对和交付 |
 | createWebSearchTool({provider}) | 使用公开 WebSearchProvider；搜索摘要只用于发现来源 |
 
-Worker 从 `@ditto/core/worker/{context,memory,infer,interaction}` 工厂注册；编排从 `@ditto/core/runtime` 导入。业务规则、搜索 SDK 和网页读取逻辑都位于应用工具目录，Core 不增加专用业务节点或第三方依赖。
+Worker 从 `@codesoul-co/ditto/worker/{context,memory,infer,interaction}` 工厂注册；编排从 `@codesoul-co/ditto/runtime` 导入。业务规则、搜索 SDK 和网页读取逻辑都位于应用工具目录，Core 不增加专用业务节点或第三方依赖。
 
 直接调用为 `runtime.loop(runWebQaLoop, [input, options], {signal, onGraph})`；runWebQa 是便捷包装，会将 signal 传递到外层 Loop。整体取消后不再启动后续 Graph。onGraph 记录实际执行的 Graph，不代表提前穷举所有分支的静态 DAG。
 

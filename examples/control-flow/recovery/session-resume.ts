@@ -1,4 +1,4 @@
-import { graph } from "@ditto/core/runtime";
+import { graph } from "@codesoul-co/ditto/runtime";
 import { object } from "../../_shared/tools/fulfillment-service.ts";
 import { call, data, modelJson, prepare, type Input, type Options, type Runner } from "./shared.ts";
 import type { Job } from "../../_shared/tools/recovery-store.ts";

@@ -2,7 +2,7 @@
 
 [English](README.md) · [八项检索示例](../../../capabilities/retrieval/README.zh-CN.md)
 
-该目录属于应用层，不是 `@ditto/core` 的内部实现。安装独立 HTML 解析器依赖：
+该目录属于应用层，不是 `@codesoul-co/ditto` 的内部实现。安装独立 HTML 解析器依赖：
 
 ```sh
 npm ci --prefix examples/_shared/tools/retrieval/dependencies

@@ -5,10 +5,10 @@ import {
   type GraphPlan,
   type ExecutionGraph,
   type DittoRuntime,
-} from "@ditto/core/runtime";
-import { ContextError } from "@ditto/core/worker/context";
-import type { NodeResult, ContextItem } from "@ditto/core/contracts";
-import type { ModelConfig, Message } from "@ditto/core/worker/infer";
+} from "@codesoul-co/ditto/runtime";
+import { ContextError } from "@codesoul-co/ditto/worker/context";
+import type { NodeResult, ContextItem } from "@codesoul-co/ditto/contracts";
+import type { ModelConfig, Message } from "@codesoul-co/ditto/worker/infer";
 import {
   request,
   roles,

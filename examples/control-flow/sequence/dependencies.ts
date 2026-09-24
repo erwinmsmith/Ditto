@@ -1,8 +1,8 @@
 import { pathToFileURL } from "node:url";
-import type { ContextItem } from "@ditto/core/contracts";
-import { createDitto, graph } from "@ditto/core/runtime";
-import { createContextWorker } from "@ditto/core/worker/context";
-import { createInteractionWorker, type InteractionOutputInput } from "@ditto/core/worker/interaction";
+import type { ContextItem } from "@codesoul-co/ditto/contracts";
+import { createDitto, graph } from "@codesoul-co/ditto/runtime";
+import { createContextWorker } from "@codesoul-co/ditto/worker/context";
+import { createInteractionWorker, type InteractionOutputInput } from "@codesoul-co/ditto/worker/interaction";
 
 export interface DependenciesInput {
   readonly items: readonly ContextItem[];

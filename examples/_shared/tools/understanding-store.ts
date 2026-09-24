@@ -4,8 +4,8 @@ import { DatabaseSync } from "node:sqlite";
 import { link, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { JsonObject } from "@ditto/core/contracts";
-import type { OutputSink, RegisteredTool } from "@ditto/core/worker/interaction";
+import type { JsonObject } from "@codesoul-co/ditto/contracts";
+import type { OutputSink, RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
 export type Mode = "goal" | "constraints" | "clarification" | "conversation" | "choices" | "intent";
 export type Stage = "received" | "analyzing" | "needs_clarification" | "awaiting_choice" | "ready" | "completed" | "answered" | "blocked" | "cancelled" | "failed";
 export interface Turn { id: string; role: "user" | "assistant"; text: string }

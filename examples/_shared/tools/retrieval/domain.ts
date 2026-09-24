@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { JsonObject } from "@ditto/core/contracts";
+import type { JsonObject } from "@codesoul-co/ditto/contracts";
 export const modes = ["document-search", "knowledge-base", "web-search", "web-read", "multi-source", "rewrite", "expand", "source-location"] as const;
 export type Mode = typeof modes[number];
 export type Source = "documents" | "knowledge-internal" | "knowledge-external" | "web";

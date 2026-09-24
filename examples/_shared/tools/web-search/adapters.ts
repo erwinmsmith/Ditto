@@ -3,7 +3,7 @@ import { join } from "node:path";
 import {
   createWebSearchTool,
   type RegisteredTool,
-} from "@ditto/core/worker/interaction";
+} from "@codesoul-co/ditto/worker/interaction";
 import { immutable } from "../execution/files.ts";
 import { readable } from "../retrieval/web.ts";
 import { searchProvider, type SearchConfig } from "./providers.ts";

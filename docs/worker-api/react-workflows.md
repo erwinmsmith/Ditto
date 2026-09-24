@@ -2,12 +2,12 @@
 
 The complete example uses one `runtime.loop(runReactLoop, [input, options])`. A generator schedules reasoning, action and observation Graphs with `graphStep`. Decisions come from native `SampleOutput.actionRequests`, not a hard-coded action sequence. The next model call receives the actual `INTERACTION.OBSERVE` output with matching action IDs.
 
-Copy `examples/patterns/react`, `examples/_shared/tools/react`, `storage`, `evidence.ts`, `execution/files.ts`, `operations/sdk.ts` and `operations/dependencies/package.json` into a consumer. Install `@ditto/core`, `redis`, and `playwright` for browser tasks. Configure the model and Redis, then run with Node 24+. Importing modules does not open databases, launch services/browsers or invoke a model.
+Copy `examples/patterns/react`, `examples/_shared/tools/react`, `storage`, `evidence.ts`, `execution/files.ts`, `operations/sdk.ts` and `operations/dependencies/package.json` into a consumer. Install `@codesoul-co/ditto`, `redis`, and `playwright` for browser tasks. Configure the model and Redis, then run with Node 24+. Importing modules does not open databases, launch services/browsers or invoke a model.
 
 ```ts
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { resolve } from "node:path";
-import { loadRuntimeConfigFile } from "@ditto/core/runtime";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
 import { createDemo } from "./examples/_shared/tools/react/service.ts";
 import { createTask } from "./examples/_shared/tools/react/adapters.ts";
 import { openReact } from "./examples/patterns/react/cli.ts";

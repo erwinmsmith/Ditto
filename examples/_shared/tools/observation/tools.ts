@@ -2,8 +2,8 @@ import { DatabaseSync } from "node:sqlite";
 import { join } from "node:path";
 import { mkdir, writeFile, readFile, link, rm, lstat } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import type { RegisteredTool } from "@ditto/core/worker/interaction";
-import type { ExternalResult, JsonObject } from "@ditto/core/contracts";
+import type { RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
+import type { ExternalResult, JsonObject } from "@codesoul-co/ditto/contracts";
 import {
   json,
   object,

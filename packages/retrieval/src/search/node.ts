@@ -1,6 +1,6 @@
 import type { RetrievalExecutionContext } from "./providers/types.js";
 import type {} from "../contracts.js";
-import { createNodeScaffold } from "../../node-scaffold.js";
+import { createNodeScaffold } from "@codesoul-co/ditto/worker";
 import type { RetrievalResources } from "../registry/providers.js";
 import { RetrievalError } from "../types.js";
 import type { RetrievalSearchInput, RetrievalSearchOutput } from "./types.js";

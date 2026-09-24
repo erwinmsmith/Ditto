@@ -2,7 +2,7 @@
 
 [简体中文](runtime.zh-CN.md) · [Worker API](README.md) · [Runnable examples](examples/runtime/README.md)
 
-Import Runtime APIs from `@ditto/core` or `@ditto/core/runtime`. Define the graph's nodes and dependencies, define loop state transitions, register concrete Workers, then execute. Model, database and tool plugins stay inside their Workers.
+Import Runtime APIs from `@codesoul-co/ditto` or `@codesoul-co/ditto/runtime`. Define the graph's nodes and dependencies, define loop state transitions, register concrete Workers, then execute. Model, database and tool plugins stay inside their Workers.
 
 ## Placement and communication
 
@@ -19,7 +19,7 @@ Local IPC / network HTTP are deployment modes. Separately, `invoke` means reques
 ## Creation, registration and cleanup
 
 ```ts
-import { createDitto, createContextWorker, loadRuntimeConfigFile } from "@ditto/core";
+import { createDitto, createContextWorker, loadRuntimeConfigFile } from "@codesoul-co/ditto";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 const runtime = createDitto({ config, hostId: "machine-a", processId: "agent" });
 const context = runtime.register(createContextWorker({ policy: config.context.policy ?? {} }), "context-a");
@@ -54,7 +54,7 @@ Applications own shared EventFabric instances, transports, child processes, HTTP
 ## Graph construction and execution
 
 ```ts
-import { graph } from "@ditto/core";
+import { graph } from "@codesoul-co/ditto";
 const prepare = graph<string>("prepare")
   .node("load", "CONTEXT.LOAD", [], content => ({ sources: [{ role: "user", content }] }))
   .node("select", "CONTEXT.SELECT", ["load"], (_input, { load }) => ({ context: load, purpose: "infer" }));
@@ -96,7 +96,7 @@ Run `npm run check:examples:sequence:live` for a real-model path. It covers all 
 ## Loop: repetition and graph selection
 
 ```ts
-import { loop } from "@ditto/core";
+import { loop } from "@codesoul-co/ditto";
 const alternate = graph<string>("alternate")
   .node("load", "CONTEXT.LOAD", [], content => ({ sources: [{ role: "user", content }] }))
   .node("select", "CONTEXT.SELECT", ["load"], (_input, { load }) => ({ context: load, purpose: "infer" }));
@@ -127,7 +127,7 @@ For batches, use a fixed Graph with Loop: `bind` selects the current object, `up
 ## Worker-specific services and Sandbox
 
 ```ts
-import { createRuntimeServices, createInteractionWorker } from "@ditto/core";
+import { createRuntimeServices, createInteractionWorker } from "@codesoul-co/ditto";
 const services = createRuntimeServices({
   config, sandbox: { tools: ["inspect_text"], read: true },
   // sandboxExecutor: applicationContainerExecutor,
@@ -144,7 +144,7 @@ const reader = runtime.register(createInteractionWorker({ tools: [inspectTextToo
 ## Worker context and cancellation
 
 ```ts
-import { defineWorker } from "@ditto/core";
+import { defineWorker } from "@codesoul-co/ditto";
 const loader = defineWorker({ type: "CONTEXT", nodes: {
   "CONTEXT.LOAD": async (input, ctx) => {
     ctx.signal?.throwIfAborted();
@@ -175,7 +175,7 @@ Emit acknowledges acceptance rather than consumer completion. Subscribe returns 
 ## IPC and HTTP adapters
 
 ```ts
-import { createIpcTransport, serveWorkerIpc } from "@ditto/core";
+import { createIpcTransport, serveWorkerIpc } from "@codesoul-co/ditto";
 // Parent: child is a node:child_process.fork result; exchange address at startup.
 const ipc = createIpcTransport({ id: "local-ipc", channel: child, timeoutMs: config.timeoutMs });
 const app = createDitto({ hostId: "machine-a", transports: [ipc] });
@@ -191,7 +191,7 @@ await workerRuntime.close();
 `IpcChannel` accepts Node ChildProcess or an IPC-enabled process. It requires an existing parent/child channel. Timeout defaults to 30000 ms, valid range 1–2147483647. Invocation IDs correlate responses; timeout, abort, disconnect and close clean up pending callers. Failures return a generic message. IPC is for trusted application channels, without a network token.
 
 ```ts
-import { createHttpTransport, createWorkerHttpHandler } from "@ditto/core";
+import { createHttpTransport, createWorkerHttpHandler } from "@codesoul-co/ditto";
 const http = createHttpTransport({ id: "remote", url: endpoint, token, timeoutMs: config.timeoutMs });
 const app = createDitto({ hostId: "machine-a", transports: [http] });
 app.registerRemote({ address: remoteAddress, capabilities: ["CONTEXT.LOAD"], transportId: http.id });
@@ -208,7 +208,7 @@ For local execution, the Runtime signal reaches INFER model providers, MEMORY da
 
 ## Sandbox API and local execution
 
-Import from `@ditto/core/runtime/sandbox` or the root package. Implementations and replaceable ports require no additional process management dependency.
+Import from `@codesoul-co/ditto/runtime/sandbox` or the root package. Implementations and replaceable ports require no additional process management dependency.
 
 | API | Arguments and behavior |
 | --- | --- |
@@ -225,8 +225,8 @@ LocalSandboxExecutorOptions requires commands: exact executable names or absolut
 Execution uses spawn with shell=false, separate literal arguments and closed stdin. Nonzero exits return their exitCode. Startup errors reject; timeout, cancellation or excess output kills the directly spawned process, closes output streams and rejects after process close. Oversized output never becomes a truncated success. Cancellation cannot roll back completed writes or external side effects.
 
 ```ts
-import { Sandbox, createLocalSandboxExecutor } from "@ditto/core/runtime/sandbox";
-import { loadRuntimeConfigFile } from "@ditto/core";
+import { Sandbox, createLocalSandboxExecutor } from "@codesoul-co/ditto/runtime/sandbox";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 const executor = createLocalSandboxExecutor({
   commands: ["uname", "printf"], ...config.sandboxExecution,

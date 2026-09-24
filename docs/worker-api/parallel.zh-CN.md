@@ -6,13 +6,13 @@
 
 ## 调用示例
 
-安装 `@ditto/core` 所需版本，复制 `examples/control-flow/parallel/` 和 `examples/_shared/tools/order-files.ts`，保留相对路径。准备 `ditto.yaml`、`.env` 及实际订单文件，然后在应用根目录调用：
+安装 `@codesoul-co/ditto` 所需版本，复制 `examples/control-flow/parallel/` 和 `examples/_shared/tools/order-files.ts`，保留相对路径。准备 `ditto.yaml`、`.env` 及实际订单文件，然后在应用根目录调用：
 
 ```ts
 import { resolve } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { createOrderFiles } from "./examples/_shared/tools/order-files.ts";
 import { runSummary } from "./examples/control-flow/parallel/fan-out-fan-in.ts";
 
@@ -36,7 +36,7 @@ try {
 } finally { await runtime.close(); }
 ```
 
-Node.js 24+ 使用 `node --env-file=.env app.ts`。TypeScript 使用 NodeNext 解析，无需源码 paths 别名。工具配置留在应用代码；展开 `config.sandbox` 保留 Provider 已配置的网络权限。`runSummary` 等函数是复制到应用的示例入口，不是 `@ditto/core` 包导出。
+Node.js 24+ 使用 `node --env-file=.env app.ts`。TypeScript 使用 NodeNext 解析，无需源码 paths 别名。工具配置留在应用代码；展开 `config.sandbox` 保留 Provider 已配置的网络权限。`runSummary` 等函数是复制到应用的示例入口，不是 `@codesoul-co/ditto` 包导出。
 
 ## 四个应用入口
 

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { Context, ContextItem, JsonValue } from "@ditto/core/contracts";
+import type { Context, ContextItem, JsonValue } from "@codesoul-co/ditto/contracts";
 export const modes = ["load", "select", "assemble", "compress", "update"] as const;
 export type Mode = typeof modes[number];
 export interface Request { id: string; tenant: string; mode: Mode; goal: string; searchUrl: string }

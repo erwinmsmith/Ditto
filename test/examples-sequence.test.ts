@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createDitto } from "@ditto/core/runtime";
-import { createContextWorker } from "@ditto/core/worker/context";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
-import type { InteractionOutputInput } from "@ditto/core/worker/interaction";
-import { createInferWorker, type SampleInput, type SampleOutput } from "@ditto/core/worker/infer";
+import { createDitto } from "@codesoul-co/ditto/runtime";
+import { createContextWorker } from "@codesoul-co/ditto/worker/context";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
+import type { InteractionOutputInput } from "@codesoul-co/ditto/worker/interaction";
+import { createInferWorker, type SampleInput, type SampleOutput } from "@codesoul-co/ditto/worker/infer";
 import { runPipeline } from "../examples/control-flow/sequence/pipeline.js";
 import { dependenciesGraph, dependenciesInput, runDependencies } from "../examples/control-flow/sequence/dependencies.js";
 import { runStages } from "../examples/control-flow/sequence/stages.js";

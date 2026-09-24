@@ -1,10 +1,10 @@
 import type {} from "../contracts.js";
-import type { ContextItem } from "../../../contracts/common.js";
-import type { RuntimeClient } from "../../execution-context.js";
-import type { ContextCallOptions, ContextRagStrategy } from "../../context/types.js";
-import type { ContextSelectInput } from "../../context/select/types.js";
-import { snapshotItem, stableContextId } from "../../context/execution.js";
-import { contextItem, messageContent, ContextError } from "../../context/validation.js";
+import type { ContextItem } from "@codesoul-co/ditto/contracts";
+import type { RuntimeClient } from "@codesoul-co/ditto/worker";
+import type { ContextCallOptions, ContextRagStrategy } from "@codesoul-co/ditto/worker/context";
+import type { ContextSelectInput } from "@codesoul-co/ditto/worker/context";
+import { snapshotItem, stableContextId } from "@codesoul-co/ditto/worker/context";
+import { contextItem, messageContent, ContextError } from "@codesoul-co/ditto/worker/context";
 import type { RetrievalSearchProvider } from "../registry/providers.js";
 import type { RetrievalSearchInput, RetrievalSearchOutput } from "../search/types.js";
 import { normalizeOutput, validateDefaults, validateSearch, validateTarget } from "../search/schema.js";

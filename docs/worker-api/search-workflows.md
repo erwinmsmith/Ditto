@@ -6,10 +6,10 @@ These workflows compose existing public Workers, Providers and Graphs. Vocabular
 
 | Public API | Purpose |
 | --- | --- |
-| `createDitto`, `graph`, `runtime.run` from `@ditto/core/runtime` | Register Workers and execute planning, retrieval, storage and publication graphs |
-| `createRetrievalWorker`, `RetrievalTargetRegistry` from `@ditto/core/worker/retrieval` | Bind permitted document and knowledge targets |
+| `createDitto`, `graph`, `runtime.run` from `@codesoul-co/ditto/runtime` | Register Workers and execute planning, retrieval, storage and publication graphs |
+| `createRetrievalWorker`, `RetrievalTargetRegistry` from `@codesoul-co/ditto-retrieval` | Bind permitted document and knowledge targets |
 | `createTextSearchProvider`, `createSqlSearchProvider` / `RETRIEVAL.SEARCH` | Keyword and parameterized FTS lookup |
-| `createWebSearchTool`, `WebSearchProvider`, `createBraveWebSearchProvider` from `@ditto/core/worker/interaction` | Search-engine contract and exported Brave implementation |
+| `createWebSearchTool`, `WebSearchProvider`, `createBraveWebSearchProvider` from `@codesoul-co/ditto/worker/interaction` | Search-engine contract and exported Brave implementation |
 | `createInteractionWorker`, `RegisteredTool` / `INTERACTION.ACT.TOOL` | Run search, page-reading and local publication tools |
 | `createInferWorker` / `INFER.REASONING.SAMPLE` | Select queries and exact quotations |
 | `createContextWorker({ redis })` / `CONTEXT.LOAD/UPDATE` | Real Redis session Context |
@@ -17,7 +17,7 @@ These workflows compose existing public Workers, Providers and Graphs. Vocabular
 
 ## Complete invocation
 
-Place this code at the application root. Install `@ditto/core`, copy `examples/capabilities/retrieval/`, `examples/_shared/tools/retrieval/`, `examples/_shared/tools/storage/`, and `ditto.yaml` into the consumer, then install application SDKs:
+Place this code at the application root. Install `@codesoul-co/ditto`, copy `examples/capabilities/retrieval/`, `examples/_shared/tools/retrieval/`, `examples/_shared/tools/storage/`, and `ditto.yaml` into the consumer, then install application SDKs:
 
 ```sh
 npm ci --prefix examples/_shared/tools/storage/dependencies
@@ -27,10 +27,10 @@ npm ci --prefix examples/_shared/tools/retrieval/dependencies
 ```ts
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { resolve } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createRetrievalWorker } from "@ditto/core/worker/retrieval";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createRetrievalWorker } from "@codesoul-co/ditto-retrieval";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { openAgentStorage } from "./examples/_shared/tools/storage/workers.ts";
 import { RetrievalAdapters } from "./examples/_shared/tools/retrieval/adapters.ts";
 import { importInternalKnowledge } from "./examples/_shared/tools/retrieval/memory.ts";

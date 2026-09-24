@@ -1,7 +1,7 @@
 import { join } from "node:path";
-import type { RuntimeConfig } from "@ditto/core/runtime";
-import { createContextWorker } from "@ditto/core/worker/context";
-import { createMemoryWorker } from "@ditto/core/worker/memory";
+import type { RuntimeConfig } from "@codesoul-co/ditto/runtime";
+import { createContextWorker } from "@codesoul-co/ditto/worker/context";
+import { createMemoryWorker } from "@codesoul-co/ditto/worker/memory";
 import { openRedisContext } from "./redis-context.ts";
 import { openSqliteMemory } from "./sqlite-memory.ts";
 

@@ -6,7 +6,7 @@
 
 ## 接入与完整调用
 
-使用 Node.js 24+，在安装 `@ditto/core` 的应用中复制 `examples/control-flow/human/` 和 `examples/_shared/tools/human-review-store.ts`，保留相对路径；准备 `ditto.yaml` 与 `.env`。这些示例是应用源码，不是 Core 的包导出。适配器仅依赖 Node.js 标准库，包括 `node:sqlite`。
+使用 Node.js 24+，在安装 `@codesoul-co/ditto` 的应用中复制 `examples/control-flow/human/` 和 `examples/_shared/tools/human-review-store.ts`，保留相对路径；准备 `ditto.yaml` 与 `.env`。这些示例是应用源码，不是 Core 的包导出。适配器仅依赖 Node.js 标准库，包括 `node:sqlite`。
 
 下例创建一个等待确认的任务，并定义可信应用控制器接收人工决定后的继续入口。不要把 `onHumanDecision` 注册为模型工具；`actor` 应来自已验证的会话，不能直接信任请求中的用户名。
 
@@ -14,10 +14,10 @@
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createContextWorker } from "@ditto/core/worker/context";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createContextWorker } from "@codesoul-co/ditto/worker/context";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { HumanReviewStore } from "./examples/_shared/tools/human-review-store.ts";
 import { createFixture, reviewers } from "./examples/control-flow/human/fixtures.ts";
 import { runApproval } from "./examples/control-flow/human/approval.ts";

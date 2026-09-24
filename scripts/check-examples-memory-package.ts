@@ -24,7 +24,8 @@ try {
   const storageDependencies = JSON.parse(await readFile(join(root, "examples/_shared/tools/storage/dependencies/package.json"), "utf8")).dependencies;
   const [packed] = JSON.parse(await run("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", app], root));
   await writeFile(join(app, "package.json"), JSON.stringify({ name: "memory-consumer", private: true, type: "module" }));
-  await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", "--cache", join(app, ".npm-cache"), join(app, packed.filename), `@types/node@${manifest.devDependencies["@types/node"]}`, `redis@${storageDependencies.redis}`, `pg@${storageDependencies.pg}`]);
+  const [retrievalPacked] = JSON.parse(await run("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", app], join(root, "packages/retrieval")));
+  await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", "--cache", join(app, ".npm-cache"), join(app, packed.filename), join(app, retrievalPacked.filename), `@types/node@${manifest.devDependencies["@types/node"]}`, `redis@${storageDependencies.redis}`, `pg@${storageDependencies.pg}`]);
   await cp(join(root, "examples/capabilities/memory"), join(app, "examples/capabilities/memory"), { recursive: true });
   await cp(join(root, "examples/_shared/tools/memory"), join(app, "examples/_shared/tools/memory"), { recursive: true, filter: path => !path.split(/[\\/]/).includes("node_modules") });
   await cp(join(root, "examples/_shared/tools/storage"), join(app, "examples/_shared/tools/storage"), { recursive: true, filter: path => !path.split(/[\\/]/).includes("node_modules") });
@@ -38,14 +39,14 @@ try {
     types: ["node"], allowImportingTsExtensions: true,
   }, include: ["examples/**/*.ts", "scripts/**/*.ts"] }));
   await run(join(root, "node_modules/.bin/tsc"), ["-p", "tsconfig.json"]);
-  assert.equal(await access(join(app, "node_modules/@ditto/core/src")).then(() => true, () => false), false);
+  assert.equal(await access(join(app, "node_modules/@codesoul-co/ditto/src")).then(() => true, () => false), false);
   await writeFile(join(app, "boundary-hook.mjs"), `import { registerHooks } from "node:module";
 import { fileURLToPath } from "node:url";
 import { relative, isAbsolute, resolve } from "node:path";
-const app = ${JSON.stringify(app)}, core = resolve(app, "node_modules/@ditto/core"), entries = new Set(${JSON.stringify(entries)});
+const app = ${JSON.stringify(app)}, core = resolve(app, "node_modules/@codesoul-co/ditto"), entries = new Set([...${JSON.stringify(entries)}, "@codesoul-co/ditto-retrieval", "@codesoul-co/ditto-retrieval/adapters/memory", "@codesoul-co/ditto-retrieval/adapters/context"]);
 function inside(root, path) { const r = relative(root, path); return r === "" || (!isAbsolute(r) && r !== ".." && !r.startsWith("../") && !r.startsWith("..\\\\")); }
 registerHooks({ resolve(specifier, memory, next) {
-  if (specifier.startsWith("@ditto/core") && !entries.has(specifier)) throw new Error("Non-public Core entry");
+  if (specifier.startsWith("@codesoul-co/ditto") && !entries.has(specifier)) throw new Error("Non-public Core entry");
   const result = next(specifier, memory);
   if (result.url.startsWith("file:")) {
     const path = fileURLToPath(result.url), parent = memory.parentURL?.startsWith("file:") ? fileURLToPath(memory.parentURL) : "";
@@ -55,7 +56,7 @@ registerHooks({ resolve(specifier, memory, next) {
   return result;
 } });`);
   guarded = true;
-  const probes = ["@ditto/core/src/index.ts", "@ditto/core/dist/runtime/index.js", pathToFileURL(join(root, "dist/index.js")).href];
+  const probes = ["@codesoul-co/ditto/src/index.ts", "@codesoul-co/ditto/dist/runtime/index.js", pathToFileURL(join(root, "dist/index.js")).href];
   await run(process.execPath, ["--input-type=module", "-e", `for (const name of ${JSON.stringify(probes)}) { let blocked = false; try { await import(name); } catch { blocked = true; } if (!blocked) throw new Error("Boundary bypass"); }`]);
   const imports = ["search", "write", "update", "task-state"].map(name => `await import("./examples/capabilities/memory/${name}.ts");`).join("\n");
   assert.equal(await run(process.execPath, ["--input-type=module", "-e", imports]), "");

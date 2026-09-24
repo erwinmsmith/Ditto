@@ -2,7 +2,7 @@
 
 [English / 简体中文](flows.md) · [Runtime](runtime.zh-CN.md) · [API](README.zh-CN.md)
 
-这些函数从 `@ditto/core/runtime` 导出，组合已有公开节点。完整代码见 [flows.ts](examples/runtime/flows.ts)。运行 `npm run example:runtime:flows` 会执行 Skill、文本 RAG 和真实 README 工具读取；MCP/ReAct 函数需要调用者提供已连接客户端或模型配置，不会自动运行。
+这些函数从 `@codesoul-co/ditto/runtime` 导出，组合已有公开节点。完整代码见 [flows.ts](examples/runtime/flows.ts)。运行 `npm run example:runtime:flows` 会执行 Skill、文本 RAG 和真实 README 工具读取；MCP/ReAct 函数需要调用者提供已连接客户端或模型配置，不会自动运行。
 
 ## Context 流程
 
@@ -24,15 +24,15 @@ Skill 流程不下载、扫描或执行 SKILL.md，也不隐式检查 skills 权
 
 ```ts
 import assert from "node:assert/strict";
-import type { Context, ToolCall } from "@ditto/core/contracts";
-import type { RuntimeClient } from "@ditto/core/worker";
-import { createContextWorker, createRagStrategy } from "@ditto/core/worker/context";
-import { createInteractionWorker, type RegisteredTool } from "@ditto/core/worker/interaction";
-import type { ModelConfig } from "@ditto/core/worker/infer";
+import type { Context, ToolCall } from "@codesoul-co/ditto/contracts";
+import type { RuntimeClient } from "@codesoul-co/ditto/worker";
+import { createContextWorker, createRagStrategy } from "@codesoul-co/ditto/worker/context";
+import { createInteractionWorker, type RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
+import type { ModelConfig } from "@codesoul-co/ditto/worker/infer";
 import {
   createDitto, runMcpFlow, runRagFlow, runReactFlow, runSkillFlow, runToolCallFlow,
   type DittoRuntime,
-} from "@ditto/core/runtime";
+} from "@codesoul-co/ditto/runtime";
 ```
 ```ts
 export const readTextTool: RegisteredTool = {

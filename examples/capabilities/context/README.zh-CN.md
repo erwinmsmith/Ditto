@@ -2,7 +2,7 @@
 
 [English](README.md) · [能力目录](../README.zh-CN.md) · [API 与调用方式](../../../docs/worker-api/context-workflows.zh-CN.md)
 
-以发布交接任务演示五种上下文操作。每个入口通过公开 `@ditto/core` Worker 和 Runtime Graph 执行，使用 Redis 工作上下文、SQLite Memory 会话历史与检查点，调用真实模型生成 `artifacts/brief.json`。
+以发布交接任务演示五种上下文操作。每个入口通过公开 `@codesoul-co/ditto` Worker 和 Runtime Graph 执行，使用 Redis 工作上下文、SQLite Memory 会话历史与检查点，调用真实模型生成 `artifacts/brief.json`。
 
 | 入口 | 输入与执行 | 结果 |
 | --- | --- | --- |

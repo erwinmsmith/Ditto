@@ -15,13 +15,13 @@ PDF/Word 阅读、比较、规则审查、图片与图表理解、录音转写�
 
 ## 消费端调用
 
-安装 `@ditto/core`，将所需 `examples/capabilities/multimodal` 与应用工具复制到消费项目；示例代码不包含在 Core npm tarball 中。消费项目安装 `redis`，配置媒体 Python 依赖。以下代码可保存为消费项目根目录的 `multimodal-app.ts`：
+安装 `@codesoul-co/ditto`，将所需 `examples/capabilities/multimodal` 与应用工具复制到消费项目；示例代码不包含在 Core npm tarball 中。消费项目安装 `redis`，配置媒体 Python 依赖。以下代码可保存为消费项目根目录的 `multimodal-app.ts`：
 
 ```ts
 import { resolve } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { openAgentStorage } from "./examples/_shared/tools/storage/workers.ts";
 import { mediaTools } from "./examples/_shared/tools/multimodal/tools.ts";
 import { resumeFixture } from "./examples/_shared/tools/multimodal/fixtures.ts";

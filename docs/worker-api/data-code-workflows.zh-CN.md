@@ -16,15 +16,15 @@
 
 ## 消费端接入
 
-消费项目安装 `@ditto/core`、Redis SDK，并复制 `examples/capabilities/data-and-code`、`examples/_shared/tools/data-and-code`、`execution` 和 `storage` 应用目录。示例代码和第三方执行环境不包含在 Core npm tarball 内。依赖安装及 Docker 配置见[工具说明](../../examples/_shared/tools/data-and-code/README.zh-CN.md)。
+消费项目安装 `@codesoul-co/ditto`、Redis SDK，并复制 `examples/capabilities/data-and-code`、`examples/_shared/tools/data-and-code`、`execution` 和 `storage` 应用目录。示例代码和第三方执行环境不包含在 Core npm tarball 内。依赖安装及 Docker 配置见[工具说明](../../examples/_shared/tools/data-and-code/README.zh-CN.md)。
 
 将下面代码保存为消费项目根目录的 `data-code-app.ts`：
 
 ```ts
 import { resolve } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { openAgentStorage } from "./examples/_shared/tools/storage/workers.ts";
 import { dataCodeTools } from "./examples/_shared/tools/data-and-code/tools.ts";
 import { resumeFixture } from "./examples/_shared/tools/data-and-code/fixtures.ts";

@@ -4,9 +4,9 @@ import { readFile } from "node:fs/promises";
 import {
   createContextWorker, createDitto, createInMemoryContextStore, createContextOperationQueue,
   graph, loadRuntimeConfigFile,
-} from "@ditto/core";
-import { createRetrievalWorker, createSqlSearchProvider, RetrievalTargetRegistry } from "@ditto/core/worker/retrieval";
-import { createRetrievalContextStrategy } from "@ditto/core/worker/retrieval/adapters/context";
+} from "@codesoul-co/ditto";
+import { createRetrievalWorker, createSqlSearchProvider, RetrievalTargetRegistry } from "@codesoul-co/ditto-retrieval";
+import { createRetrievalContextStrategy } from "@codesoul-co/ditto-retrieval/adapters/context";
 
 /** Real SQLite FTS5, shared by inline CONTEXT retrieval and the optional RETRIEVAL Worker. */
 export async function main() {

@@ -3,8 +3,8 @@ import { realpath, stat } from "node:fs/promises";
 import { relative, isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import type { JsonObject } from "@ditto/core/contracts";
-import type { RegisteredTool } from "@ditto/core/worker/interaction";
+import type { JsonObject } from "@codesoul-co/ditto/contracts";
+import type { RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
 
 const exec = promisify(execFile);
 export interface FileToolConfig {

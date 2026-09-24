@@ -8,22 +8,22 @@ Routing is application orchestration. A Graph is a static DAG without implicit c
 
 | Entry point | API | Purpose |
 | --- | --- | --- |
-| `@ditto/core/runtime` | `graph<I>(id)`, `.node(id, node, dependencies, bind)` | Static dependencies and input mapping; bind receives only declared dependency outputs |
-| `@ditto/core/runtime` | `createDitto`, `runtime.run`, `runtime.close` | Worker registration, selected graph execution and cleanup |
-| `@ditto/core/runtime` | `loadRuntimeConfigFile(path, env)` | Explicit YAML/environment loading; does not load `.env` implicitly |
-| `@ditto/core/worker/infer` | `createInferWorker`, `ModelConfig`, `NodeResult<SampleOutput>` | Real inference, completion status and usage |
-| `@ditto/core/worker/interaction` | `createInteractionWorker`, `RegisteredTool`, `OutputSink` | Application tools, delivery and receipts |
+| `@codesoul-co/ditto/runtime` | `graph<I>(id)`, `.node(id, node, dependencies, bind)` | Static dependencies and input mapping; bind receives only declared dependency outputs |
+| `@codesoul-co/ditto/runtime` | `createDitto`, `runtime.run`, `runtime.close` | Worker registration, selected graph execution and cleanup |
+| `@codesoul-co/ditto/runtime` | `loadRuntimeConfigFile(path, env)` | Explicit YAML/environment loading; does not load `.env` implicitly |
+| `@codesoul-co/ditto/worker/infer` | `createInferWorker`, `ModelConfig`, `NodeResult<SampleOutput>` | Real inference, completion status and usage |
+| `@codesoul-co/ditto/worker/interaction` | `createInteractionWorker`, `RegisteredTool`, `OutputSink` | Application tools, delivery and receipts |
 
 Functions such as `runStateRouting` are example application code, not package exports. The npm package provides Runtime and Workers. Copy the required examples and their relative imports into your application. The examples' `shared.ts` is not a generic routing framework.
 
 ## Calling from an application
 
-Install the desired `@ditto/core` version, copy `examples/control-flow/routing/` and `examples/_shared/tools/` while preserving relative paths, and supply your own `ditto.yaml` and environment. Place this `app.ts` at the application root:
+Install the desired `@codesoul-co/ditto` version, copy `examples/control-flow/routing/` and `examples/_shared/tools/` while preserving relative paths, and supply your own `ditto.yaml` and environment. Place this `app.ts` at the application root:
 
 ```ts
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { runRisk } from "./examples/control-flow/routing/risk.ts";
 import { createPickupTool, type PickupRecord } from "./examples/_shared/tools/pickup-ledger.ts";
 

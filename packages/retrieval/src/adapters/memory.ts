@@ -1,11 +1,11 @@
 import type {} from "../contracts.js";
 import type { RetrievalSearchProvider } from "../registry/providers.js";
 import type { RetrievalDefaults } from "../types.js";
-import type { MemoryItem, MemoryCallOptions } from "../../memory/types.js";
-import type { NodeResult } from "../../../contracts/node-result.js";
-import type { RuntimeClient } from "../../execution-context.js";
-import type { MemorySearchProvider } from "../../memory/providers/store.js";
-import type { MemorySearchInput, MemorySearchOutput } from "../../memory/contracts.js";
+import type { MemoryItem, MemoryCallOptions } from "@codesoul-co/ditto/worker/memory";
+import type { NodeResult } from "@codesoul-co/ditto/contracts";
+import type { RuntimeClient } from "@codesoul-co/ditto/worker";
+import type { MemorySearchProvider } from "@codesoul-co/ditto/worker/memory";
+import type { MemorySearchInput, MemorySearchOutput } from "@codesoul-co/ditto/worker/memory";
 import type { RetrievalSearchInput, RetrievalSearchOutput } from "../search/types.js";
 import { RetrievalError, type RetrievalTarget } from "../types.js";
 import { normalizeOutput, validateTarget, validateSearch, validateDefaults } from "../search/schema.js";

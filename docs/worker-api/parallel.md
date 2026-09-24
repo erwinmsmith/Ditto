@@ -6,13 +6,13 @@ The workflows compose existing Graph dependencies, runtime.run and application t
 
 ## Application integration
 
-Install the desired @ditto/core version and copy `examples/control-flow/parallel/` plus `examples/_shared/tools/order-files.ts`, preserving relative paths. Prepare ditto.yaml, .env and actual order files, then run this from the application root:
+Install the desired @codesoul-co/ditto version and copy `examples/control-flow/parallel/` plus `examples/_shared/tools/order-files.ts`, preserving relative paths. Prepare ditto.yaml, .env and actual order files, then run this from the application root:
 
 ```ts
 import { resolve } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { createOrderFiles } from "./examples/_shared/tools/order-files.ts";
 import { runSummary } from "./examples/control-flow/parallel/fan-out-fan-in.ts";
 
@@ -36,7 +36,7 @@ try {
 } finally { await runtime.close(); }
 ```
 
-Run `node --env-file=.env app.ts` on Node.js 24+. TypeScript uses NodeNext without repository-source paths aliases. Spread config.sandbox to retain Provider network permissions. Functions such as runSummary are copied application examples, not @ditto/core exports.
+Run `node --env-file=.env app.ts` on Node.js 24+. TypeScript uses NodeNext without repository-source paths aliases. Spread config.sandbox to retain Provider network permissions. Functions such as runSummary are copied application examples, not @codesoul-co/ditto exports.
 
 ## Four entry points
 

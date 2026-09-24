@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
-import { createDitto, createLocalSandboxExecutor, loadRuntimeConfigFile, createInteractionWorker, createReadOnlyCommandTools, graph, loop, type RegisteredTool } from "@ditto/core";
+import { createDitto, createLocalSandboxExecutor, loadRuntimeConfigFile, createInteractionWorker, createReadOnlyCommandTools, graph, loop, type RegisteredTool } from "@codesoul-co/ditto";
 
 const commands = [
   "uname", "printf", "false", "grep", "ls", "cat", "find", "head", "tail", "wc", "sort", "uniq", "cut", "stat", "file", "du", "pwd",

@@ -3,15 +3,15 @@ import { mkdtemp, readFile, rm, writeFile, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { createDitto, graph } from "@ditto/core/runtime";
+import { createDitto, graph } from "@codesoul-co/ditto/runtime";
 import {
   createContextWorker,
   createInMemoryContextStore,
-} from "@ditto/core/worker/context";
-import { createMemoryWorker } from "@ditto/core/worker/memory";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
-import { createRetrievalWorker } from "@ditto/core/worker/retrieval";
+} from "@codesoul-co/ditto/worker/context";
+import { createMemoryWorker } from "@codesoul-co/ditto/worker/memory";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
+import { createRetrievalWorker } from "@codesoul-co/ditto-retrieval";
 import { openSqliteMemory } from "../examples/_shared/tools/storage/sqlite-memory.ts";
 import { RagAdapters } from "../examples/_shared/tools/rag/adapters.ts";
 import {

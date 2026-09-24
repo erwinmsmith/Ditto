@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { json, document, history, validateSummary, validateBrief, request, requireInstructions } from "../examples/_shared/tools/context/domain.js";
-import type { ContextItem } from "@ditto/core/contracts";
+import type { ContextItem } from "@codesoul-co/ditto/contracts";
 const turns = history([{ text: "Approved release owner: Chen." }, { text: "Approved release budget: 4200 USD." }]);
 const summary = { owner: "Chen", budget: 4200, evidence: turns.map(i => ({ id: i.id, quote: i.content })) };
 const doc: ContextItem = { id: "document", content: { releaseCode: "REL-42", region: "eu-west", rolloutPercent: 20 } };

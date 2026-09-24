@@ -27,13 +27,13 @@
 
 调用链为：应用入口 → `createDitto({ workers, config, sandbox })` → `runtime.loop(Loop)` → `graphStep(Graph)` → 已注册 Worker → 应用适配器。Graph 用 `.node(id, publicNodeName, dependencies, mapper)` 声明节点和依赖；所有 Agent 操作都沿此调用链执行。
 
-- `@ditto/core/runtime`：`createDitto`、`graph`、`loop`、运行配置。
-- `@ditto/core/worker/context`：Context Worker、Redis store 契约、scope 和错误类型。
-- `@ditto/core/worker/memory`：Memory Worker 与持久化存储契约。
-- `@ditto/core/worker/infer`：推理 Worker、模型和消息类型。
-- `@ditto/core/worker/interaction`：Interaction Worker、工具、输出与观察契约。
-- `@ditto/core/worker/retrieval` 及显式导出的 adapters 子入口：检索 Provider、Memory/Context 接线、embedding。
-- `@ditto/core/contracts`：跨 Worker 的公开结果和 JSON 类型。
+- `@codesoul-co/ditto/runtime`：`createDitto`、`graph`、`loop`、运行配置。
+- `@codesoul-co/ditto/worker/context`：Context Worker、Redis store 契约、scope 和错误类型。
+- `@codesoul-co/ditto/worker/memory`：Memory Worker 与持久化存储契约。
+- `@codesoul-co/ditto/worker/infer`：推理 Worker、模型和消息类型。
+- `@codesoul-co/ditto/worker/interaction`：Interaction Worker、工具、输出与观察契约。
+- `@codesoul-co/ditto-retrieval` 及显式导出的 adapters 子入口：检索 Provider、Memory/Context 接线、embedding。
+- `@codesoul-co/ditto/contracts`：跨 Worker 的公开结果和 JSON 类型。
 
 第三方服务的 HTTP、数据库 SDK、PDF/OCR/ASR、浏览器和代码执行器位于 `examples/_shared/tools`，通过公开扩展接口注册。这些适配器内的服务调用属于工具实现。CLI 中创建输入夹具、接收人工回复、开关连接属于应用初始化与控制器职责。
 
@@ -41,16 +41,16 @@
 
 ## npm 消费方式
 
-`@ditto/core` 的 tarball 包含 `dist` 中的公开实现和类型声明，通过 `package.json.exports` 消费。`src`、示例、业务工具、本地配置和测试产物不进入 Core 包。
+`@codesoul-co/ditto` 的 tarball 包含 `dist` 中的公开实现和类型声明，通过 `package.json.exports` 消费。可选检索代码位于独立的 `@codesoul-co/ditto-retrieval` tarball。两个包都不包含源码目录、示例、业务工具、本地配置和测试产物。
 
 消费者安装 Core 后，复制需要的示例目录及其相对依赖，安装对应 `examples/_shared/tools/*/dependencies/package.json` 中的第三方依赖，配置真实服务。示例里的 `run`、`runGoal`、`runPlan` 等是应用组合函数；它们没有作为 86 个业务方法加入 Core 的 exports。每个类别 README/API 文档提供具体接线与调用方法。
 
-这里的包检查使用 `npm pack --ignore-scripts`，因此发布检查命令会先构建。仓库 `private: true` 会阻止实际 `npm publish`；打包兼容性测试不改变发布开关，也不执行发布。
+包检查先构建，再使用 `npm pack --ignore-scripts`，并在隔离的消费者环境中安装两个 tarball。检查验证可发布的包内容，不会上传到 npm。
 
 ## 统一发布检查
 
 ```sh
-# 不需要模型和数据库：一个实际 tarball、严格类型、86 个静默导入及边界负向探针
+# 不需要模型和数据库：实际安装两个包、严格类型、86 个静默导入及边界负向探针
 npm run check:examples:capabilities:types
 
 # 每种能力复用一条完整业务任务的原有断言；Memory 默认覆盖三种后端

@@ -10,7 +10,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadRuntimeConfigFile } from "@ditto/core/runtime";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
 import { createDemo } from "./examples/_shared/tools/candidates/adapters.ts";
 import { openCandidates } from "./examples/patterns/candidate-selection/cli.ts";
 import { runCandidates } from "./examples/patterns/candidate-selection/index.ts";

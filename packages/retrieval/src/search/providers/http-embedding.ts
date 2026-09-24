@@ -1,4 +1,4 @@
-import type { Sandbox } from "../../../../runtime/sandbox/index.js";
+import type { Sandbox } from "@codesoul-co/ditto/runtime/sandbox";
 import { RetrievalError } from "../../types.js";
 import type { EmbeddingProvider } from "./types.js";
 import { validateVector } from "./embedding.js";

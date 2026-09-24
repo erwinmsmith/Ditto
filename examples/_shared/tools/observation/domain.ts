@@ -3,7 +3,7 @@ import type {
   ExternalResult,
   Observation,
   JsonValue,
-} from "@ditto/core/contracts";
+} from "@codesoul-co/ditto/contracts";
 export const modes = [
   "read",
   "normalize",

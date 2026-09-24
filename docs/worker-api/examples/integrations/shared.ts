@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
-import { createDitto, createMemoryWorker, loadRuntimeConfigFile, type NodeResult } from "@ditto/core";
-import type { MemoryResources, MemoryDraft } from "@ditto/core/worker/memory";
+import { createDitto, createMemoryWorker, loadRuntimeConfigFile, type NodeResult } from "@codesoul-co/ditto";
+import type { MemoryResources, MemoryDraft } from "@codesoul-co/ditto/worker/memory";
 
 /** Optional SDKs belong to the example application, not Ditto Core. */
 export function exampleSdk(name: string): unknown {

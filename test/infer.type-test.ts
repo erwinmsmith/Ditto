@@ -1,6 +1,6 @@
-import { createInfer, createInferWorker, type Infer } from "@ditto/core";
-import { createHttpProvider, type SampleInput, type TrajectoryStrategy } from "@ditto/core/worker/infer";
-import { createDitto, type InputOf, type OutputOf } from "@ditto/core";
+import { createInfer, createInferWorker, type Infer } from "@codesoul-co/ditto";
+import { createHttpProvider, type SampleInput, type TrajectoryStrategy } from "@codesoul-co/ditto/worker/infer";
+import { createDitto, type InputOf, type OutputOf } from "@codesoul-co/ditto";
 export function checkInferContracts(): void {
   const input: SampleInput = { messages: [{ role: "user", content: "test" }], model: { model: "m" } };
   const same: InputOf<"INFER.REASONING.SAMPLE"> = input;

@@ -6,10 +6,10 @@ import {
   createDitto,
   loadRuntimeConfigFile,
   type RuntimeConfig,
-} from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
-import { createRetrievalWorker } from "@ditto/core/worker/retrieval";
+} from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
+import { createRetrievalWorker } from "@codesoul-co/ditto-retrieval";
 import { openAgentStorage } from "../../_shared/tools/storage/workers.ts";
 import { RagAdapters } from "../../_shared/tools/rag/adapters.ts";
 import { request, type Request } from "../../_shared/tools/rag/domain.ts";

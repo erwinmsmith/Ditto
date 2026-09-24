@@ -16,7 +16,8 @@ try {
   const manifest = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
   const [packed] = JSON.parse(await run("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", app], root));
   await writeFile(join(app, "package.json"), JSON.stringify({ name: "human-consumer", private: true, type: "module" }));
-  await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", join(app, packed.filename), `@types/node@${manifest.devDependencies["@types/node"]}`]);
+  const [retrievalPacked] = JSON.parse(await run("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", app], join(root, "packages/retrieval")));
+  await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", join(app, packed.filename), join(app, retrievalPacked.filename), `@types/node@${manifest.devDependencies["@types/node"]}`]);
   await cp(join(root, "examples/control-flow/human"), join(app, "examples/control-flow/human"), { recursive: true });
   await cp(join(root, "examples/_shared/tools/human-review-store.ts"), join(app, "examples/_shared/tools/human-review-store.ts"), { recursive: true });
   await cp(join(root, "scripts/check-examples-human-tasks.ts"), join(app, "scripts/check-examples-human-tasks.ts"), { recursive: true });
@@ -28,7 +29,7 @@ try {
     types: ["node"], allowImportingTsExtensions: true,
   }, include: ["examples/**/*.ts", "scripts/**/*.ts"] }));
   await run(join(root, "node_modules/.bin/tsc"), ["-p", "tsconfig.json"]);
-  assert.equal(await access(join(app, "node_modules/@ditto/core/src")).then(() => true, () => false), false);
+  assert.equal(await access(join(app, "node_modules/@codesoul-co/ditto/src")).then(() => true, () => false), false);
   const imports = ["approval", "intermediate", "edit-and-continue", "review-publish", "escalation"].map(name => `await import("./examples/control-flow/human/${name}.ts");`).join("\n");
   assert.equal(await run(process.execPath, ["--input-type=module", "-e", imports]), "");
   console.log("Installed tarball: strict public API types passed; module imports perform no work.");

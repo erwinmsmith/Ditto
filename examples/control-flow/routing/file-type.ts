@@ -1,4 +1,4 @@
-import { graph } from "@ditto/core/runtime";
+import { graph } from "@codesoul-co/ditto/runtime";
 import { fileToolNames } from "../../_shared/tools/file-ingestion/index.ts";
 import { basename, dirname, extname, resolve } from "node:path";
 import { parseArgs } from "node:util";

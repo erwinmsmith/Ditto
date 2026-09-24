@@ -8,12 +8,12 @@
 
 | 公开入口 / 节点 | 用途 |
 | --- | --- |
-| `@ditto/core/runtime`：`createDitto`、`graph`、`loadRuntimeConfigFile` | 注册 Workers、构图并运行 |
-| `@ditto/core/worker/context`：`createContextWorker` | `CONTEXT.LOAD` 恢复历史；`CONTEXT.UPDATE` 合并当前会话轮次 |
-| `@ditto/core/worker/memory`：`createMemoryWorker`、`MemoryStore` | `MEMORY.GET` 读取历史记忆；`MEMORY.WRITE` 归档已交付轮次 |
-| `@ditto/core/worker/infer`：`createInferWorker`、`ModelConfig` | `INFER.REASONING.SAMPLE` 理解目标、参数与意图 |
-| `@ditto/core/worker/interaction`：`createInteractionWorker`、`RegisteredTool`、`OutputSink` | `INTERACTION.ACT.TOOL` 调用应用工具；`INTERACTION.OUTPUT` 交付问题、选项或结果 |
-| `@ditto/core/contracts`：`Context`、`ExternalResult` | 处理公开上下文数据，检查工具结果 |
+| `@codesoul-co/ditto/runtime`：`createDitto`、`graph`、`loadRuntimeConfigFile` | 注册 Workers、构图并运行 |
+| `@codesoul-co/ditto/worker/context`：`createContextWorker` | `CONTEXT.LOAD` 恢复历史；`CONTEXT.UPDATE` 合并当前会话轮次 |
+| `@codesoul-co/ditto/worker/memory`：`createMemoryWorker`、`MemoryStore` | `MEMORY.GET` 读取历史记忆；`MEMORY.WRITE` 归档已交付轮次 |
+| `@codesoul-co/ditto/worker/infer`：`createInferWorker`、`ModelConfig` | `INFER.REASONING.SAMPLE` 理解目标、参数与意图 |
+| `@codesoul-co/ditto/worker/interaction`：`createInteractionWorker`、`RegisteredTool`、`OutputSink` | `INTERACTION.ACT.TOOL` 调用应用工具；`INTERACTION.OUTPUT` 交付问题、选项或结果 |
+| `@codesoul-co/ditto/contracts`：`Context`、`ExternalResult` | 处理公开上下文数据，检查工具结果 |
 
 模型只输出结构化理解结果；报告依据 `source.json` 中的实际资料确定性生成。用户输入、模型输出和助手问题分别保留，参数证据必须引用用户原文。业务工具位于 [understanding-store.ts](../../examples/_shared/tools/understanding-store.ts)，不依赖 Core 源码或私有 Worker 执行器。
 
@@ -26,9 +26,9 @@
 ```ts
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { UnderstandingStore } from "./examples/_shared/tools/understanding-store.ts";
 import { runClarification } from "./examples/capabilities/understanding/clarification.ts";
 import { openUnderstandingStorage } from "./examples/capabilities/understanding/storage.ts";

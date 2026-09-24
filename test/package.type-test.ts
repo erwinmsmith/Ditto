@@ -1,14 +1,14 @@
-import type { NodeType } from "@ditto/core";
+import type { NodeType } from "@codesoul-co/ditto";
 import { runRagFlow, runSkillFlow, runMcpFlow, runToolCallFlow,
-  type McpFlowInput, type RuntimeFlowResult, type InteractionFlowResult } from "@ditto/core/runtime";
+  type McpFlowInput, type RuntimeFlowResult, type InteractionFlowResult } from "@codesoul-co/ditto/runtime";
 import { createInteractionWorker, createReadOnlyCommandTools, type InteractionMcpOutput,
   createBraveWebSearchProvider, createWebSearchTool, type BraveWebSearchProviderOptions,
-  type ReadOnlyCommandToolOptions, type RegisteredTool, type WebSearchProvider, type WebSearchResult } from "@ditto/core/worker/interaction";
-import { inferTrajectoryNode } from "@ditto/core/worker/infer";
-import { ProviderRegistry } from "@ditto/core/worker/infer/providers";
-import type { MemoryGetInput } from "@ditto/core/worker/memory";
-import type { ToolCall } from "@ditto/core";
-import type { ActionDescriptor, ActionRequest } from "@ditto/core/worker/infer";
+  type ReadOnlyCommandToolOptions, type RegisteredTool, type WebSearchProvider, type WebSearchResult } from "@codesoul-co/ditto/worker/interaction";
+import { inferTrajectoryNode } from "@codesoul-co/ditto/worker/infer";
+import { ProviderRegistry } from "@codesoul-co/ditto/worker/infer/providers";
+import type { MemoryGetInput } from "@codesoul-co/ditto/worker/memory";
+import type { ToolCall } from "@codesoul-co/ditto";
+import type { ActionDescriptor, ActionRequest } from "@codesoul-co/ditto/worker/infer";
 
 const node: NodeType = inferTrajectoryNode.type;
 const input: MemoryGetInput = { ids: ["m1"] };

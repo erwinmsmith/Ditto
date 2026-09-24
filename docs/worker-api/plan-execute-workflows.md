@@ -10,7 +10,7 @@ Place this file at the consumer root. Copy `examples/patterns/plan-and-execute`,
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadRuntimeConfigFile } from "@ditto/core/runtime";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
 import { createDemo } from "./examples/_shared/tools/plan-execute/adapters.ts";
 import { openPlanExecute } from "./examples/patterns/plan-and-execute/cli.ts";
 import { runPlanExecute } from "./examples/patterns/plan-and-execute/index.ts";
@@ -50,7 +50,7 @@ try {
 | Replan | `plan_snapshot`, Context, Infer | Fresh state, old plans, completed steps and the failed precondition |
 | Output | `plan_publish` | Verified shipment, JSON report, Markdown report |
 
-`runPlanExecuteLoop` is a generator plan. Its reusable helpers yield `graphStep` invocations to the same Loop and share its Graph budget (1024). A Graph contains only Worker nodes. The generator performs no filesystem, database, network or Worker execution. `runPlanExecute(runtime, input, options)` invokes `runtime.loop` once; `Options.signal` cancels execution and `stopAfter: "plan" | "step" | "report"` returns a resumable checkpoint. Resume with the same directory and immutable request, omitting `stopAfter`. The helper types are example application exports, not new `@ditto/core` exports.
+`runPlanExecuteLoop` is a generator plan. Its reusable helpers yield `graphStep` invocations to the same Loop and share its Graph budget (1024). A Graph contains only Worker nodes. The generator performs no filesystem, database, network or Worker execution. `runPlanExecute(runtime, input, options)` invokes `runtime.loop` once; `Options.signal` cancels execution and `stopAfter: "plan" | "step" | "report"` returns a resumable checkpoint. Resume with the same directory and immutable request, omitting `stopAfter`. The helper types are example application exports, not new `@codesoul-co/ditto` exports.
 
 ## Planning and effect contracts
 

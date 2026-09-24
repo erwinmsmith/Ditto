@@ -1,6 +1,6 @@
 # Validation, evaluation and safety
 
-Nine entry points compose public `@ditto/core` Runtime graphs for source validation, model evaluation, permission checks, publication and report delivery.
+Nine entry points compose public `@codesoul-co/ditto` Runtime graphs for source validation, model evaluation, permission checks, publication and report delivery.
 
 | Capability | Entry | Default task |
 | --- | --- | --- |

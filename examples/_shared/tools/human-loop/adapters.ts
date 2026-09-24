@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import type {
   RegisteredTool,
   OutputSink,
-} from "@ditto/core/worker/interaction";
+} from "@codesoul-co/ditto/worker/interaction";
 import {
   HumanReviewStore,
   brief,

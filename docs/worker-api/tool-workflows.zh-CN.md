@@ -11,9 +11,9 @@
 ```ts
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { resolve } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { openAgentStorage } from "./examples/_shared/tools/storage/workers.ts";
 import { OperationAdapters } from "./examples/_shared/tools/operations/adapters.ts";
 import { createFixture } from "./examples/capabilities/tools/fixtures.ts";
@@ -95,6 +95,6 @@ Redis 缓存丢失时由 Memory 重建，Redis 不可用则报错。已保存 `r
 
 ## 包消费与任务验收
 
-`npm run check:examples:tools:tasks:package` 在仓库外安装真正的 npm tarball，并单独安装应用 SDK。示例只从 `@ditto/core/runtime`、`@ditto/core/contracts`、`@ditto/core/worker/*` 已导出的路径使用 Core。严格 TypeScript 不配置 paths，运行时拦截非公开入口及仓库回退，所有十个入口导入无执行副作用，然后运行完整 40 场景套件。
+`npm run check:examples:tools:tasks:package` 在仓库外安装真正的 npm tarball，并单独安装应用 SDK。示例只从 `@codesoul-co/ditto/runtime`、`@codesoul-co/ditto/contracts`、`@codesoul-co/ditto/worker/*` 已导出的路径使用 Core。严格 TypeScript 不配置 paths，运行时拦截非公开入口及仓库回退，所有十个入口导入无执行副作用，然后运行完整 40 场景套件。
 
 验收使用真实模型、Redis、文件 SQLite、HTTP 与 SMTP 接收服务、Chromium、Electron 可见窗口和 Docker。包括缓存过期、依赖故障、权限拒绝、错误参数、执行失败、进程中断和副作用核对。详见 [测试入口](../../scripts/check-examples-operations-tasks.ts)。第三方依赖、桌面资产和业务服务都属于应用，不加入 Core 发布包。

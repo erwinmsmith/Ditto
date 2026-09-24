@@ -30,7 +30,7 @@ Server:
 
 ```ts
 import { createServer } from "node:http";
-import { createDitto, createContextWorker, loadRuntimeConfigFile, createWorkerHttpHandler } from "@ditto/core";
+import { createDitto, createContextWorker, loadRuntimeConfigFile, createWorkerHttpHandler } from "@codesoul-co/ditto";
 
 const token = process.env.DITTO_TRANSPORT_HTTP_WORKER_TOKEN;
 if (!token) throw new Error("Set DITTO_TRANSPORT_HTTP_WORKER_TOKEN");
@@ -45,7 +45,7 @@ console.log(worker.address); // Pass to the caller through deployment configurat
 Caller:
 
 ```ts
-import { createDitto, createHttpTransport } from "@ditto/core";
+import { createDitto, createHttpTransport } from "@codesoul-co/ditto";
 
 const token = process.env.DITTO_TRANSPORT_HTTP_WORKER_TOKEN;
 if (!token) throw new Error("Set DITTO_TRANSPORT_HTTP_WORKER_TOKEN");

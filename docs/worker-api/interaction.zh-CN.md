@@ -7,8 +7,8 @@ INTERACTION 执行外部动作、标准化观察并交付最终消息。Graph �
 ## 1. 入口与 API 清单
 
 ```ts
-import { createBraveWebSearchProvider, createInteractionWorker, createReadOnlyCommandTools, createWebSearchTool, ToolRegistry, McpRegistry } from "@ditto/core/worker/interaction";
-// Also exported by @ditto/core.
+import { createBraveWebSearchProvider, createInteractionWorker, createReadOnlyCommandTools, createWebSearchTool, ToolRegistry, McpRegistry } from "@codesoul-co/ditto/worker/interaction";
+// Also exported by @codesoul-co/ditto.
 ```
 
 | API | 返回 / 用途 |
@@ -40,12 +40,12 @@ import { createBraveWebSearchProvider, createInteractionWorker, createReadOnlyCo
 以下示例共享 [examples/interaction.ts](examples/interaction.ts) 的 imports；完整文件参与 `npm run typecheck`，导入不会执行示例。SDK 参数由应用先连接，再注入；函数不会替你创建凭据或数据库。
 
 ```ts
-import { createDitto, defineWorker, graph, loop, type WorkerContext } from "@ditto/core";
+import { createDitto, defineWorker, graph, loop, type WorkerContext } from "@codesoul-co/ditto";
 import {
   createInteractionWorker, createInteractionNodes, createToolHandler, createMcpHandler,
   createOutputHandler, observeExternalResult, ToolRegistry, McpRegistry,
   interactionObserveNode, type RegisteredTool, type McpClient, type OutputSink,
-} from "@ditto/core/worker/interaction";
+} from "@codesoul-co/ditto/worker/interaction";
 ```
 
 ### RegisteredTool.validate / execute
@@ -302,7 +302,7 @@ export async function observeApis() {
 
 ### 公共 JSON / Message 类型
 
-这些类型从 `@ditto/core/contracts` 或根入口导入。INFER 的同名 Message 使用模型专用内容契约；跨 Worker 时显式映射。MCP Client 的发现返回要求每个工具带 inputSchema，公共 McpCapability 类型则将该字段标为可选。
+这些类型从 `@codesoul-co/ditto/contracts` 或根入口导入。INFER 的同名 Message 使用模型专用内容契约；跨 Worker 时显式映射。MCP Client 的发现返回要求每个工具带 inputSchema，公共 McpCapability 类型则将该字段标为可选。
 
 ```ts
 export type JsonValue = string | number | boolean | null
@@ -446,9 +446,9 @@ export async function interactionGraph() {
 
 ```ts
 export async function toolToCachedContext(
-  runtime: import("@ditto/core").RuntimeClient,
-  scope: import("@ditto/core/worker/context").ContextScope,
-  call: import("@ditto/core/contracts").ToolCall,
+  runtime: import("@codesoul-co/ditto").RuntimeClient,
+  scope: import("@codesoul-co/ditto/worker/context").ContextScope,
+  call: import("@codesoul-co/ditto/contracts").ToolCall,
 ) {
   const result = await runtime.invoke("INTERACTION.ACT.TOOL", { call });
   const observation = await runtime.invoke("INTERACTION.OBSERVE", { result });
@@ -468,8 +468,8 @@ export async function toolToCachedContext(
 `WebSearchProvider.search(input, options?: WebSearchCallOptions)` 的 options 为 `{ signal?: AbortSignal }`；工具自动传入 WorkerContext.signal。Brave 工厂的 maxResponseBytes 默认 1048576，允许 1–16777216；流式计数限制实际响应体，超限停止读取并关闭流，再进行 JSON 解析。timeoutMs 默认 30000，范围 1–2147483647。失败工具输出使用安全错误；取消为 WEB_SEARCH_CANCELLED，其他失败为 WEB_SEARCH_FAILED。应用需主动配置密钥及网络权限。
 
 ```ts
-import { createBraveWebSearchProvider, createReadOnlyCommandTools, createWebSearchTool } from "@ditto/core/worker/interaction";
-import { loadRuntimeConfigFile } from "@ditto/core";
+import { createBraveWebSearchProvider, createReadOnlyCommandTools, createWebSearchTool } from "@codesoul-co/ditto/worker/interaction";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 const provider = createBraveWebSearchProvider({
   apiKey: process.env.DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY!,

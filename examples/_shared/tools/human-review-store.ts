@@ -4,8 +4,8 @@ import { DatabaseSync } from "node:sqlite";
 import { link, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { Context, JsonObject } from "@ditto/core/contracts";
-import type { OutputSink, RegisteredTool } from "@ditto/core/worker/interaction";
+import type { Context, JsonObject } from "@codesoul-co/ditto/contracts";
+import type { OutputSink, RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
 
 export type HumanMode = "approval" | "intermediate" | "edit" | "publish" | "escalation";
 export type Purpose = "activate" | "intermediate" | "edit" | "publish" | "handoff";

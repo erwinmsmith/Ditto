@@ -1,6 +1,6 @@
 # 验证、评估与安全能力
 
-九个入口使用公开的 `@ditto/core/runtime`、`worker/context`、`worker/memory`、`worker/infer` 和 `worker/interaction` API，完成发布材料检查、语义评估、业务权限复核、发布记录写入及报告交付。
+九个入口使用公开的 `@codesoul-co/ditto/runtime`、`worker/context`、`worker/memory`、`worker/infer` 和 `worker/interaction` API，完成发布材料检查、语义评估、业务权限复核、发布记录写入及报告交付。
 
 | 能力 | 入口 | 默认任务与产物 |
 | --- | --- | --- |

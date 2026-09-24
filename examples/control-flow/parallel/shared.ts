@@ -1,6 +1,6 @@
-import { graph, type DittoRuntime } from "@ditto/core/runtime";
-import type { ModelConfig } from "@ditto/core/worker/infer";
-import type { JsonObject } from "@ditto/core/contracts";
+import { graph, type DittoRuntime } from "@codesoul-co/ditto/runtime";
+import type { ModelConfig } from "@codesoul-co/ditto/worker/infer";
+import type { JsonObject } from "@codesoul-co/ditto/contracts";
 import { identifier, object, orderRecord, toJsonObject, type SavedOrder } from "../../_shared/tools/order-files.ts";
 
 export type Runner = Pick<DittoRuntime, "run">;

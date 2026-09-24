@@ -3,7 +3,7 @@ import { readFile, mkdir, lstat } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
-import type { RegisteredTool } from "@ditto/core/worker/interaction";
+import type { RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
 import { browserSdk, electronPath, mailSdk } from "./sdk.ts";
 import { catalog, allowed, validatePlan, json, object, type Request, type Receipt, type Plan } from "./domain.ts";
 import { isolatedCode } from "../execution/docker.ts";

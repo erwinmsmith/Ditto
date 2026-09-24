@@ -4,12 +4,12 @@
 
 ## 完整调用
 
-在消费者项目复制 `examples/patterns/deep-research` 及应用工具依赖：`research`、`web-search`、`storage`、`evidence.ts`、`execution/files.ts`、`retrieval/web.ts`、`retrieval/domain.ts`、`retrieval/dependencies/package.json`。安装 `@ditto/core`、`redis`、`linkedom`，配置 `ditto.yaml` 和环境变量，使用 Node 24+ 执行：
+在消费者项目复制 `examples/patterns/deep-research` 及应用工具依赖：`research`、`web-search`、`storage`、`evidence.ts`、`execution/files.ts`、`retrieval/web.ts`、`retrieval/domain.ts`、`retrieval/dependencies/package.json`。安装 `@codesoul-co/ditto`、`redis`、`linkedom`，配置 `ditto.yaml` 和环境变量，使用 Node 24+ 执行：
 
 ```ts
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { resolve } from "node:path";
-import { loadRuntimeConfigFile } from "@ditto/core/runtime";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
 import { createTask } from "./examples/_shared/tools/research/adapters.ts";
 import { searchConfig } from "./examples/_shared/tools/web-search/providers.ts";
 import { defaultRequest } from "./examples/patterns/deep-research/fixtures.ts";

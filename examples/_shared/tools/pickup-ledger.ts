@@ -1,4 +1,4 @@
-import type { RegisteredTool } from "@ditto/core/worker/interaction";
+import type { RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
 
 export interface PickupRecord { readonly code: string; readonly quantity: number }
 

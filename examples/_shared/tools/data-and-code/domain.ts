@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { JsonValue } from "@ditto/core/contracts";
+import type { JsonValue } from "@codesoul-co/ditto/contracts";
 export const modes = [
   "query",
   "cleaning",

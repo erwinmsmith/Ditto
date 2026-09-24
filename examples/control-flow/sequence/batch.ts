@@ -1,8 +1,8 @@
 import { pathToFileURL } from "node:url";
-import { createDitto, graph, loop, loadRuntimeConfigFile, type DittoRuntime } from "@ditto/core/runtime";
-import { createContextWorker } from "@ditto/core/worker/context";
-import { createInferWorker, type ModelConfig, type NodeResult, type SampleOutput } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, graph, loop, loadRuntimeConfigFile, type DittoRuntime } from "@codesoul-co/ditto/runtime";
+import { createContextWorker } from "@codesoul-co/ditto/worker/context";
+import { createInferWorker, type ModelConfig, type NodeResult, type SampleOutput } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 
 export interface BatchItem { readonly id: string; readonly text: string; }
 export interface BatchInput {

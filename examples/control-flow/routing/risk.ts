@@ -1,4 +1,4 @@
-import { graph } from "@ditto/core/runtime";
+import { graph } from "@codesoul-co/ditto/runtime";
 import { createPickupTool } from "../../_shared/tools/pickup-ledger.ts";
 import { cli, deliver, exampleRequest, isMain, record, sampleGraph, validateRequest, type RecordValue, type Request, type Runner } from "./shared.ts";
 

@@ -3,8 +3,8 @@ import { lstat, readFile, mkdir, writeFile, link, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
-import { createSqlSearchProvider, createTextSearchProvider, RetrievalTargetRegistry, type RetrievalCandidate, type RetrievalSearchProvider } from "@ditto/core/worker/retrieval";
-import { createBraveWebSearchProvider, createWebSearchTool, type RegisteredTool } from "@ditto/core/worker/interaction";
+import { createSqlSearchProvider, createTextSearchProvider, RetrievalTargetRegistry, type RetrievalCandidate, type RetrievalSearchProvider } from "@codesoul-co/ditto-retrieval";
+import { createBraveWebSearchProvider, createWebSearchTool, type RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
 import { approvedUrl, download, pageEvidence, wikipediaSearch } from "./web.ts";
 import { digest, json, object, text, tokens, type Evidence, type Request, type Report, sourceList } from "./domain.ts";
 export async function immutable(path: string, content: string) {

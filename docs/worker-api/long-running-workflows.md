@@ -10,7 +10,7 @@ Copy `examples/patterns/long-running`, `examples/_shared/tools/long-running`, `e
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadRuntimeConfigFile } from "@ditto/core/runtime";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
 import { createDemo } from "./examples/_shared/tools/long-running/adapters.ts";
 import { openLongTask } from "./examples/patterns/long-running/cli.ts";
 import { runLongTask } from "./examples/patterns/long-running/index.ts";

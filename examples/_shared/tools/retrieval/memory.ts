@@ -1,5 +1,5 @@
 /** Explicit knowledge ingestion through the public Memory Worker, separate from task checkpoints. */
-import { graph, type DittoRuntime } from "@ditto/core/runtime";
+import { graph, type DittoRuntime } from "@codesoul-co/ditto/runtime";
 import { json, object, text } from "./domain.ts";
 export interface KnowledgeRecord { key: string; title: string; text: string }
 const ingest = graph<{ tenant: string; records: KnowledgeRecord[] }>("internal-knowledge-ingestion")

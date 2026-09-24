@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
-import { graph, type DittoRuntime } from "@ditto/core/runtime";
+import { graph, type DittoRuntime } from "@codesoul-co/ditto/runtime";
 import {
   json,
   type Request,

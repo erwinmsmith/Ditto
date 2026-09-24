@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { JsonObject } from "@ditto/core/contracts";
+import type { JsonObject } from "@codesoul-co/ditto/contracts";
 export const digest = (s: string) =>
   createHash("sha256").update(s).digest("hex");
 export const json = (v: unknown): JsonObject =>

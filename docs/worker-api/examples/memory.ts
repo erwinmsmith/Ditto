@@ -1,8 +1,8 @@
-import { createDitto, graph, loadRuntimeConfigFile } from "@ditto/core";
+import { createDitto, graph, loadRuntimeConfigFile } from "@codesoul-co/ditto";
 import {
   createMemory, createMemoryWorker, MemoryError, memoryGetNode,
   type MemoryResources, type MemoryStore, type MemorySearchProvider,
-} from "@ditto/core/worker/memory";
+} from "@codesoul-co/ditto/worker/memory";
 
 // example: setup
 export function setupMemory(resources: MemoryResources) {

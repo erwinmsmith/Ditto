@@ -2,8 +2,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
-import type { JsonObject, JsonValue } from "@ditto/core/contracts";
-import type { RegisteredTool } from "@ditto/core/worker/interaction";
+import type { JsonObject, JsonValue } from "@codesoul-co/ditto/contracts";
+import type { RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
 
 export interface CatalogEntry { id: string; fields: string[] }
 export interface BriefSpec { required: string[]; catalog: CatalogEntry[]; initialDraft: Record<string, string>; initialEvidence: string[] }

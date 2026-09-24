@@ -1,6 +1,6 @@
 import { readFile, lstat, mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import type { RegisteredTool } from "@ditto/core/worker/interaction";
+import type { RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
 import {
   WebAdapters,
   createTask as createWebTask,

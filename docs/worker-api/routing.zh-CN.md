@@ -8,22 +8,22 @@
 
 | 入口 | API | 职责 |
 | --- | --- | --- |
-| `@ditto/core/runtime` | `graph<I>(id)`、`.node(id, node, dependencies, bind)` | 定义静态依赖和输入映射；bind 只读取声明的依赖输出 |
-| `@ditto/core/runtime` | `createDitto`、`runtime.run`、`runtime.close` | 注册 Worker、执行选定图、关闭资源 |
-| `@ditto/core/runtime` | `loadRuntimeConfigFile(path, env)` | 显式加载 YAML 与环境变量；不隐式读取 `.env` |
-| `@ditto/core/worker/infer` | `createInferWorker`、`ModelConfig`、`NodeResult<SampleOutput>` | 真实模型推理及结束状态、用量 |
-| `@ditto/core/worker/interaction` | `createInteractionWorker`、`RegisteredTool`、`OutputSink` | 应用工具、最终输出与回执 |
+| `@codesoul-co/ditto/runtime` | `graph<I>(id)`、`.node(id, node, dependencies, bind)` | 定义静态依赖和输入映射；bind 只读取声明的依赖输出 |
+| `@codesoul-co/ditto/runtime` | `createDitto`、`runtime.run`、`runtime.close` | 注册 Worker、执行选定图、关闭资源 |
+| `@codesoul-co/ditto/runtime` | `loadRuntimeConfigFile(path, env)` | 显式加载 YAML 与环境变量；不隐式读取 `.env` |
+| `@codesoul-co/ditto/worker/infer` | `createInferWorker`、`ModelConfig`、`NodeResult<SampleOutput>` | 真实模型推理及结束状态、用量 |
+| `@codesoul-co/ditto/worker/interaction` | `createInteractionWorker`、`RegisteredTool`、`OutputSink` | 应用工具、最终输出与回执 |
 
-`runStateRouting` 等函数是示例应用代码，不是 `@ditto/core` 的包导出。npm 包提供 Runtime 和 Worker；将需要的示例及其相对导入文件复制到自己的应用中使用。示例中的 `shared.ts` 不是通用路由框架。
+`runStateRouting` 等函数是示例应用代码，不是 `@codesoul-co/ditto` 的包导出。npm 包提供 Runtime 和 Worker；将需要的示例及其相对导入文件复制到自己的应用中使用。示例中的 `shared.ts` 不是通用路由框架。
 
 ## 从应用调用
 
-在应用安装所需版本的 `@ditto/core`，复制 `examples/control-flow/routing/` 和 `examples/_shared/tools/`，保留相对路径；准备自己的 `ditto.yaml` 与环境变量。以下 `app.ts` 位于应用根目录：
+在应用安装所需版本的 `@codesoul-co/ditto`，复制 `examples/control-flow/routing/` 和 `examples/_shared/tools/`，保留相对路径；准备自己的 `ditto.yaml` 与环境变量。以下 `app.ts` 位于应用根目录：
 
 ```ts
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { runRisk } from "./examples/control-flow/routing/risk.ts";
 import { createPickupTool, type PickupRecord } from "./examples/_shared/tools/pickup-ledger.ts";
 

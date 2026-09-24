@@ -2,16 +2,16 @@
 
 [简体中文](rag-workflows.zh-CN.md) · [API index](README.md) · [Full example](../../examples/patterns/rag-qa/README.md)
 
-`runRag` is an application function, not an additional `@ditto/core` export. Core exposes Runtime, Graph, Workers and retrieval provider interfaces. Source formats, authorization rules, checkpoints, prompts, citation validation and delivery belong to the application.
+`runRag` is an application function, not an additional `@codesoul-co/ditto` export. Core exposes Runtime, Graph, Workers and retrieval provider interfaces. Source formats, authorization rules, checkpoints, prompts, citation validation and delivery belong to the application.
 
 ## Runnable consumer
 
-Use Node.js 24+. Install `@ditto/core` (or its `npm pack` tarball before publication). Copy `examples/patterns/rag-qa`, `examples/_shared/tools/rag`, `examples/_shared/tools/storage` and `examples/_shared/tools/execution/files.ts`, `examples/_shared/tools/evidence.ts` into the same relative paths in the consumer. Install storage dependencies, configure `ditto.yaml` and model credentials, and set `DITTO_WORKER_CONTEXT_REDIS_URL`. Save this at the application root as `rag-client.ts`:
+Use Node.js 24+. Install `@codesoul-co/ditto` (or its `npm pack` tarball before publication). Copy `examples/patterns/rag-qa`, `examples/_shared/tools/rag`, `examples/_shared/tools/storage` and `examples/_shared/tools/execution/files.ts`, `examples/_shared/tools/evidence.ts` into the same relative paths in the consumer. Install storage dependencies, configure `ditto.yaml` and model credentials, and set `DITTO_WORKER_CONTEXT_REDIS_URL`. Save this at the application root as `rag-client.ts`:
 
 ```ts
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { resolve } from "node:path";
-import { loadRuntimeConfigFile } from "@ditto/core/runtime";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
 import { runRag } from "./examples/patterns/rag-qa/index.ts";
 import { openRag } from "./examples/patterns/rag-qa/cli.ts";
 import { createFixture, seedInternalKnowledge } from "./examples/patterns/rag-qa/fixtures.ts";
@@ -48,14 +48,14 @@ node --env-file=.env rag-client.ts
 
 | Public entry | Nodes | Purpose |
 | --- | --- | --- |
-| `createDitto`, `graph`, `loop`, `graphStep` from `@ditto/core/runtime` | Runtime / graph dependencies | `runRag()` calls one `runtime.loop(runRagLoop, ...)`; the plan yields every stage Graph |
+| `createDitto`, `graph`, `loop`, `graphStep` from `@codesoul-co/ditto/runtime` | Runtime / graph dependencies | `runRag()` calls one `runtime.loop(runRagLoop, ...)`; the plan yields every stage Graph |
 | `createContextWorker` | `CONTEXT.LOAD`, `CONTEXT.UPDATE` | Redis working-set loading and assembly |
 | `createMemoryWorker` | `MEMORY.GET`, `MEMORY.WRITE` | Approved internal knowledge and durable checkpoints |
 | `createRetrievalWorker` | `RETRIEVAL.SEARCH` | Authorized, versioned text index |
 | `createInferWorker` | `INFER.REASONING.SAMPLE` | Understanding, screening, generation, grounding |
 | `createInteractionWorker` | `INTERACTION.ACT.TOOL` | Authorization, ingestion, snapshot checks, delivery |
 
-Worker factories come from the respective `@ditto/core/worker/context`, `memory`, `retrieval`, `infer`, and `interaction` exports. Application code never calls Worker executors or imports private source/build paths.
+Worker factories come from the respective `@codesoul-co/ditto/worker/context`, `memory`, `retrieval`, `infer`, and `interaction` exports. Application code never calls Worker executors or imports private source/build paths.
 
 The application injects a `RetrievalTargetRegistry` with `createTextSearchProvider`: target `rag-corpus`, strategy `bm25`, namespace `<tenant>:<principal>:<requestId>`. Database queries are implementation details of the application provider. The graph invokes public `RETRIEVAL.SEARCH`.
 
@@ -88,7 +88,7 @@ Checkpoints return `{status:"checkpoint", stage}`. Storage/source faults, budget
 A trusted controller can write curated knowledge through the public Memory node:
 
 ```ts
-import { graph } from "@ditto/core/runtime";
+import { graph } from "@codesoul-co/ditto/runtime";
 const ingest = graph("approved-knowledge").node("saved", "MEMORY.WRITE", [], () => ({
   memories: [{
     key: "knowledge:demo:maintenance",

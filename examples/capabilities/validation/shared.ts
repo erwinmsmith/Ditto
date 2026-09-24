@@ -1,8 +1,8 @@
-import { loop, graphStep, type GraphPlan } from "@ditto/core/runtime";
-import { graph, type DittoRuntime } from "@ditto/core/runtime";
-import { ContextError } from "@ditto/core/worker/context";
-import type { ModelConfig } from "@ditto/core/worker/infer";
-import type { NodeResult, JsonObject } from "@ditto/core/contracts";
+import { loop, graphStep, type GraphPlan } from "@codesoul-co/ditto/runtime";
+import { graph, type DittoRuntime } from "@codesoul-co/ditto/runtime";
+import { ContextError } from "@codesoul-co/ditto/worker/context";
+import type { ModelConfig } from "@codesoul-co/ditto/worker/infer";
+import type { NodeResult, JsonObject } from "@codesoul-co/ditto/contracts";
 import {
   request,
   json,

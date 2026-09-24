@@ -2,11 +2,11 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import type { WorkerDefinition } from "@ditto/core/worker";
-import { createContextWorker } from "@ditto/core/worker/context";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import type { WorkerDefinition } from "@codesoul-co/ditto/worker";
+import { createContextWorker } from "@codesoul-co/ditto/worker/context";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { RecoveryStore } from "../../examples/_shared/tools/recovery-store.ts";
 import { runCheckpoint } from "../../examples/control-flow/recovery/checkpoint-resume.ts";
 import { runPause, resumePaused } from "../../examples/control-flow/recovery/pause-resume.ts";

@@ -2,8 +2,8 @@
 import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
-import { createDitto, createInfer, createInferWorker, defineWorker, graph, loadRuntimeConfigFile, runReactFlow } from "@ditto/core";
-import type { Infer } from "@ditto/core";
+import { createDitto, createInfer, createInferWorker, defineWorker, graph, loadRuntimeConfigFile, runReactFlow } from "@codesoul-co/ditto";
+import type { Infer } from "@codesoul-co/ditto";
 const { values } = parseArgs({ options: { provider: { type: "string" }, report: { type: "string", default: ".infer-live-results.json" }, strategies: { type: "string" }, cases: { type: "string" }, label: { type: "string" }, "max-tokens": { type: "string" } } });
 const config = loadRuntimeConfigFile();
 const maxTokens = Number(values["max-tokens"] ?? config.infer.generation?.maxTokens); assert.ok(Number.isSafeInteger(maxTokens) && maxTokens >= 256 && maxTokens <= 16384, "max-tokens must be 256..16384");

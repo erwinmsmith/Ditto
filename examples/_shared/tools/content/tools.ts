@@ -1,7 +1,7 @@
 import { readFile, writeFile, mkdir, link, rm, lstat } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { randomUUID } from "node:crypto";
-import type { RegisteredTool } from "@ditto/core/worker/interaction";
+import type { RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
 import {
   json,
   source,

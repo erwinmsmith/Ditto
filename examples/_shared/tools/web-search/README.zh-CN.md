@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-这些适配器独立于 @ditto/core。providers.ts 提供公开 WebSearchProvider；http.ts 负责有界 HTTP 读取；adapters.ts 注册授权、网页阅读、快照核验和发布工具；domain.ts 定义请求与结果契约。引用及依据校验复用 ../evidence.ts 中与 RAG 共用的纯函数。
+这些适配器独立于 @codesoul-co/ditto。providers.ts 提供公开 WebSearchProvider；http.ts 负责有界 HTTP 读取；adapters.ts 注册授权、网页阅读、快照核验和发布工具；domain.ts 定义请求与结果契约。引用及依据校验复用 ../evidence.ts 中与 RAG 共用的纯函数。
 
 安装 storage / retrieval 依赖清单中的 redis、linkedom。Core 不增加这些第三方依赖。
 

@@ -12,7 +12,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadRuntimeConfigFile } from "@ditto/core/runtime";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
 import { createDemo } from "./examples/_shared/tools/specialist-routing/adapters.ts";
 import { openSpecialistRouting } from "./examples/patterns/specialist-routing/cli.ts";
 import { runSpecialistRouting } from "./examples/patterns/specialist-routing/index.ts";

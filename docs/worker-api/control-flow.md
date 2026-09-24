@@ -22,12 +22,12 @@ Conditions, application waits and `Promise.allSettled` across Graphs select and 
 
 | Public entry | Use |
 | --- | --- |
-| `@ditto/core/runtime` | Runtime factory, Graph/Loop composition, public execution types and configuration |
-| `@ditto/core/contracts` | Context, JSON and external-result contracts |
-| `@ditto/core/worker/context` | `createContextWorker` |
-| `@ditto/core/worker/infer` | `createInferWorker`, model configuration and public result types |
-| `@ditto/core/worker/interaction` | `createInteractionWorker`, `RegisteredTool`, `OutputSink` |
-| `@ditto/core/worker/node` | Public `WorkerContext` used by an application adapter |
+| `@codesoul-co/ditto/runtime` | Runtime factory, Graph/Loop composition, public execution types and configuration |
+| `@codesoul-co/ditto/contracts` | Context, JSON and external-result contracts |
+| `@codesoul-co/ditto/worker/context` | `createContextWorker` |
+| `@codesoul-co/ditto/worker/infer` | `createInferWorker`, model configuration and public result types |
+| `@codesoul-co/ditto/worker/interaction` | `createInteractionWorker`, `RegisteredTool`, `OutputSink` |
+| `@codesoul-co/ditto/worker/node` | Public `WorkerContext` used by an application adapter |
 
 Model calls use `INFER.REASONING.SAMPLE` and configured providers. Business effects use registered `INTERACTION.ACT.TOOL` tools; deliveries use `INTERACTION.OUTPUT` and injected sinks. Examples neither load `src/`, `dist/` or unexported implementation paths nor invoke `WorkerExecutor.execute()` or `WorkerDefinition.instantiate()` themselves.
 
@@ -41,7 +41,7 @@ Functions such as `runScheduled` and `runApproval` are exports of the example ap
 # No model credentials: all public consumer types and package imports
 npm run check:examples:control-flow:types
 
-# With .env configured: all seven task suites against one tarball
+# With .env configured: all seven task suites against installed packages
 npm run check:examples:control-flow:package
 
 # Sequence package acceptance on its own
@@ -56,8 +56,8 @@ Select a configured real provider with `--provider`. Routing acceptance addition
 The [unified gate](../../scripts/check-control-flow-package.ts):
 
 1. Audits control-flow and shared-tool sources for exported Core entry points, Node built-ins and application-relative imports; rejects direct executor calls.
-2. Builds and packs once, recording tarball integrity; allows only compiled `dist/`, package metadata and READMEs in the package.
-3. Creates an external consumer, installs that tarball, Node types and TypeScript, and copies application examples/adapters and task checks without Core source, repository tsconfig or `.env`.
+2. Builds and packs Core and optional retrieval separately, recording Core tarball integrity; allows only compiled `dist/`, package metadata and READMEs in Core.
+3. Creates an external consumer, installs both tarballs, Node types and TypeScript, and copies application examples/adapters and task checks without package source, repository tsconfig or `.env`.
 4. Typechecks all copied sources with strict consumer settings, without `paths`, `baseUrl` or source symlinks.
 5. Imports all 38 examples silently. A runtime module hook blocks modules outside the consumer and permits application entry into Core only through public package specifiers. Negative probes attempt source, internal dist and absolute paths.
 6. Runs selected task suites sequentially against that same installation. Node child processes inherit the module guard; provider credentials are passed through environment variables only.
@@ -66,4 +66,4 @@ Configured business inputs, outputs and an independent Python environment are ap
 
 The summary is `.examples-control-flow-package-live-results.json`; category reports are `.examples-control-flow-<category>-live-results.json`. They record tarball identity, boundary/type checks, task results and model-call counts. Task artifacts remain under their category's `.examples-<category>-tasks/`. Sequence acceptance checks Context dependencies, stage outputs, batch aggregation and output sinks without requiring an external business database.
 
-The [boundary regression](../../test/control-flow-boundary.test.ts) runs with `npm run check` to prevent source-path imports, unexported entries and direct Worker execution. Package acceptance does not run `npm publish`. Configure release metadata and ensure `private: true` is absent before publishing; the report's `packagePublishEnabled` field records this separately from installation success.
+The [boundary regression](../../test/control-flow-boundary.test.ts) runs with `npm run check` to prevent source-path imports, unexported entries and direct Worker execution. Package acceptance does not run `npm publish`; the report's `packagePublishEnabled` field records release configuration separately from installation success.

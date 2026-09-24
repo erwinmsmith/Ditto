@@ -1,9 +1,9 @@
 import { join } from "node:path";
-import { createContextWorker } from "@ditto/core/worker/context";
-import { createMemoryWorker } from "@ditto/core/worker/memory";
-import { Sandbox } from "@ditto/core/runtime/sandbox";
-import { createHttpEmbeddingProvider, embeddingConfigFromEnv, type EmbeddingProvider } from "@ditto/core/worker/retrieval";
-import type { RuntimeConfig } from "@ditto/core/runtime";
+import { createContextWorker } from "@codesoul-co/ditto/worker/context";
+import { createMemoryWorker } from "@codesoul-co/ditto/worker/memory";
+import { Sandbox } from "@codesoul-co/ditto/runtime/sandbox";
+import { createHttpEmbeddingProvider, embeddingConfigFromEnv, type EmbeddingProvider } from "@codesoul-co/ditto-retrieval";
+import type { RuntimeConfig } from "@codesoul-co/ditto/runtime";
 import { openRedisContext } from "../storage/redis-context.ts";
 import { openSqliteMemory } from "../storage/sqlite-memory.ts";
 import { openPostgresMemory } from "../storage/postgres-memory.ts";

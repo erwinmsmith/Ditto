@@ -6,7 +6,7 @@ CONTEXT manages working context through LOAD, SELECT, UPDATE, and COMPRESS. Call
 
 ## Construction and configuration
 
-Import factories from `@ditto/core/worker/context` or the root package; import Context, ContextItem, Message and Reference from `@ditto/core/contracts`. `createContext(options?)` and `createContextWorker(options?)` share handlers. Results are Context or ContextSelection, without a NodeResult envelope. Failures reject with ContextError or infrastructure/provider errors.
+Import factories from `@codesoul-co/ditto/worker/context` or the root package; import Context, ContextItem, Message and Reference from `@codesoul-co/ditto/contracts`. `createContext(options?)` and `createContextWorker(options?)` share handlers. Results are Context or ContextSelection, without a NodeResult envelope. Failures reject with ContextError or infrastructure/provider errors.
 
 | Option | Default / behavior |
 | --- | --- |
@@ -141,12 +141,12 @@ import {
   defaultSelect, deterministicCompress, isProtectedContextItem,
   type ContextStateStore, type RedisContextClient,
   type ContextServices, type ContextOptions, type ContextCompressor,
-} from "@ditto/core/worker/context";
-import { createDitto, graph, loadRuntimeConfigFile, runRagFlow, runSkillFlow } from "@ditto/core";
-import type { Context as WorkingContext, ContextItem as WorkingItem } from "@ditto/core/contracts";
-import type { InferClient, ModelConfig } from "@ditto/core/worker/infer";
-import { createMemoryWorker, type MemoryResources } from "@ditto/core/worker/memory";
-import type { RetrievalSearchProvider, RetrievalTarget } from "@ditto/core/worker/retrieval";
+} from "@codesoul-co/ditto/worker/context";
+import { createDitto, graph, loadRuntimeConfigFile, runRagFlow, runSkillFlow } from "@codesoul-co/ditto";
+import type { Context as WorkingContext, ContextItem as WorkingItem } from "@codesoul-co/ditto/contracts";
+import type { InferClient, ModelConfig } from "@codesoul-co/ditto/worker/infer";
+import { createMemoryWorker, type MemoryResources } from "@codesoul-co/ditto/worker/memory";
+import type { RetrievalSearchProvider, RetrievalTarget } from "@codesoul-co/ditto-retrieval";
 ```
 
 ### Construct SDK and Worker
@@ -373,7 +373,7 @@ export const customContextLoad = contextLoadNode.define("CONTEXT", async input =
 ### Write to durable MEMORY
 
 ```ts
-export async function contextToMemory(context: WorkingContext, memory: ReturnType<typeof import("@ditto/core/worker/memory").createMemory>) {
+export async function contextToMemory(context: WorkingContext, memory: ReturnType<typeof import("@codesoul-co/ditto/worker/memory").createMemory>) {
   const selected = await createContext().select({ context, purpose: "memory", limit: 8 });
   return memory.write({ memories: selected.context.items.map(item => ({
     content: item.content, metadata: { contextItemId: item.id },
@@ -385,9 +385,9 @@ export async function contextToMemory(context: WorkingContext, memory: ReturnTyp
 
 ```ts
 export async function toolToCachedContext(
-  runtime: import("@ditto/core").RuntimeClient,
-  scope: import("@ditto/core/worker/context").ContextScope,
-  call: import("@ditto/core/contracts").ToolCall,
+  runtime: import("@codesoul-co/ditto").RuntimeClient,
+  scope: import("@codesoul-co/ditto/worker/context").ContextScope,
+  call: import("@codesoul-co/ditto/contracts").ToolCall,
 ) {
   const result = await runtime.invoke("INTERACTION.ACT.TOOL", { call });
   const observation = await runtime.invoke("INTERACTION.OBSERVE", { result });
@@ -403,7 +403,7 @@ export async function toolToCachedContext(
 ### Delegate to independent RETRIEVAL
 
 ```ts
-export function remoteContextRetrieval(runtime: import("@ditto/core").RuntimeClient, target: RetrievalTarget) {
+export function remoteContextRetrieval(runtime: import("@codesoul-co/ditto").RuntimeClient, target: RetrievalTarget) {
   return contextRetrieval({ async search(input) {
     const result = await runtime.invoke("RETRIEVAL.SEARCH", input);
     if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);
@@ -424,7 +424,7 @@ Runnable database integration examples: [examples/worker](examples/integrations/
 
 ```ts
 import { createContext, createInMemoryContextStore, createContextOperationQueue,
-  loadRuntimeConfigFile } from "@ditto/core";
+  loadRuntimeConfigFile } from "@codesoul-co/ditto";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 const store = createInMemoryContextStore(config.context.localCache);
 const queue = createContextOperationQueue(config.context.queue);

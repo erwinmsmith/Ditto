@@ -10,7 +10,7 @@ import {
 } from "node:fs/promises";
 import { resolve, relative, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { RegisteredTool } from "@ditto/core/worker/interaction";
+import type { RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
 import {
   analysis,
   digest,

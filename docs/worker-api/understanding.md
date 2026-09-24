@@ -8,12 +8,12 @@ These examples turn a user's request into a release report task. They cover goal
 
 | Public entry / node | Purpose |
 | --- | --- |
-| `@ditto/core/runtime`: `createDitto`, `graph`, `loadRuntimeConfigFile` | Register Workers, construct graphs, and run them |
-| `@ditto/core/worker/context`: `createContextWorker` | Restore history with `CONTEXT.LOAD`; merge conversation turns with `CONTEXT.UPDATE` |
-| `@ditto/core/worker/memory`: `createMemoryWorker`, `MemoryStore` | Read conversation archives with `MEMORY.GET`; archive delivered turns with `MEMORY.WRITE` |
-| `@ditto/core/worker/infer`: `createInferWorker`, `ModelConfig` | Interpret goals, parameters, and intent with `INFER.REASONING.SAMPLE` |
-| `@ditto/core/worker/interaction`: `createInteractionWorker`, `RegisteredTool`, `OutputSink` | Call application tools with `INTERACTION.ACT.TOOL`; deliver questions, choices, or results with `INTERACTION.OUTPUT` |
-| `@ditto/core/contracts`: `Context`, `ExternalResult` | Handle public Context data and check tool outcomes |
+| `@codesoul-co/ditto/runtime`: `createDitto`, `graph`, `loadRuntimeConfigFile` | Register Workers, construct graphs, and run them |
+| `@codesoul-co/ditto/worker/context`: `createContextWorker` | Restore history with `CONTEXT.LOAD`; merge conversation turns with `CONTEXT.UPDATE` |
+| `@codesoul-co/ditto/worker/memory`: `createMemoryWorker`, `MemoryStore` | Read conversation archives with `MEMORY.GET`; archive delivered turns with `MEMORY.WRITE` |
+| `@codesoul-co/ditto/worker/infer`: `createInferWorker`, `ModelConfig` | Interpret goals, parameters, and intent with `INFER.REASONING.SAMPLE` |
+| `@codesoul-co/ditto/worker/interaction`: `createInteractionWorker`, `RegisteredTool`, `OutputSink` | Call application tools with `INTERACTION.ACT.TOOL`; deliver questions, choices, or results with `INTERACTION.OUTPUT` |
+| `@codesoul-co/ditto/contracts`: `Context`, `ExternalResult` | Handle public Context data and check tool outcomes |
 
 The model produces a structured interpretation. The application deterministically renders the report from actual `source.json` data. User messages, model output, and assistant questions remain distinct; parameter evidence must cite user text. The [application adapter](../../examples/_shared/tools/understanding-store.ts) does not import Core source or private Worker executors.
 
@@ -26,9 +26,9 @@ Place this code in an application root. Prepare the directory and source file be
 ```ts
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { UnderstandingStore } from "./examples/_shared/tools/understanding-store.ts";
 import { runClarification } from "./examples/capabilities/understanding/clarification.ts";
 import { openUnderstandingStorage } from "./examples/capabilities/understanding/storage.ts";

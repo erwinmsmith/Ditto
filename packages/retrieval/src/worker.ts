@@ -1,7 +1,7 @@
 import type { RetrievalExecutionContext } from "./search/providers/types.js";
 import { randomUUID } from "node:crypto";
-import type { NodeResult } from "../../contracts/node-result.js";
-import { defineWorker, type WorkerDefinition } from "../define-worker.js";
+import type { NodeResult } from "@codesoul-co/ditto/contracts";
+import { defineWorker, type WorkerDefinition } from "@codesoul-co/ditto/worker";
 import type { RetrievalResources } from "./registry/providers.js";
 import { RetrievalError, type RetrievalDefaults } from "./types.js";
 import type { RetrievalSearchInput, RetrievalSearchOutput } from "./search/types.js";

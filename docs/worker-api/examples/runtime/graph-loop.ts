@@ -1,4 +1,4 @@
-import { createDitto, createInteractionWorker, createRuntimeServices, graph, loadRuntimeConfigFile, loop } from "@ditto/core";
+import { createDitto, createInteractionWorker, createRuntimeServices, graph, loadRuntimeConfigFile, loop } from "@codesoul-co/ditto";
 
 // Graphs describe dependencies and data. Worker placement is supplied at execution.
 interface Input { value: string; iteration: number }

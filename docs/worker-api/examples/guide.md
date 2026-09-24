@@ -128,7 +128,7 @@ Install `redis` in the application, construct a connection using the URL from `.
 
 ```ts
 import { createClient } from "redis";
-import { createContextWorker, createDitto, loadRuntimeConfigFile } from "@ditto/core";
+import { createContextWorker, createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 const redis = createClient({ url: process.env.DITTO_WORKER_CONTEXT_REDIS_URL });
 redis.on("error", () => { /* Application logging/health reporting. */ });

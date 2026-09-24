@@ -17,15 +17,15 @@
 
 ## 完整调用
 
-在应用根目录保存下面代码，配置 `ditto.yaml`、`.env`、Redis 和解析器环境。消费者安装 `@ditto/core` 后复制 `examples/capabilities/analysis/`，以及 `examples/_shared/tools/` 下的 `analysis`、`file-ingestion`、`retrieval`、`storage` 目录；第三方依赖按[示例说明](../../examples/capabilities/analysis/README.zh-CN.md)安装到应用。
+在应用根目录保存下面代码，配置 `ditto.yaml`、`.env`、Redis 和解析器环境。消费者安装 `@codesoul-co/ditto` 后复制 `examples/capabilities/analysis/`，以及 `examples/_shared/tools/` 下的 `analysis`、`file-ingestion`、`retrieval`、`storage` 目录；第三方依赖按[示例说明](../../examples/capabilities/analysis/README.zh-CN.md)安装到应用。
 
 ```ts
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { resolve } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
-import { createRetrievalWorker } from "@ditto/core/worker/retrieval";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
+import { createRetrievalWorker } from "@codesoul-co/ditto-retrieval";
 import { openAgentStorage } from "./examples/_shared/tools/storage/workers.ts";
 import { importInternalKnowledge } from "./examples/_shared/tools/retrieval/memory.ts";
 import { AnalysisAdapters } from "./examples/_shared/tools/analysis/adapters.ts";

@@ -115,16 +115,16 @@ export interface McpCapability { server: string; name: string; description?: str
 ## 4. 固定节点输入输出
 
 ```ts
-import type { NodeResult } from "@ditto/core/contracts";
+import type { NodeResult } from "@codesoul-co/ditto/contracts";
 import type {
   TrajectoryInput, TrajectoryOutput, ReflectInput, ReflectOutput,
   DeliberateInput, DeliberateOutput, SampleInput, SampleOutput,
   CacheLookupInput, CacheLookupOutput, CacheWriteInput, CacheWriteOutput,
   CacheInvalidateInput, CacheInvalidateOutput,
-} from "@ditto/core/worker/infer";
+} from "@codesoul-co/ditto/worker/infer";
 
 // Node inputs include explicit-context and scoped-cache calls.
-import type { ContextInput, ContextOutput } from "@ditto/core/worker/context";
+import type { ContextInput, ContextOutput } from "@codesoul-co/ditto/worker/context";
 type ContextLoadInput = ContextInput<"CONTEXT.LOAD">;
 type ContextLoadOutput = ContextOutput<"CONTEXT.LOAD">;
 type ContextSelectInput = ContextInput<"CONTEXT.SELECT">;
@@ -210,4 +210,4 @@ export type OutputOf<N extends NodeType> = NodeContractMap[N]["output"];
 
 ## 可选 RETRIEVAL 扩展
 
-四个 Core Worker 的 21 个叶子保持不变。可选入口 `@ditto/core/worker/retrieval` 增加 `RETRIEVAL.SEARCH` 的契约与实现，仅在应用显式导入/注册时启用。它通过 Target/Strategy Registry 调用用户 Provider，不拥有数据、不执行 RAG，也不要求 MEMORY/CONTEXT 经由它检索。需要独立执行资源或水平扩容时，可使用现有 Runtime/HTTP 部署多个副本。[详细 API 与部署边界](worker-api/retrieval.zh-CN.md)。
+四个 Core Worker 的 21 个叶子保持不变。可选入口 `@codesoul-co/ditto-retrieval` 增加 `RETRIEVAL.SEARCH` 的契约与实现，仅在应用显式导入/注册时启用。它通过 Target/Strategy Registry 调用用户 Provider，不拥有数据、不执行 RAG，也不要求 MEMORY/CONTEXT 经由它检索。需要独立执行资源或水平扩容时，可使用现有 Runtime/HTTP 部署多个副本。[详细 API 与部署边界](worker-api/retrieval.zh-CN.md)。

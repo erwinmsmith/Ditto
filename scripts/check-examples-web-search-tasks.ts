@@ -12,9 +12,9 @@ import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { setTimeout as delay } from "node:timers/promises";
 import { parseArgs } from "node:util";
-import { loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { contextScopeKey } from "@ditto/core/worker/context";
-import type { WorkerDefinition } from "@ditto/core/worker";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { contextScopeKey } from "@codesoul-co/ditto/worker/context";
+import type { WorkerDefinition } from "@codesoul-co/ditto/worker";
 import { createTask } from "../examples/_shared/tools/web-search/adapters.ts";
 import {
   digest,

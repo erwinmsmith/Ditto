@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import type { JsonValue } from "@ditto/core/contracts";
-import type { MemoryItem } from "@ditto/core/worker/memory";
+import type { JsonValue } from "@codesoul-co/ditto/contracts";
+import type { MemoryItem } from "@codesoul-co/ditto/worker/memory";
 export const backends = ["sqlite", "postgres", "qdrant"] as const;
 export type Backend = typeof backends[number];
 export const modes = ["search", "write", "update", "task-state"] as const;

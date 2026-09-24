@@ -1,4 +1,4 @@
-/** All Agent capabilities, one installed tarball, no repository module resolution. */
+/** Audit Agent capabilities against installed Core and optional retrieval tarballs. */
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import {
@@ -153,12 +153,13 @@ try {
       type: "module",
     }),
   );
+  const [retrievalPacked] = JSON.parse(await run("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", app], false, join(root, "packages/retrieval")));
   await run("npm", [
     "install",
     "--ignore-scripts",
     "--no-audit",
     "--no-fund",
-    join(app, packed.filename),
+    join(app, packed.filename), join(app, retrievalPacked.filename),
     `typescript@${manifest.devDependencies.typescript}`,
     `@types/node@${manifest.devDependencies["@types/node"]}`,
     ...Object.entries(dependencies).map(([n, v]) => n + "@" + v),
@@ -230,7 +231,7 @@ if (false) {
     }),
   );
   await run(join(app, "node_modules/.bin/tsc"), ["-p", "tsconfig.json"]);
-  for (const path of ["src", "node_modules/@ditto/core/src", ".env"])
+  for (const path of ["src", "node_modules/@codesoul-co/ditto/src", ".env"])
     assert.equal(
       await access(join(app, path)).then(
         () => true,
@@ -244,10 +245,10 @@ if (false) {
     `import {registerHooks} from "node:module";
 import {fileURLToPath} from "node:url";
 import {relative,isAbsolute,resolve} from "node:path";
-const app=${JSON.stringify(app)},core=resolve(app,"node_modules/@ditto/core"),entries=new Set(${JSON.stringify(audit.publicEntries)});
+const app=${JSON.stringify(app)},core=resolve(app,"node_modules/@codesoul-co/ditto"),entries=new Set([...${JSON.stringify(audit.publicEntries)},"@codesoul-co/ditto-retrieval","@codesoul-co/ditto-retrieval/adapters/memory","@codesoul-co/ditto-retrieval/adapters/context"]);
 function inside(root,path){const r=relative(root,path);return r===""||(!isAbsolute(r)&&r!==".."&&!r.startsWith("../")&&!r.startsWith("..\\\\"));}
 registerHooks({resolve(specifier,context,next){
-if(specifier.startsWith("@ditto/core")&&!entries.has(specifier))throw new Error("Non-public Core entry");
+if(specifier.startsWith("@codesoul-co/ditto")&&!entries.has(specifier))throw new Error("Non-public Core entry");
 const result=next(specifier,context);
 if(result.url.startsWith("file:")){const path=fileURLToPath(result.url),parent=context.parentURL?.startsWith("file:")?fileURLToPath(context.parentURL):"";
 if(!inside(app,path))throw new Error("Module outside consumer");
@@ -255,10 +256,10 @@ if(inside(core,path)&&!inside(core,parent)&&!entries.has(specifier))throw new Er
 return result;}});`,
   );
   const probes = [
-    "@ditto/core/src/index.ts",
-    "@ditto/core/dist/runtime/index.js",
+    "@codesoul-co/ditto/src/index.ts",
+    "@codesoul-co/ditto/dist/runtime/index.js",
     pathToFileURL(join(root, "dist/index.js")).href,
-    pathToFileURL(join(app, "node_modules/@ditto/core/dist/runtime/index.js"))
+    pathToFileURL(join(app, "node_modules/@codesoul-co/ditto/dist/runtime/index.js"))
       .href,
   ];
   await run(
@@ -304,7 +305,7 @@ return result;}});`,
   });
   await save();
   console.log(
-    `One tarball: ${audit.categories.length} categories, ${audit.examples} silent entries, strict public types passed.`,
+    `Installed packages: ${audit.categories.length} categories, ${audit.examples} silent entries, strict public types passed.`,
   );
   if (!values["types-only"]) {
     if (selected.includes("tools"))

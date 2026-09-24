@@ -10,7 +10,7 @@ Copy `examples/patterns/human-in-the-loop`, `examples/_shared/tools/human-loop`,
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadRuntimeConfigFile } from "@ditto/core/runtime";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
 import {
   createDemo,
   request,

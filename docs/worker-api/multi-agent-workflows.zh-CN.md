@@ -10,7 +10,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadRuntimeConfigFile } from "@ditto/core/runtime";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
 import { createDemo } from "./examples/_shared/tools/multi-agent/adapters.ts";
 import { openMultiAgent } from "./examples/patterns/multi-agent/cli.ts";
 import { runMultiAgent } from "./examples/patterns/multi-agent/index.ts";

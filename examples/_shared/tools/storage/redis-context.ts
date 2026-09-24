@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import type { RedisContextClient } from "@ditto/core/worker/context";
+import type { RedisContextClient } from "@codesoul-co/ditto/worker/context";
 export interface RedisClient extends RedisContextClient {
   isOpen: boolean;
   connect(): Promise<unknown>; quit(): Promise<unknown>;

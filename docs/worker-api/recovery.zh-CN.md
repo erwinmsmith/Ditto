@@ -6,16 +6,16 @@
 
 ## 完整调用
 
-在安装 `@ditto/core` 的应用内复制 `examples/control-flow/recovery/`、`examples/_shared/tools/recovery-store.ts` 和 `examples/_shared/tools/fulfillment-service.ts`，保留相对路径。准备 `ditto.yaml` 和 `.env`：
+在安装 `@codesoul-co/ditto` 的应用内复制 `examples/control-flow/recovery/`、`examples/_shared/tools/recovery-store.ts` 和 `examples/_shared/tools/fulfillment-service.ts`，保留相对路径。准备 `ditto.yaml` 和 `.env`：
 
 ```ts
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createContextWorker } from "@ditto/core/worker/context";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createContextWorker } from "@codesoul-co/ditto/worker/context";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { RecoveryStore } from "./examples/_shared/tools/recovery-store.ts";
 import { startFulfillmentService } from "./examples/_shared/tools/fulfillment-service.ts";
 import { runCheckpoint } from "./examples/control-flow/recovery/checkpoint-resume.ts";

@@ -2,7 +2,7 @@
 
 [English](planning.md) · [API 索引](README.zh-CN.md) · [五个示例](../../examples/capabilities/planning/README.zh-CN.md)
 
-规划示例以本地补货报告为业务目标。模型提出任务与工具，应用验证依赖、资源和预算后构建执行 Graph。所有框架调用来自已导出的 `@ditto/core/...` 入口；不使用 Core 源码、私有执行器或直接 HTTP 模型请求。
+规划示例以本地补货报告为业务目标。模型提出任务与工具，应用验证依赖、资源和预算后构建执行 Graph。所有框架调用来自已导出的 `@codesoul-co/ditto/...` 入口；不使用 Core 源码、私有执行器或直接 HTTP 模型请求。
 
 ## 公开接口映射
 
@@ -23,9 +23,9 @@
 ```ts
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { resolve } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { openAgentStorage } from "./examples/_shared/tools/storage/workers.ts";
 import { PlanningStore } from "./examples/_shared/tools/planning-store.ts";
 import { createFixture } from "./examples/capabilities/planning/fixtures.ts";

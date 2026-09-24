@@ -78,7 +78,7 @@ npm run example:react -- --provider deepseek --directory .examples-react-tasks/c
 
 `deadlineSeconds` 控制新工作调度，包含暂停时间，不是整项任务的硬超时。立即取消使用 `AbortSignal`；它会传给支持取消的工具，但不会撤销已发生的外部效果。单任务目录同时只运行一个实例。
 
-所有框架调用均来自公开 `@ditto/core/...` 入口。第三方实现位于 [ReAct 工具](../../_shared/tools/react/README.zh-CN.md)，浏览器 SDK 复用已有工具配置。Core 的 `runReactFlow` 是较轻量的临时执行便捷入口；本示例通过相同公开节点建立有持久化状态的主 Loop，不在 Graph 内嵌套这个入口。
+所有框架调用均来自公开 `@codesoul-co/ditto/...` 入口。第三方实现位于 [ReAct 工具](../../_shared/tools/react/README.zh-CN.md)，浏览器 SDK 复用已有工具配置。Core 的 `runReactFlow` 是较轻量的临时执行便捷入口；本示例通过相同公开节点建立有持久化状态的主 Loop，不在 Graph 内嵌套这个入口。
 
 ## 端到端验收
 

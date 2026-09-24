@@ -1,14 +1,14 @@
-import { loop, graphStep, type GraphPlan } from "@ditto/core/runtime";
-import { graph, type DittoRuntime } from "@ditto/core/runtime";
-import { ContextError } from "@ditto/core/worker/context";
-import type { ModelConfig } from "@ditto/core/worker/infer";
-import type { MemoryItem, MemoryDraft } from "@ditto/core/worker/memory";
+import { loop, graphStep, type GraphPlan } from "@codesoul-co/ditto/runtime";
+import { graph, type DittoRuntime } from "@codesoul-co/ditto/runtime";
+import { ContextError } from "@codesoul-co/ditto/worker/context";
+import type { ModelConfig } from "@codesoul-co/ditto/worker/infer";
+import type { MemoryItem, MemoryDraft } from "@codesoul-co/ditto/worker/memory";
 import type {
   ContextItem,
   NodeResult,
   ExternalResult,
   JsonObject,
-} from "@ditto/core/contracts";
+} from "@codesoul-co/ditto/contracts";
 import {
   request,
   json,

@@ -1,7 +1,7 @@
 import {
   createBraveWebSearchProvider,
   type WebSearchProvider,
-} from "@ditto/core/worker/interaction";
+} from "@codesoul-co/ditto/worker/interaction";
 import { download, type TransportOptions } from "./http.ts";
 import { object } from "./domain.ts";
 export interface SearchConfig {

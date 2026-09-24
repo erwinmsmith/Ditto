@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
 import { isDeepStrictEqual } from "node:util";
-import type { RegisteredTool } from "@ditto/core/worker/interaction";
+import type { RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
 import { immutable } from "../execution/files.ts";
 import { digest, json, object } from "../evidence.ts";
 import {

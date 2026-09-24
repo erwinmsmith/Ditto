@@ -7,8 +7,8 @@ INTERACTION executes external actions, normalizes observations, and delivers fin
 ## 1. Imports and API inventory
 
 ```ts
-import { createBraveWebSearchProvider, createInteractionWorker, createReadOnlyCommandTools, createWebSearchTool, ToolRegistry, McpRegistry } from "@ditto/core/worker/interaction";
-// Also exported by @ditto/core.
+import { createBraveWebSearchProvider, createInteractionWorker, createReadOnlyCommandTools, createWebSearchTool, ToolRegistry, McpRegistry } from "@codesoul-co/ditto/worker/interaction";
+// Also exported by @codesoul-co/ditto.
 ```
 
 | API | Return / purpose |
@@ -40,12 +40,12 @@ These Nodes return the listed Output directly, **without NodeResult**, execution
 Examples share the imports from [examples/interaction.ts](examples/interaction.ts). The complete file is checked by `npm run typecheck`; importing executes no examples. Connect SDK resources in your application before injecting them.
 
 ```ts
-import { createDitto, defineWorker, graph, loop, type WorkerContext } from "@ditto/core";
+import { createDitto, defineWorker, graph, loop, type WorkerContext } from "@codesoul-co/ditto";
 import {
   createInteractionWorker, createInteractionNodes, createToolHandler, createMcpHandler,
   createOutputHandler, observeExternalResult, ToolRegistry, McpRegistry,
   interactionObserveNode, type RegisteredTool, type McpClient, type OutputSink,
-} from "@ditto/core/worker/interaction";
+} from "@codesoul-co/ditto/worker/interaction";
 ```
 
 ### RegisteredTool.validate / execute
@@ -302,7 +302,7 @@ export async function observeApis() {
 
 ### Shared JSON / Message types
 
-Import these from `@ditto/core/contracts` or the root package. INFER has its own model-specific Message contract; map content explicitly across Workers. MCP client discovery requires inputSchema for each tool, while the shared McpCapability type marks it optional.
+Import these from `@codesoul-co/ditto/contracts` or the root package. INFER has its own model-specific Message contract; map content explicitly across Workers. MCP client discovery requires inputSchema for each tool, while the shared McpCapability type marks it optional.
 
 ```ts
 export type JsonValue = string | number | boolean | null
@@ -446,9 +446,9 @@ Observe tool results before updating CONTEXT through ingress. Cached Graphs pass
 
 ```ts
 export async function toolToCachedContext(
-  runtime: import("@ditto/core").RuntimeClient,
-  scope: import("@ditto/core/worker/context").ContextScope,
-  call: import("@ditto/core/contracts").ToolCall,
+  runtime: import("@codesoul-co/ditto").RuntimeClient,
+  scope: import("@codesoul-co/ditto/worker/context").ContextScope,
+  call: import("@codesoul-co/ditto/contracts").ToolCall,
 ) {
   const result = await runtime.invoke("INTERACTION.ACT.TOOL", { call });
   const observation = await runtime.invoke("INTERACTION.OBSERVE", { result });
@@ -468,8 +468,8 @@ export async function toolToCachedContext(
 `WebSearchProvider.search(input, options?: WebSearchCallOptions)` accepts `{ signal?: AbortSignal }`; the tool supplies WorkerContext.signal. Brave's maxResponseBytes defaults to 1048576 and accepts 1–16777216. Streaming byte accounting stops oversized bodies and closes the stream before JSON parsing. timeoutMs defaults to 30000 and accepts 1–2147483647. Tool errors are sanitized: WEB_SEARCH_CANCELLED for cancellation, WEB_SEARCH_FAILED otherwise. Credentials and network permissions remain explicit.
 
 ```ts
-import { createBraveWebSearchProvider, createReadOnlyCommandTools, createWebSearchTool } from "@ditto/core/worker/interaction";
-import { loadRuntimeConfigFile } from "@ditto/core";
+import { createBraveWebSearchProvider, createReadOnlyCommandTools, createWebSearchTool } from "@codesoul-co/ditto/worker/interaction";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 const provider = createBraveWebSearchProvider({
   apiKey: process.env.DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY!,

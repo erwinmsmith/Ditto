@@ -14,7 +14,7 @@ Five examples run a complete release-notice task: read input files, persist busi
 | Scheduled trigger | [scheduled.ts](scheduled.ts) / `runScheduled` | Persist an absolute due time and claim one execution after it arrives |
 | Event trigger | [event-triggered.ts](event-triggered.ts) / `runEventTriggered` | Read an actual inbox file, validate and deduplicate its event, then run the task |
 
-All workflows use public `@ditto/core` entry points. The database, timer rules, inbox and business tools live in the application adapter [lifecycle-store.ts](../../_shared/tools/lifecycle-store.ts), not a Core scheduling service. Notice registration is an actual local SQLite effect; it does not send email, post external messages or publish content publicly.
+All workflows use public `@codesoul-co/ditto` entry points. The database, timer rules, inbox and business tools live in the application adapter [lifecycle-store.ts](../../_shared/tools/lifecycle-store.ts), not a Core scheduling service. Notice registration is an actual local SQLite effect; it does not send email, post external messages or publish content publicly.
 
 ## Run
 

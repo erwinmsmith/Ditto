@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { JsonObject } from "@ditto/core/contracts";
+import type { JsonObject } from "@codesoul-co/ditto/contracts";
 export const modes = ["aggregate", "deduplicate", "conflicts", "fact-check", "extract", "convert", "compare"] as const;
 export type Mode = typeof modes[number];
 export type Format = "text" | "web" | "csv" | "xlsx" | "pdf" | "image" | "memory" | "external";

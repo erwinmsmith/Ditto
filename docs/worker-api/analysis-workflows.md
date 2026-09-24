@@ -22,10 +22,10 @@ Save the code below at the application root and configure the model, Redis and p
 ```ts
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { resolve } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
-import { createRetrievalWorker } from "@ditto/core/worker/retrieval";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
+import { createRetrievalWorker } from "@codesoul-co/ditto-retrieval";
 import { openAgentStorage } from "./examples/_shared/tools/storage/workers.ts";
 import { importInternalKnowledge } from "./examples/_shared/tools/retrieval/memory.ts";
 import { AnalysisAdapters } from "./examples/_shared/tools/analysis/adapters.ts";

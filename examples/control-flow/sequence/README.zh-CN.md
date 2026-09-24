@@ -27,7 +27,7 @@ npm run example:sequence:stages
 npm run example:sequence:batch
 ```
 
-命令先构建 `@ditto/core`，再通过包的公开 exports 运行示例。每个文件可独立使用，导入文件不执行任务。
+命令先构建 `@codesoul-co/ditto`，再通过包的公开 exports 运行示例。每个文件可独立使用，导入文件不执行任务。
 
 ## 固定步骤执行：pipeline.ts
 
@@ -138,7 +138,7 @@ batchSummaryGraph：OUTPUT（全部对象结果与总数量）
 
 ## 在应用中调用
 
-在已安装 `@ditto/core` 的应用中复制需要的示例文件，即可从应用入口调用：
+在已安装 `@codesoul-co/ditto` 的应用中复制需要的示例文件，即可从应用入口调用：
 
 ```ts
 import { runPipeline } from "./pipeline.ts";
@@ -158,19 +158,19 @@ console.log(result.selected.selectedItemIds); // ["api"]
 
 | 包入口 | 使用的 API |
 | --- | --- |
-| `@ditto/core/contracts` | `ContextItem` |
-| `@ditto/core/runtime` | `graph`、`loop`、`createDitto`、`loadRuntimeConfigFile`、`DittoRuntime` |
-| `@ditto/core/worker/context` | `createContextWorker` |
-| `@ditto/core/worker/interaction` | `createInteractionWorker`、`InteractionOutputInput` |
-| `@ditto/core/worker/infer` | `createInferWorker`、`ModelConfig`、`NodeResult`、`SampleOutput` |
+| `@codesoul-co/ditto/contracts` | `ContextItem` |
+| `@codesoul-co/ditto/runtime` | `graph`、`loop`、`createDitto`、`loadRuntimeConfigFile`、`DittoRuntime` |
+| `@codesoul-co/ditto/worker/context` | `createContextWorker` |
+| `@codesoul-co/ditto/worker/interaction` | `createInteractionWorker`、`InteractionOutputInput` |
+| `@codesoul-co/ditto/worker/infer` | `createInferWorker`、`ModelConfig`、`NodeResult`、`SampleOutput` |
 
 阶段式和批量执行的函数接收调用方 Runtime，应用负责注册 Worker 和关闭资源：
 
 ```ts
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createContextWorker } from "@ditto/core/worker/context";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createContextWorker } from "@codesoul-co/ditto/worker/context";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { runStages, stagesInput } from "./stages.ts";
 import { runBatch, batchInput } from "./batch.ts";
 

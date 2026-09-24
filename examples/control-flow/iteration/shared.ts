@@ -1,5 +1,5 @@
-import { graph, type DittoRuntime, type ExecutionGraph } from "@ditto/core/runtime";
-import type { ModelConfig } from "@ditto/core/worker/infer";
+import { graph, type DittoRuntime, type ExecutionGraph } from "@codesoul-co/ditto/runtime";
+import type { ModelConfig } from "@codesoul-co/ditto/worker/infer";
 import { candidates, json, object, validateAction, type Action, type BriefReport, type RoundRecord, type Snapshot, type StopReason } from "../../_shared/tools/brief-files.ts";
 
 export type Runner = Pick<DittoRuntime, "run" | "loop">;

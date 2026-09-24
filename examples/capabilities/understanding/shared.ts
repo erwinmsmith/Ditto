@@ -1,10 +1,10 @@
-import { loop, graphStep, type GraphPlan } from "@ditto/core/runtime";
-import { graph, type DittoRuntime } from "@ditto/core/runtime";
-import type { ModelConfig } from "@ditto/core/worker/infer";
-import { ContextError, type ContextScope } from "@ditto/core/worker/context";
-import type { MemoryItem } from "@ditto/core/worker/memory";
-import type { NodeResult } from "@ditto/core/contracts";
-import type { ExternalResult } from "@ditto/core/contracts";
+import { loop, graphStep, type GraphPlan } from "@codesoul-co/ditto/runtime";
+import { graph, type DittoRuntime } from "@codesoul-co/ditto/runtime";
+import type { ModelConfig } from "@codesoul-co/ditto/worker/infer";
+import { ContextError, type ContextScope } from "@codesoul-co/ditto/worker/context";
+import type { MemoryItem } from "@codesoul-co/ditto/worker/memory";
+import type { NodeResult } from "@codesoul-co/ditto/contracts";
+import type { ExternalResult } from "@codesoul-co/ditto/contracts";
 import {
   json,
   object,

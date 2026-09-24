@@ -1,4 +1,4 @@
-import { loop } from "@ditto/core/runtime";
+import { loop } from "@codesoul-co/ditto/runtime";
 import { advance, begin, finish, limits, planningGraph, reason, revisionGraph, searchGraph, type Input, type Options, type Runner, type State } from "./shared.ts";
 import { isMain, runCli } from "./cli.ts";
 const repair = revisionGraph("brief-adaptive-repair");

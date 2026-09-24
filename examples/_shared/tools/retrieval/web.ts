@@ -1,6 +1,6 @@
 /** Application-owned HTML decoder and HTTP transport. No browser scripts are executed. */
 import { createRequire } from "node:module";
-import type { WebSearchProvider } from "@ditto/core/worker/interaction";
+import type { WebSearchProvider } from "@codesoul-co/ditto/worker/interaction";
 import { digest, object, tokens, type Evidence } from "./domain.ts";
 interface Element { textContent: string | null; querySelectorAll(selector: string): Element[]; querySelector(selector: string): Element | null; remove(): void }
 const require = createRequire(new URL("./dependencies/package.json", import.meta.url));

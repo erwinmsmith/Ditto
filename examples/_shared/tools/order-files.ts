@@ -2,8 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { link, mkdir, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { JsonObject, JsonValue } from "@ditto/core/contracts";
-import type { OutputSink, RegisteredTool } from "@ditto/core/worker/interaction";
+import type { JsonObject, JsonValue } from "@codesoul-co/ditto/contracts";
+import type { OutputSink, RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
 
 export interface OrderRecord { code: string; quantity: number; unitPriceCents: number }
 export interface SavedOrder extends OrderRecord { sourceId: string; sourceSha256: string; totalCents: number }

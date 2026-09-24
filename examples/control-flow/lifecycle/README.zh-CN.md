@@ -14,7 +14,7 @@
 | 定时触发 | [scheduled.ts](scheduled.ts) / `runScheduled` | 持久化绝对触发时间，到期后认领并执行一次任务 |
 | 事件触发 | [event-triggered.ts](event-triggered.ts) / `runEventTriggered` | 从实际文件收件箱读取事件，校验范围、去重并启动完整任务 |
 
-全部流程使用 `@ditto/core` 公开入口。任务数据库、定时规则、收件箱及业务工具在应用侧 [lifecycle-store.ts](../../_shared/tools/lifecycle-store.ts)，不属于 Core 的调度服务。通知登记是本地 SQLite 业务效果；不会发送邮件、向外部系统发消息或公开发布内容。
+全部流程使用 `@codesoul-co/ditto` 公开入口。任务数据库、定时规则、收件箱及业务工具在应用侧 [lifecycle-store.ts](../../_shared/tools/lifecycle-store.ts)，不属于 Core 的调度服务。通知登记是本地 SQLite 业务效果；不会发送邮件、向外部系统发消息或公开发布内容。
 
 ## 运行
 

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { MemoryError, type MemoryItem, type MemoryStore, type MemorySearchProvider } from "@ditto/core/worker/memory";
+import { MemoryError, type MemoryItem, type MemoryStore, type MemorySearchProvider } from "@codesoul-co/ditto/worker/memory";
 import { exampleSdk, runMemoryExample } from "./shared.ts";
 
 interface Status { error_code?: string; code?: number; reason?: string }

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import type { ExternalResult } from "@ditto/core/contracts";
-import { observeExternalResult } from "@ditto/core/worker/interaction";
+import type { ExternalResult } from "@codesoul-co/ditto/contracts";
+import { observeExternalResult } from "@codesoul-co/ditto/worker/interaction";
 import {
   facts,
   validateDecision,

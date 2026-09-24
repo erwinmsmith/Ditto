@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type {
   RegisteredTool,
   ToolExecutionOutcome,
-} from "@ditto/core/worker/interaction";
+} from "@codesoul-co/ditto/worker/interaction";
 import { immutable } from "../execution/files.ts";
 import { browserSdk } from "../operations/sdk.ts";
 import { object, digest, json } from "../evidence.ts";

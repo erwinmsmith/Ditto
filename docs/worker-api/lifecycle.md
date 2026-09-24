@@ -6,7 +6,7 @@ Applications compose public `graph`, `runtime.run`, `CONTEXT.LOAD`, `INFER.REASO
 
 ## Complete call
 
-Use Node.js 24+. In an application with `@ditto/core` installed, copy `examples/control-flow/lifecycle/` and `examples/_shared/tools/lifecycle-store.ts`, preserving relative paths. Prepare `ditto.yaml` and `.env`. These application sources are not Core package exports; the adapter uses only Node.js standard libraries.
+Use Node.js 24+. In an application with `@codesoul-co/ditto` installed, copy `examples/control-flow/lifecycle/` and `examples/_shared/tools/lifecycle-store.ts`, preserving relative paths. Prepare `ditto.yaml` and `.env`. These application sources are not Core package exports; the adapter uses only Node.js standard libraries.
 
 The example persists an absolute due time, invokes a real model when due, and registers its notice in the local business table:
 
@@ -14,10 +14,10 @@ The example persists an absolute due time, invokes a real model when due, and re
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createContextWorker } from "@ditto/core/worker/context";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createContextWorker } from "@codesoul-co/ditto/worker/context";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { LifecycleStore } from "./examples/_shared/tools/lifecycle-store.ts";
 import { createFixture } from "./examples/control-flow/lifecycle/fixtures.ts";
 import { runScheduled } from "./examples/control-flow/lifecycle/scheduled.ts";

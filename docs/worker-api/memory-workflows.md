@@ -11,9 +11,9 @@ Save this TypeScript example at the repository root and run `node --env-file=.en
 ```ts
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { resolve } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { openMemoryStorage } from "./examples/_shared/tools/memory/storage.ts";
 import { memoryTools } from "./examples/_shared/tools/memory/adapters.ts";
 import { namespace, type Backend } from "./examples/_shared/tools/memory/domain.ts";
@@ -51,7 +51,7 @@ Fixtures provide repeatable inputs. Business callers supply authenticated namesp
 
 ## Core wiring and operations
 
-Register `createMemoryWorker({store:databaseStore,search:optionalSearchProvider,concurrency:1})` from `@ditto/core/worker/memory`. A store may implement its own native search; a separate search provider overrides it.
+Register `createMemoryWorker({store:databaseStore,search:optionalSearchProvider,concurrency:1})` from `@codesoul-co/ditto/worker/memory`. A store may implement its own native search; a separate search provider overrides it.
 
 | Capability | Node input | Behavior |
 | --- | --- | --- |

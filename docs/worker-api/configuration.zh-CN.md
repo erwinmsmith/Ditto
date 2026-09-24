@@ -5,7 +5,7 @@
 根目录 [`ditto.yaml`](../../ditto.yaml) 是可提交的行为参数配置；[`.env.example`](../../.env.example) 是部署模板，真实 `.env` 被 Git 忽略。Node 用 `--env-file=.env` 加载环境变量，应用显式加载 YAML，默认共享 Runtime services，也可在 register 时为 Worker 注入独立 services。导入库、创建默认 Runtime 不会读取文件或环境变量。
 
 ```ts
-import { createDitto, createInfer, createInferWorker, loadRuntimeConfigFile } from "@ditto/core";
+import { createDitto, createInfer, createInferWorker, loadRuntimeConfigFile } from "@codesoul-co/ditto";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 if (!config.model) throw new Error("Configure the default model in .env");
 const runtime = createDitto({ config, workers: [createInferWorker()] });
@@ -78,7 +78,7 @@ loadRuntimeConfig(env = process.env, settings: RuntimeSettings = {}): RuntimeCon
 不读取 YAML 或环境变量的嵌入式调用：第二个参数使用与 YAML 相同的 RuntimeSettings 结构；实际应用仍推荐根目录统一 YAML。
 
 ```ts
-import { createDitto, loadRuntimeConfig } from "@ditto/core/runtime";
+import { createDitto, loadRuntimeConfig } from "@codesoul-co/ditto/runtime";
 
 const config = loadRuntimeConfig({}, {
   runtime: { timeoutMs: 15_000, graphConcurrency: 2, loopMaxIterations: 4 },

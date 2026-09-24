@@ -1,7 +1,6 @@
 {
-  "name": "@ditto/core",
+  "name": "@codesoul-co/ditto",
   "version": "0.1.0",
-  "private": true,
   "description": "Lightweight Node-native Agent runtime with extensible Workers and location-independent graphs.",
   "type": "module",
   "sideEffects": false,
@@ -53,22 +52,10 @@
     "./worker/node": {
       "types": "./dist/worker/node.d.ts",
       "import": "./dist/worker/node.js"
-    },
-    "./worker/retrieval": {
-      "types": "./dist/worker/retrieval/index.d.ts",
-      "import": "./dist/worker/retrieval/index.js"
-    },
-    "./worker/retrieval/adapters/memory": {
-      "types": "./dist/worker/retrieval/adapters/memory.d.ts",
-      "import": "./dist/worker/retrieval/adapters/memory.js"
-    },
-    "./worker/retrieval/adapters/context": {
-      "types": "./dist/worker/retrieval/adapters/context.d.ts",
-      "import": "./dist/worker/retrieval/adapters/context.js"
     }
   },
   "scripts": {
-    "build": "node scripts/clean.ts dist && tsc -p tsconfig.build.json",
+    "build": "npm run build:core && npm run build:retrieval",
     "build:test": "node scripts/clean.ts .test-dist && tsc -p tsconfig.test.json",
     "prepare": "npm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -322,7 +309,9 @@
     "example:long-running": "npm run build && node --env-file=.env examples/patterns/long-running/cli.ts",
     "check:examples:long-running:tasks": "npm run build && node --env-file=.env scripts/check-examples-long-running-tasks.ts",
     "check:examples:long-running:package": "npm run build && node --env-file=.env scripts/check-examples-long-running-package.ts",
-    "check:examples:long-running:types": "npm run build && node scripts/check-examples-long-running-package.ts --types-only"
+    "check:examples:long-running:types": "npm run build && node scripts/check-examples-long-running-package.ts --types-only",
+    "build:core": "node scripts/clean.ts dist && tsc -p tsconfig.build.json",
+    "build:retrieval": "npm run build --workspace packages/retrieval"
   },
   "engines": {
     "node": ">=24.0.0",
@@ -334,5 +323,15 @@
   },
   "dependencies": {
     "yaml": "^2.9.1"
-  }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/erwinmsmith/Ditto.git"
+  },
+  "workspaces": [
+    "packages/retrieval"
+  ]
 }

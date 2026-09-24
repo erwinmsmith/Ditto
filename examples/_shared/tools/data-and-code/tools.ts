@@ -4,7 +4,7 @@ import { promisify } from "node:util";
 import { mkdir, readFile, realpath, stat } from "node:fs/promises";
 import { join, resolve, relative, isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { RegisteredTool } from "@ditto/core/worker/interaction";
+import type { RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
 import { immutable } from "../execution/files.ts";
 import { isolatedCode, isolatedTests } from "../execution/docker.ts";
 import {

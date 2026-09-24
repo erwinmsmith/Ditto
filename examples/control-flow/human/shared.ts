@@ -1,6 +1,6 @@
-import { graph, type DittoRuntime } from "@ditto/core/runtime";
-import type { ExternalResult } from "@ditto/core/contracts";
-import type { ModelConfig } from "@ditto/core/worker/infer";
+import { graph, type DittoRuntime } from "@codesoul-co/ditto/runtime";
+import type { ExternalResult } from "@codesoul-co/ditto/contracts";
+import type { ModelConfig } from "@codesoul-co/ditto/worker/infer";
 import { draft, json, object, type Brief, type HumanJob, type HumanMode, type ReviewRequest, type Version } from "../../_shared/tools/human-review-store.ts";
 export type Runner = Pick<DittoRuntime, "run">;
 export interface Input { id: string; model: ModelConfig }

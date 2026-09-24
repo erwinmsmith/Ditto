@@ -3,9 +3,9 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import type { Context, JsonObject } from "@ditto/core/contracts";
-import type { RegisteredTool, ToolExecutionOutcome } from "@ditto/core/worker/interaction";
-import type { WorkerContext } from "@ditto/core/worker/node";
+import type { Context, JsonObject } from "@codesoul-co/ditto/contracts";
+import type { RegisteredTool, ToolExecutionOutcome } from "@codesoul-co/ditto/worker/interaction";
+import type { WorkerContext } from "@codesoul-co/ditto/worker/node";
 import { hash, identifier, object, operationFingerprint, order, type Operation, type OperationKind, type Order } from "./fulfillment-service.ts";
 
 export type Stage = "queued" | "prepared" | "reserved" | "completed" | "paused" | "approved" | "rejected" | "timed-out" | "compensated" | "needs-review" | "uncertain" | "failed";

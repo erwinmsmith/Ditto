@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url";
-import type { NodeContract } from "@ditto/core/contracts";
-import { createNodeScaffold, defineNode, defineWorker, extendWorker } from "@ditto/core/worker";
+import type { NodeContract } from "@codesoul-co/ditto/contracts";
+import { createNodeScaffold, defineNode, defineWorker, extendWorker } from "@codesoul-co/ditto/worker";
 import {
   createDitto, graph, InMemoryArtifactStore, LocalEventFabric,
   NoWorkerAvailableError, PayloadCodec,
-} from "@ditto/core/runtime";
+} from "@codesoul-co/ditto/runtime";
 
 // example: workerDefinition
-declare module "@ditto/core/contracts" {
+declare module "@codesoul-co/ditto/contracts" {
   interface NodeContractMap {
     "EXAMPLE.TEXT.NORMALIZE": NodeContract<{ text: string }, { text: string; calls: number }>;
     "EXAMPLE.TEXT.PROCESS": NodeContract<{ text: string }, { text: string; calls: number }>;

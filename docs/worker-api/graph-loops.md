@@ -11,8 +11,8 @@ The existing `loop({graph, bind, update, done, maxIterations})` state-machine in
 For heterogeneous stages and reusable recovery/checkpoint logic, define a synchronous execution plan:
 
 ```ts
-import { createDitto, graph, graphStep, loop } from "@ditto/core/runtime";
-import { createContextWorker, createInMemoryContextStore } from "@ditto/core/worker/context";
+import { createDitto, graph, graphStep, loop } from "@codesoul-co/ditto/runtime";
+import { createContextWorker, createInMemoryContextStore } from "@codesoul-co/ditto/worker/context";
 
 // This small orchestration example uses explicit test Context; full Agents use Redis.
 const runtime = createDitto({ workers: [createContextWorker({
@@ -22,7 +22,7 @@ const load = graph<{ question: string }>("load-question")
   .node("context", "CONTEXT.LOAD", [], input => ({
     sources: [{ id: "question", content: input.question }]
   }));
-const select = graph<{ context: import("@ditto/core/contracts").Context }>("select-context")
+const select = graph<{ context: import("@codesoul-co/ditto/contracts").Context }>("select-context")
   .node("selected", "CONTEXT.SELECT", [], input => ({
     context: input.context, purpose: "infer", limit: 1
   }));

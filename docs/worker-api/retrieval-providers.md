@@ -2,7 +2,7 @@
 
 [简体中文](retrieval-providers.zh-CN.md) · [SEARCH contract and deployment](retrieval.md) · [MEMORY](memory.md)
 
-All implementations below belong to the optional `@ditto/core/worker/retrieval` entry. SEARCH remains the only Node. Embedding, fusion and reranking are composable providers that can also run inside MEMORY without registering a RETRIEVAL Worker. No database driver, server, schema or index manager is included.
+All implementations below belong to the optional `@codesoul-co/ditto-retrieval` entry. SEARCH remains the only Node. Embedding, fusion and reranking are composable providers that can also run inside MEMORY without registering a RETRIEVAL Worker. No database driver, server, schema or index manager is included.
 
 ## Storage and search
 
@@ -85,8 +85,8 @@ Moving execution preserves SDK, embedding and result-mapping choices. A separate
 ## HTTP embedding and root configuration
 
 ```ts
-import { Sandbox } from "@ditto/core/runtime/sandbox";
-import { createHttpEmbeddingProvider, embeddingConfigFromEnv } from "@ditto/core/worker/retrieval";
+import { Sandbox } from "@codesoul-co/ditto/runtime/sandbox";
+import { createHttpEmbeddingProvider, embeddingConfigFromEnv } from "@codesoul-co/ditto-retrieval";
 const embedding = createHttpEmbeddingProvider({
   ...embeddingConfigFromEnv(process.env),
   sandbox: new Sandbox(config.workspace, config.sandbox),
@@ -187,7 +187,7 @@ const providers = new RetrievalTargetRegistry({
 // Register graph/temporal/custom SearchProviders directly for database traversal or other algorithms.
 ```
 
-MEMORY adapters are exported from `@ditto/core/worker/retrieval/adapters/memory`, with only type dependencies on MEMORY:
+MEMORY adapters are exported from `@codesoul-co/ditto-retrieval/adapters/memory`, with only type dependencies on MEMORY:
 
 | API | Behavior |
 | --- | --- |
@@ -207,8 +207,8 @@ Protocol references: [OpenAI embeddings](https://developers.openai.com/api/refer
 Complete source: [examples/retrieval.ts](examples/retrieval.ts). The functions below share its imports; importing the file executes no examples. Applications supply database, model, or MCP resources. Choose the function you need; writes, deletes, and model calls perform real operations when invoked.
 
 ```ts
-import { createDitto, createMemoryWorker, loadRuntimeConfigFile } from "@ditto/core";
-import type { MemorySearchProvider, MemoryStore, MemoryItem } from "@ditto/core/worker/memory";
+import { createDitto, createMemoryWorker, loadRuntimeConfigFile } from "@codesoul-co/ditto";
+import type { MemorySearchProvider, MemoryStore, MemoryItem } from "@codesoul-co/ditto/worker/memory";
 import {
   createRetrieval, createRetrievalWorker, RetrievalTargetRegistry, RetrievalError, retrievalSearchNode,
   embedContents, validateVector, createVectorSearchProvider, createTextSearchProvider,
@@ -216,11 +216,11 @@ import {
   createHttpEmbeddingProvider, embeddingConfigFromEnv, createSqlSearchProvider, createMilvusSearchProvider,
   type RetrievalSearchProvider, type RetrievalSearchInput, type RetrievalSearchOutput,
   type EmbeddingProvider, type RerankProvider, type SqlSearchOptions, type MilvusSearchOptions,
-} from "@ditto/core/worker/retrieval";
+} from "@codesoul-co/ditto-retrieval";
 import {
   createMemoryRetrievalProvider, createRetrievalMemorySearchProvider,
   RemoteRetrievalSearchProvider, mapMemoryCandidates,
-} from "@ditto/core/worker/retrieval/adapters/memory";
+} from "@codesoul-co/ditto-retrieval/adapters/memory";
 
 export const request: RetrievalSearchInput = { query: { content: "agent memory" }, target: { name: "kb" }, limit: 5 };
 ```
@@ -430,7 +430,7 @@ Inject database search, embedding, fusion and reranking providers into createRag
 
 ## Context retrieval adapter
 
-Import `createRetrievalContextStrategy` and `mapContextCandidates` from `@ditto/core/worker/retrieval/adapters/context`. Core does not import this optional module.
+Import `createRetrievalContextStrategy` and `mapContextCandidates` from `@codesoul-co/ditto-retrieval/adapters/context`. Core does not import this optional module.
 
 `createRetrievalContextStrategy(options)` returns a ContextRagStrategy. Supply provider for an inline RetrievalSearchProvider (including SQL, Milvus, vector/embedding and hybrid pipelines), or runtime to invoke RETRIEVAL.SEARCH. Omit both inside a CONTEXT Worker to use its invocation-bound Runtime; an explicit runtime always takes precedence. The delegated Runtime must already have a local or remote RETRIEVAL Worker registered; deployment uses the usual direct/IPC/HTTP placement.
 
@@ -447,9 +447,9 @@ Without a mapper, query is required, strategy.options becomes retrieval options,
 `mapContextCandidates(output)` requires JSON content. IDs hash target name/type/namespace and candidate ID (or source ref/content fallback). It preserves source.ref as source.uri, candidate metadata and score, adding retrievalTarget. Invalid content raises INVALID_PROVIDER_OUTPUT; supply mapOutput for application-specific records. Context.SELECT deduplicates IDs and budgets results; it never overwrites cached state. For example, `mapContextCandidates({ target: { name: "docs" }, candidates: [{ id: "1", content: "Evidence", score: 0.8 }] })` returns one stable ContextItem with that content and score metadata.
 
 ```ts
-import { createContext, type RuntimeClient } from "@ditto/core";
-import type { RetrievalSearchProvider } from "@ditto/core/worker/retrieval";
-import { createRetrievalContextStrategy, mapContextCandidates } from "@ditto/core/worker/retrieval/adapters/context";
+import { createContext, type RuntimeClient } from "@codesoul-co/ditto";
+import type { RetrievalSearchProvider } from "@codesoul-co/ditto-retrieval";
+import { createRetrievalContextStrategy, mapContextCandidates } from "@codesoul-co/ditto-retrieval/adapters/context";
 export function contextSearch(provider: RetrievalSearchProvider, runtime: RuntimeClient) {
   const inline = createContext({ services: { ragStrategy: createRetrievalContextStrategy({
     provider, target: { name: "documents" }, strategy: "vector",

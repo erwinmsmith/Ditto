@@ -1,4 +1,4 @@
-import { graph } from "@ditto/core/runtime";
+import { graph } from "@codesoul-co/ditto/runtime";
 import { identifier, object, toJsonObject } from "../../_shared/tools/order-files.ts";
 import { buildSummaryGraph } from "./fan-out-fan-in.ts";
 import { runCli, isMain } from "./cli.ts";

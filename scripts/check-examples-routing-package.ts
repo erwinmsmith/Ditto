@@ -24,7 +24,8 @@ try {
   const manifest = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
   const [packed] = JSON.parse(await run("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", app], root));
   await writeFile(join(app, "package.json"), JSON.stringify({ name: "routing-consumer", private: true, type: "module" }));
-  await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", join(app, packed.filename), `@types/node@${manifest.devDependencies["@types/node"]}`]);
+  const [retrievalPacked] = JSON.parse(await run("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", app], join(root, "packages/retrieval")));
+  await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", join(app, packed.filename), join(app, retrievalPacked.filename), `@types/node@${manifest.devDependencies["@types/node"]}`]);
   const examples = ["state-routing", "conditional", "branch-merge", "file-type", "risk", "confidence"];
   await cp(join(root, "examples/control-flow/routing"), join(app, "examples/control-flow/routing"), { recursive: true });
   await cp(join(root, "examples/_shared/tools"), join(app, "examples/_shared/tools"), { recursive: true, filter: source => !source.split(/[\\/]/).some(part => part === ".venv" || part === "__pycache__") });
@@ -37,7 +38,7 @@ try {
     erasableSyntaxOnly: true, noEmit: true, types: ["node"], allowImportingTsExtensions: true,
   }, include: ["examples/**/*.ts", "scripts/**/*.ts"] }));
   await run(join(root, "node_modules/.bin/tsc"), ["-p", "tsconfig.json"]);
-  const sourceExists = await access(join(app, "node_modules/@ditto/core/src")).then(() => true, () => false);
+  const sourceExists = await access(join(app, "node_modules/@codesoul-co/ditto/src")).then(() => true, () => false);
   assert.equal(sourceExists, false, "Consumer must resolve the published dist exports");
   const imports = examples.map(name => `await import(${JSON.stringify(`./examples/control-flow/routing/${name}.ts`)});`).join("\n");
   assert.equal(await run(process.execPath, ["--input-type=module", "-e", imports]), "", "Imports must not execute examples");

@@ -6,15 +6,15 @@
 
 ## 应用调用
 
-在安装 `@ditto/core` 的应用中，复制 `examples/control-flow/iteration/` 和 `examples/_shared/tools/brief-files.ts`，保留相对路径。准备 `ditto.yaml`、`.env` 和[输入目录](../../examples/control-flow/iteration/README.zh-CN.md#运行)，然后执行：
+在安装 `@codesoul-co/ditto` 的应用中，复制 `examples/control-flow/iteration/` 和 `examples/_shared/tools/brief-files.ts`，保留相对路径。准备 `ditto.yaml`、`.env` 和[输入目录](../../examples/control-flow/iteration/README.zh-CN.md#运行)，然后执行：
 
 ```ts
 import { mkdtemp } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { createBriefFiles } from "./examples/_shared/tools/brief-files.ts";
 import { runAdaptive } from "./examples/control-flow/iteration/adaptive-loop.ts";
 

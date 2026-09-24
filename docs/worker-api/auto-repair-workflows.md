@@ -10,7 +10,7 @@ Copy `examples/patterns/auto-repair`, `examples/_shared/tools/auto-repair`, `exa
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadRuntimeConfigFile } from "@ditto/core/runtime";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
 import { createDemo } from "./examples/_shared/tools/auto-repair/adapters.ts";
 import { openRepair } from "./examples/patterns/auto-repair/cli.ts";
 import { runRepair } from "./examples/patterns/auto-repair/index.ts";

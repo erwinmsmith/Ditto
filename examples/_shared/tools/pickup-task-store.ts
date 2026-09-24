@@ -3,8 +3,8 @@ import { mkdir, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createHash, randomUUID } from "node:crypto";
-import type { JsonObject } from "@ditto/core/contracts";
-import type { OutputSink, RegisteredTool } from "@ditto/core/worker/interaction";
+import type { JsonObject } from "@codesoul-co/ditto/contracts";
+import type { OutputSink, RegisteredTool } from "@codesoul-co/ditto/worker/interaction";
 import type { PickupRecord } from "./pickup-ledger.ts";
 
 function fingerprint(value: PickupRecord): string {

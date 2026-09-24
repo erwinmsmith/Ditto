@@ -2,16 +2,16 @@
 
 [English](rag-workflows.md) · [API 目录](README.zh-CN.md) · [完整示例](../../examples/patterns/rag-qa/README.zh-CN.md)
 
-`runRag` 是应用示例函数，不是新增的 `@ditto/core` 导出。Core 提供公开 Runtime、Graph、Worker 和检索 Provider 接口；资料格式、授权规则、任务状态机、提示词、引用校验及输出属于应用。
+`runRag` 是应用示例函数，不是新增的 `@codesoul-co/ditto` 导出。Core 提供公开 Runtime、Graph、Worker 和检索 Provider 接口；资料格式、授权规则、任务状态机、提示词、引用校验及输出属于应用。
 
 ## 可运行的消费者入口
 
-使用 Node.js 24+。先安装 `@ditto/core` 发布包（发布前可安装 `npm pack` 产出的 tarball），并复制 `examples/patterns/rag-qa`、`examples/_shared/tools/rag`、`examples/_shared/tools/storage` 和 `examples/_shared/tools/execution/files.ts`、`examples/_shared/tools/evidence.ts` 到应用的同名路径。安装 storage 的依赖，准备 `ditto.yaml` 和模型环境变量，设置 `DITTO_WORKER_CONTEXT_REDIS_URL`。下列入口放在应用根目录，保存为 `rag-client.ts`：
+使用 Node.js 24+。先安装 `@codesoul-co/ditto` 发布包（发布前可安装 `npm pack` 产出的 tarball），并复制 `examples/patterns/rag-qa`、`examples/_shared/tools/rag`、`examples/_shared/tools/storage` 和 `examples/_shared/tools/execution/files.ts`、`examples/_shared/tools/evidence.ts` 到应用的同名路径。安装 storage 的依赖，准备 `ditto.yaml` 和模型环境变量，设置 `DITTO_WORKER_CONTEXT_REDIS_URL`。下列入口放在应用根目录，保存为 `rag-client.ts`：
 
 ```ts
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { resolve } from "node:path";
-import { loadRuntimeConfigFile } from "@ditto/core/runtime";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
 import { runRag } from "./examples/patterns/rag-qa/index.ts";
 import { openRag } from "./examples/patterns/rag-qa/cli.ts";
 import { createFixture, seedInternalKnowledge } from "./examples/patterns/rag-qa/fixtures.ts";
@@ -50,14 +50,14 @@ node --env-file=.env rag-client.ts
 
 | 公开入口 | 注册的能力 | 本例用途 |
 | --- | --- | --- |
-| `createDitto`, `graph`, `loop`, `graphStep`，来自 `@ditto/core/runtime` | Runtime / 图节点依赖 | `runRag()` 调用一次 `runtime.loop(runRagLoop, ...)`；计划交出各阶段 Graph |
+| `createDitto`, `graph`, `loop`, `graphStep`，来自 `@codesoul-co/ditto/runtime` | Runtime / 图节点依赖 | `runRag()` 调用一次 `runtime.loop(runRagLoop, ...)`；计划交出各阶段 Graph |
 | `createContextWorker` | `CONTEXT.LOAD`, `CONTEXT.UPDATE` | Redis 工作集加载与组装 |
 | `createMemoryWorker` | `MEMORY.GET`, `MEMORY.WRITE` | 获准的内部知识、持久化检查点 |
 | `createRetrievalWorker` | `RETRIEVAL.SEARCH` | 已授权且有版本的文本索引 |
 | `createInferWorker` | `INFER.REASONING.SAMPLE` | 理解、筛选、回答、依据检查 |
 | `createInteractionWorker` | `INTERACTION.ACT.TOOL` | 来源授权、接入、快照检查和输出 |
 
-Worker 工厂分别从 `@ditto/core/worker/context`、`memory`、`retrieval`、`infer`、`interaction` 子路径导出。应用不调用 `.instantiate()` / `.execute()`，也不通过源码或构建目录导入。
+Worker 工厂分别从 `@codesoul-co/ditto/worker/context`、`memory`、`retrieval`、`infer`、`interaction` 子路径导出。应用不调用 `.instantiate()` / `.execute()`，也不通过源码或构建目录导入。
 
 检索后端经公开 `RetrievalTargetRegistry` 和 `createTextSearchProvider` 注入：目标名 `rag-corpus`，策略 `bm25`，namespace 为 `<tenant>:<principal>:<requestId>`。Provider 的数据库操作属于应用适配器；图中只出现公开 `RETRIEVAL.SEARCH`。
 
@@ -97,7 +97,7 @@ interface Options {
 可信控制器可以复用以下公开节点，将审批后的资料写入 Memory：
 
 ```ts
-import { graph } from "@ditto/core/runtime";
+import { graph } from "@codesoul-co/ditto/runtime";
 const ingest = graph("approved-knowledge").node("saved", "MEMORY.WRITE", [], () => ({
   memories: [{
     key: "knowledge:demo:maintenance",

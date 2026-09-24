@@ -6,16 +6,16 @@ Applications compose graph, loop, runtime.run/runtime.loop, CONTEXT.LOAD/UPDATE 
 
 ## Integration
 
-Copy `examples/control-flow/recovery/`, `examples/_shared/tools/recovery-store.ts` and `examples/_shared/tools/fulfillment-service.ts` into an application with @ditto/core installed. Preserve relative paths and prepare ditto.yaml/.env:
+Copy `examples/control-flow/recovery/`, `examples/_shared/tools/recovery-store.ts` and `examples/_shared/tools/fulfillment-service.ts` into an application with @codesoul-co/ditto installed. Preserve relative paths and prepare ditto.yaml/.env:
 
 ```ts
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createContextWorker } from "@ditto/core/worker/context";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createContextWorker } from "@codesoul-co/ditto/worker/context";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { RecoveryStore } from "./examples/_shared/tools/recovery-store.ts";
 import { startFulfillmentService } from "./examples/_shared/tools/fulfillment-service.ts";
 import { runCheckpoint } from "./examples/control-flow/recovery/checkpoint-resume.ts";

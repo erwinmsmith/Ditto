@@ -2,7 +2,7 @@
 
 [简体中文](planning.zh-CN.md) · [API index](README.md) · [Five examples](../../examples/capabilities/planning/README.md)
 
-The planning examples produce local inventory replenishment reports. A model proposes tasks and tools; application rules validate dependencies, resources, and budgets before constructing an execution graph. All framework calls use exported `@ditto/core/...` entries.
+The planning examples produce local inventory replenishment reports. A model proposes tasks and tools; application rules validate dependencies, resources, and budgets before constructing an execution graph. All framework calls use exported `@codesoul-co/ditto/...` entries.
 
 ## Public API mapping
 
@@ -23,9 +23,9 @@ Install the Redis SDK, start Redis using the [storage guide](../../examples/_sha
 ```ts
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { resolve } from "node:path";
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createInferWorker } from "@ditto/core/worker/infer";
-import { createInteractionWorker } from "@ditto/core/worker/interaction";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createInferWorker } from "@codesoul-co/ditto/worker/infer";
+import { createInteractionWorker } from "@codesoul-co/ditto/worker/interaction";
 import { openAgentStorage } from "./examples/_shared/tools/storage/workers.ts";
 import { PlanningStore } from "./examples/_shared/tools/planning-store.ts";
 import { createFixture } from "./examples/capabilities/planning/fixtures.ts";

@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import {
   createContextWorker, createDitto, loadRuntimeConfigFile, contextScopeKey,
   type RedisContextClient,
-} from "@ditto/core";
+} from "@codesoul-co/ditto";
 import { exampleSdk } from "./shared.ts";
 
 type Client = RedisContextClient & {

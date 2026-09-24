@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { admitted, proposal, progress, report, request, namespace, taskKey, preferenceKey, type Request } from "../examples/_shared/tools/memory/domain.js";
 import { memoryPointId } from "../examples/_shared/tools/storage/qdrant-memory.js";
 import { scopedMemory } from "../examples/_shared/tools/storage/scoped-memory.js";
-import type { MemoryStore, MemorySearchProvider } from "@ditto/core/worker/memory";
+import type { MemoryStore, MemorySearchProvider } from "@codesoul-co/ditto/worker/memory";
 const r: Request = { id: "task-a", tenant: "team-a", user: "alice", mode: "write", backend: "sqlite", statement: "For future project updates, use English with detailed explanations.", remember: true };
 test("memory write policy requires explicit permission and a durable allowlisted preference", () => {
   assert.deepEqual(admitted(r), { language: "English", style: "detailed" });

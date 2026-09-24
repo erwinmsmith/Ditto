@@ -4,12 +4,12 @@ import {
   defaultSelect, deterministicCompress, isProtectedContextItem,
   type ContextStateStore, type RedisContextClient,
   type ContextServices, type ContextOptions, type ContextCompressor,
-} from "@ditto/core/worker/context";
-import { createDitto, graph, loadRuntimeConfigFile, runRagFlow, runSkillFlow } from "@ditto/core";
-import type { Context as WorkingContext, ContextItem as WorkingItem } from "@ditto/core/contracts";
-import type { InferClient, ModelConfig } from "@ditto/core/worker/infer";
-import { createMemoryWorker, type MemoryResources } from "@ditto/core/worker/memory";
-import type { RetrievalSearchProvider, RetrievalTarget } from "@ditto/core/worker/retrieval";
+} from "@codesoul-co/ditto/worker/context";
+import { createDitto, graph, loadRuntimeConfigFile, runRagFlow, runSkillFlow } from "@codesoul-co/ditto";
+import type { Context as WorkingContext, ContextItem as WorkingItem } from "@codesoul-co/ditto/contracts";
+import type { InferClient, ModelConfig } from "@codesoul-co/ditto/worker/infer";
+import { createMemoryWorker, type MemoryResources } from "@codesoul-co/ditto/worker/memory";
+import type { RetrievalSearchProvider, RetrievalTarget } from "@codesoul-co/ditto-retrieval";
 
 // example: setup
 export function setupContext(client: RedisContextClient) {
@@ -182,7 +182,7 @@ export async function directStrategies(context: WorkingContext) {
 export const customContextLoad = contextLoadNode.define("CONTEXT", async input => createContext().load(input));
 
 // example: durable
-export async function contextToMemory(context: WorkingContext, memory: ReturnType<typeof import("@ditto/core/worker/memory").createMemory>) {
+export async function contextToMemory(context: WorkingContext, memory: ReturnType<typeof import("@codesoul-co/ditto/worker/memory").createMemory>) {
   const selected = await createContext().select({ context, purpose: "memory", limit: 8 });
   return memory.write({ memories: selected.context.items.map(item => ({
     content: item.content, metadata: { contextItemId: item.id },
@@ -191,9 +191,9 @@ export async function contextToMemory(context: WorkingContext, memory: ReturnTyp
 
 // example: interaction
 export async function toolToCachedContext(
-  runtime: import("@ditto/core").RuntimeClient,
-  scope: import("@ditto/core/worker/context").ContextScope,
-  call: import("@ditto/core/contracts").ToolCall,
+  runtime: import("@codesoul-co/ditto").RuntimeClient,
+  scope: import("@codesoul-co/ditto/worker/context").ContextScope,
+  call: import("@codesoul-co/ditto/contracts").ToolCall,
 ) {
   const result = await runtime.invoke("INTERACTION.ACT.TOOL", { call });
   const observation = await runtime.invoke("INTERACTION.OBSERVE", { result });
@@ -206,7 +206,7 @@ export async function toolToCachedContext(
 }
 
 // example: remote
-export function remoteContextRetrieval(runtime: import("@ditto/core").RuntimeClient, target: RetrievalTarget) {
+export function remoteContextRetrieval(runtime: import("@codesoul-co/ditto").RuntimeClient, target: RetrievalTarget) {
   return contextRetrieval({ async search(input) {
     const result = await runtime.invoke("RETRIEVAL.SEARCH", input);
     if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);

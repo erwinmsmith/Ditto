@@ -8,9 +8,9 @@ import {
 } from "../src/index.js";
 import {
   createRetrievalWorker, createVectorSearchProvider, RetrievalTargetRegistry, type RetrievalSearchProvider,
-} from "../src/worker/retrieval/index.js";
-import { RemoteRetrievalSearchProvider } from "../src/worker/retrieval/adapters/memory.js";
-import { createRetrievalContextStrategy, mapContextCandidates } from "../src/worker/retrieval/adapters/context.js";
+} from "@codesoul-co/ditto-retrieval";
+import { RemoteRetrievalSearchProvider } from "@codesoul-co/ditto-retrieval/adapters/memory";
+import { createRetrievalContextStrategy, mapContextCandidates } from "@codesoul-co/ditto-retrieval/adapters/context";
 
 const input: ContextSelectInput = { context: { items: [] }, purpose: "infer", query: "question", limit: 3, strategy: { kind: "rag" } };
 function pipeline() {
