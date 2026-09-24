@@ -5,7 +5,7 @@
 The root [`ditto.yaml`](../../ditto.yaml) contains versioned behavior defaults. [`.env.example`](../../.env.example) is the deployment template; actual `.env` credentials are ignored by Git. Load environment variables with Node `--env-file=.env`, then explicitly load YAML once at application startup. Importing the library or creating an unconfigured Runtime reads neither files nor environment variables.
 
 ```ts
-import { createDitto, createInfer, createInferWorker, loadRuntimeConfigFile } from "@ditto/core";
+import { createDitto, createInfer, createInferWorker, loadRuntimeConfigFile } from "@codesoul-co/ditto";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 if (!config.model) throw new Error("Configure the default model in .env");
 const runtime = createDitto({ config, workers: [createInferWorker()] });
@@ -74,7 +74,7 @@ Missing/empty files, non-object roots, unknown keys, duplicate keys, aliases and
 For embedded use without file or environment reads, the second argument accepts the same RuntimeSettings shape as YAML. Root YAML remains the recommended shared application configuration.
 
 ```ts
-import { createDitto, loadRuntimeConfig } from "@ditto/core/runtime";
+import { createDitto, loadRuntimeConfig } from "@codesoul-co/ditto/runtime";
 
 const config = loadRuntimeConfig({}, {
   runtime: { timeoutMs: 15_000, graphConcurrency: 2, loopMaxIterations: 4 },
@@ -187,7 +187,7 @@ workers:
 | workers.interaction.webSearch.timeoutMs | 30000 / 1–2147483647 ms |
 | workers.interaction.webSearch.maxResponseBytes | 1048576 / 1–16777216 |
 
-Factory defaults and root YAML agree. Loaders return immutable config.context / config.interaction. Explicitly pass the corresponding groups to createInMemoryContextStore, createContextOperationQueue, createReadOnlyCommandTools and createBraveWebSearchProvider. Loading parameters does not activate tools, caching or network permissions. See the [Context example](../../examples/worker/context-retrieval.ts) and [Interaction API](interaction.md#provider-cancellation-and-bounded-web-responses).
+Factory defaults and root YAML agree. Loaders return immutable config.context / config.interaction. Explicitly pass the corresponding groups to createInMemoryContextStore, createContextOperationQueue, createReadOnlyCommandTools and createBraveWebSearchProvider. Loading parameters does not activate tools, caching or network permissions. See the [Context example](examples/integrations/context-retrieval.ts) and [Interaction API](interaction.md#provider-cancellation-and-bounded-web-responses).
 
 Application code reads `DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY`. CONTEXT and MEMORY connection variables use `DITTO_WORKER_CONTEXT_*` and `DITTO_WORKER_MEMORY_*` in root .env.example. Environment holds credentials/connections; YAML holds behavior/capacity, with no plugin autoloading.
 

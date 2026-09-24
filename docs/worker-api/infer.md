@@ -4,13 +4,13 @@
 
 This reference describes the implementation in `src/worker/infer/`: model sampling, explicit reasoning trajectories, reflection, candidate deliberation, and inference caching. Graphs supply Context and Memory upfront. ReAct and other cross-Worker orchestration belong to Runtime graph flows. INFER does not execute tools, MCP, or shells.
 
-Import INFER contracts from `@ditto/core/worker/infer` or the root `Infer` type namespace. Graph bindings map Context/Memory outputs to INFER fields.
+Import INFER contracts from `@codesoul-co/ditto/worker/infer` or the root `Infer` type namespace. Graph bindings map Context/Memory outputs to INFER fields.
 
 ## 1. Setup and lifecycle
 
 ```ts
 import { createDitto, createInfer, createInferWorker,
-  createHttpProvider } from "@ditto/core";
+  createHttpProvider } from "@codesoul-co/ditto";
 
 const runtime = createDitto({ sandbox: { network: ["https://api.openai.com"] } });
 runtime.services.providers.register("openai", createHttpProvider({
@@ -61,7 +61,7 @@ Executors are initialized once per instance; provider resolution observes curren
 Every method returns `Promise<NodeResult<Output>>` and accepts optional `InferCallOptions` as its second argument. Runtime invocation returns that same envelope without another wrapper. Namespaces and strategy names are not routable Nodes.
 
 ```ts
-import type { SampleInput, SampleOutput } from "@ditto/core/worker/infer";
+import type { SampleInput, SampleOutput } from "@codesoul-co/ditto/worker/infer";
 const result = await infer.execute("INFER.REASONING.SAMPLE", input);
 const dynamic = await infer.execute<SampleInput, SampleOutput>(
   "INFER.REASONING.SAMPLE", input,
@@ -125,7 +125,7 @@ export interface ActionRequest {
 }
 export interface ContextItem { id?: string; content: unknown; source?: string; score?: number }
 export interface MemoryItem { id: string; content: unknown; score?: number; timestamp?: number }
-export type Observation = import("@ditto/core").Observation;
+export type Observation = import("@codesoul-co/ditto").Observation;
 export interface ReasoningStep {
   id: string;
   type: "plan" | "model" | "decision" | "action_request" | "observation" | "reflection" | "final";
@@ -231,7 +231,7 @@ Without YAML, ToT (breadth=3, depth=2, beamWidth=2) uses 11 SAMPLE calls; defaul
 ReAct is a predefined Runtime graph flow, called with `runReactFlow(runtime, input, options?)`; see the [Runtime flow API](../interaction-runtime.md#react-predefined-graph-flow). For planning, run SAMPLE in an upstream Graph and supply its plan to ReAct. Context/Memory retrieval also belongs to upstream Graphs.
 
 ```ts
-import type { TrajectoryStrategy } from "@ditto/core/worker/infer";
+import type { TrajectoryStrategy } from "@codesoul-co/ditto/worker/infer";
 const refine: TrajectoryStrategy = async ctx => {
   const draft = await ctx.sample(ctx.messages);
   return (await ctx.sample([...ctx.messages, draft.message,
@@ -411,17 +411,17 @@ Node errors become NodeResult envelopes. Construction errors throw directly. Pre
 Complete source: [examples/infer.ts](examples/infer.ts). The functions below share its imports; importing the file executes no examples. Applications supply database, model, or MCP resources. Choose the function you need; writes, deletes, and model calls perform real operations when invoked.
 
 ```ts
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto";
 import {
   createInfer, createInferWorker, InMemoryInferCache, inferSampleNode,
   type InferClient, type ModelConfig, type TrajectoryInput, type ReflectInput,
   type DeliberateInput, type TrajectoryStrategy, type InferCacheProvider, type ModelProvider, type SampleInput,
-} from "@ditto/core/worker/infer";
+} from "@codesoul-co/ditto/worker/infer";
 
-import { ProviderRegistry, createHttpProvider, type HttpProviderOptions } from "@ditto/core/worker/infer/providers";
+import { ProviderRegistry, createHttpProvider, type HttpProviderOptions } from "@codesoul-co/ditto/worker/infer/providers";
 ```
 
-Import INFER types from `@ditto/core/worker/infer` to avoid confusing them with Core Message / MemoryItem. INFER content is text or Provider content arrays; Interaction allows broader JSON content.
+Import INFER types from `@codesoul-co/ditto/worker/infer` to avoid confusing them with Core Message / MemoryItem. INFER content is text or Provider content arrays; Interaction allows broader JSON content.
 
 ### createInfer / createInferWorker: configuration and cache
 
@@ -678,3 +678,5 @@ await runtime.invoke("INFER.REASONING.SAMPLE", {
 HTTP and IPC cancellation currently stops the caller's wait without automatically interrupting remote execution. Configure model deadlines on the serving Worker as well.
 
 External `InferCacheProvider.lookup/write/invalidate(input, options?)` methods accept `InferCacheCallOptions { signal?: AbortSignal }` second. For example, `lookup: (input, options) => databaseCache.lookup(input, options)` forwards cancellation to a compatible adapter; map it to the underlying SDK as needed. INFER timeouts stop waiting but do not undo committed cache writes.
+
+[Content processing workflows](content-workflows.md) compose SAMPLE generation and independent review with Redis Context, database Memory and validated artifact publication.

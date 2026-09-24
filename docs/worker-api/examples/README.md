@@ -1,5 +1,9 @@
 # Type-checked Worker API examples / 可类型检查的 API 示例
 
+The learning catalog is organized in [examples/](../../../examples/README.md). Runnable API examples include: [setup guide](guide.md), [Runtime](runtime/README.md), and [database integrations](integrations/README.md). `graph-loop-worker.ts`, `runtime/graph-loop.ts`, and `runtime/placement.ts` run at module load; the import-safe description below applies to the per-API function examples in the table.
+
+三层学习目录见 [examples/](../../../examples/README.zh-CN.md)。完整 API 示例参见[接入指南](guide.zh-CN.md)、[Runtime](runtime/README.zh-CN.md) 和[数据库接入](integrations/README.zh-CN.md)。上述三个入口在导入时执行，下文“导入不执行”的说明针对表格中的逐 API 函数示例。
+
 These files accompany the bilingual API references. They export example functions and do not execute requests when imported. Supply application-owned model/database/MCP adapters, then call only the example needed. Model calls can consume provider credits; database write/update/delete examples perform the named operation.
 
 这些文件与中英文 API 文档对应。导入不执行请求；参数中的数据库、模型和 MCP 适配器由应用提供。按需调用某个示例函数即可。函数名后的返回值由 TypeScript 推导，完整参数和语义见对应 API 文档。
@@ -20,7 +24,7 @@ npm run typecheck
 
 `tsconfig.json` includes these files; build/test emit configurations keep them out of the distributed package. These are API usage examples, not new SDK implementations or automatic live integration tests. The shared imports and each `// example:` region are reproduced in the corresponding API reference. Keep both copies aligned when changing signatures.
 
-For a complete executable local flow use `npm run example:agent` or `npm run example:tools`. MCP setup and commands are in the [example guide](../../../examples/README.md#mcp). `.env` loading is explicit: use Node `--env-file=.env` or your application's loader before a function that reads process.env. `loadRuntimeConfigFile` loads YAML and consumes the supplied environment; it does not read `.env` itself.
+For a complete executable local flow use `npm run example:agent` or `npm run example:tools`. MCP setup and commands are in the [example guide](guide.md#mcp). `.env` loading is explicit: use Node `--env-file=.env` or your application's loader before a function that reads process.env. `loadRuntimeConfigFile` loads YAML and consumes the supplied environment; it does not read `.env` itself.
 
 ## 每个示例具体做什么 / Function guide
 
@@ -115,7 +119,7 @@ For a complete executable local flow use `npm run example:agent` or `npm run exa
 
 ## 先运行哪个 / Suggested order
 
-1. 不准备外部依赖时，先运行[根目录完整示例](../../../examples/README.zh-CN.md)。
+1. 不准备外部依赖时，先运行[根目录完整示例](guide.zh-CN.md)。
 2. 学习某个 Worker 时，在上表选择对应函数，按文件签名注入资源。`setupMemory` / `setupInfer` / `setupInteraction` / `setupRetrieval` 返回的 Runtime 由调用者关闭。
 3. 修改示例后，在项目根目录运行 `npm run typecheck`。仅运行 `node docs/worker-api/examples/memory.ts` 这类命令不会执行其中的示例函数。
 
@@ -144,6 +148,6 @@ For a complete executable local flow use `npm run example:agent` or `npm run exa
 | [`toolToCachedContext`](context.ts) | 工具观察写入缓存。 |
 | [`remoteContextRetrieval`](context.ts) | 委托独立 RETRIEVAL。 |
 
-真实数据库接入的完整入口见 [examples/worker](../../../examples/worker/README.zh-CN.md)：CONTEXT + Redis、MEMORY + SQL / Milvus；本目录保留逐 API 函数示例。
+真实数据库接入的完整入口见 [examples/worker](integrations/README.zh-CN.md)：CONTEXT + Redis、MEMORY + SQL / Milvus；本目录保留逐 API 函数示例。
 
-Runtime 公共接口的完整可运行示例见 [examples/runtime](../../../examples/runtime/README.zh-CN.md)：quickstart.ts（第一次 Graph 执行）、api.ts（自定义 Worker、事件、Artifact 与关闭）、flows.ts（RAG/Skill/Tool/MCP/ReAct）。这些文件导入时不执行请求；各导出函数的用途在子目录 README 中列出。
+Runtime 公共接口的完整可运行示例见 [examples/runtime](runtime/README.zh-CN.md)：quickstart.ts（第一次 Graph 执行）、api.ts（自定义 Worker、事件、Artifact 与关闭）、flows.ts（RAG/Skill/Tool/MCP/ReAct）。这些文件导入时不执行请求；各导出函数的用途在子目录 README 中列出。

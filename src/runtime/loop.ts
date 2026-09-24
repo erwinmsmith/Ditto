@@ -1,3 +1,4 @@
+import type { LoopPlanDefinition } from "./graph-plan.js";
 import type { ExecutionGraph } from "./graph.js";
 
 /** Each iteration executes one selected DAG; the application owns state and termination. */
@@ -10,7 +11,13 @@ export interface LoopDefinition<S, I, O extends object> {
   readonly done: (state: S, output: O) => boolean;
 }
 
-export function loop<S, I, O extends object>(definition: LoopDefinition<S, I, O>): LoopDefinition<S, I, O> {
+export function loop<I, R>(
+  definition: LoopPlanDefinition<I, R>,
+): LoopPlanDefinition<I, R>;
+export function loop<S, I, O extends object>(
+  definition: LoopDefinition<S, I, O>,
+): LoopDefinition<S, I, O>;
+export function loop(definition: object): object {
   return Object.freeze({ ...definition });
 }
 

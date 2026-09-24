@@ -1,0 +1,47 @@
+{
+  "name": "@codesoul-co/ditto-retrieval",
+  "version": "0.1.0",
+  "description": "Optional retrieval Worker and adapters for Ditto.",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./adapters/memory": {
+      "types": "./dist/adapters/memory.d.ts",
+      "import": "./dist/adapters/memory.js"
+    },
+    "./adapters/context": {
+      "types": "./dist/adapters/context.d.ts",
+      "import": "./dist/adapters/context.js"
+    }
+  },
+  "scripts": {
+    "build": "node ../../scripts/clean.ts packages/retrieval/dist && tsc -p tsconfig.build.json",
+    "prepack": "npm run build --prefix ../.."
+  },
+  "peerDependencies": {
+    "@codesoul-co/ditto": "^0.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/erwinmsmith/Ditto.git",
+    "directory": "packages/retrieval"
+  },
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=11.0.0"
+  },
+  "devDependencies": {
+    "@codesoul-co/ditto": "file:../.."
+  }
+}

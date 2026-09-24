@@ -20,7 +20,7 @@
 
 IPC 复用父子进程的内置 channel，不开 TCP 端口、不需要网络 token。调用仍经过 Envelope、目标身份、公开能力与容量检查；业务输入输出应保持可序列化。超时、取消和断开会结束调用端等待，但不会回滚或强制停止远端任务。应用拥有子进程及 transport 生命周期，退出前调用 ipc.close()；接收端 receiver.close() 停止新入口并等待已接受回复。
 
-完整双模式示例见 [placement.ts](../examples/runtime/placement.ts)，详细接口见 [Runtime API](worker-api/runtime.zh-CN.md)。
+完整双模式示例见 [placement.ts](worker-api/examples/runtime/placement.ts)，详细接口见 [Runtime API](worker-api/runtime.zh-CN.md)。
 
 ## HTTP 示例
 
@@ -30,7 +30,7 @@ IPC 复用父子进程的内置 channel，不开 TCP 端口、不需要网络 to
 
 ```ts
 import { createServer } from "node:http";
-import { createDitto, createContextWorker, loadRuntimeConfigFile, createWorkerHttpHandler } from "@ditto/core";
+import { createDitto, createContextWorker, loadRuntimeConfigFile, createWorkerHttpHandler } from "@codesoul-co/ditto";
 
 const token = process.env.DITTO_TRANSPORT_HTTP_WORKER_TOKEN;
 if (!token) throw new Error("Set DITTO_TRANSPORT_HTTP_WORKER_TOKEN");
@@ -45,7 +45,7 @@ console.log(worker.address); // 通过部署配置传给调用端；不含 Key
 调用端：
 
 ```ts
-import { createDitto, createHttpTransport } from "@ditto/core";
+import { createDitto, createHttpTransport } from "@codesoul-co/ditto";
 
 const token = process.env.DITTO_TRANSPORT_HTTP_WORKER_TOKEN;
 if (!token) throw new Error("Set DITTO_TRANSPORT_HTTP_WORKER_TOKEN");

@@ -7,8 +7,8 @@ MEMORY implements GET, QUERY, SEARCH, WRITE, UPDATE and DELETE as stable access 
 ## Setup
 
 ```ts
-import { createDitto, createMemory, createMemoryWorker, loadRuntimeConfigFile } from "@ditto/core";
-import type { MemoryResources } from "@ditto/core/worker/memory";
+import { createDitto, createMemory, createMemoryWorker, loadRuntimeConfigFile } from "@codesoul-co/ditto";
+import type { MemoryResources } from "@codesoul-co/ditto/worker/memory";
 
 function startMemory(resources: MemoryResources) {
   const config = loadRuntimeConfigFile("ditto.yaml", process.env);
@@ -96,7 +96,7 @@ interface NodeResult<T> {
 }
 ```
 
-NodeResult is shared with INFER through `@ditto/core/contracts`. Plugin methods return raw outputs; MEMORY wraps them once. This implementation emits success/failed, with no independent cancellation/deadline mechanism. Plugins enforce backend deadlines; failure does not imply rollback.
+NodeResult is shared with INFER through `@codesoul-co/ditto/contracts`. Plugin methods return raw outputs; MEMORY wraps them once. This implementation emits success/failed, with no independent cancellation/deadline mechanism. Plugins enforce backend deadlines; failure does not imply rollback.
 
 Content is not coerced to a Message, string or vector. Local SDK calls can carry application objects; HTTP and persistence require an agreed serializable representation. Plugins define reserved metadata namespaces. IDs and keys are nonempty strings. Scores must be finite when supplied; scale and ranking direction belong to the search plugin. Ditto preserves search order.
 
@@ -240,7 +240,7 @@ export async function memoryToContext(resources: MemoryResources) {
 
 ## Optional independent retrieval service
 
-Ordinary MemorySearchProviders remain unchanged. When independent retrieval resources are needed, explicitly import RemoteRetrievalSearchProvider from `@ditto/core/worker/retrieval/adapters/memory`, supplying a fixed target and, where needed, batch mapOutput. It delegates MEMORY.SEARCH to RETRIEVAL.SEARCH without changing the caller contract. MEMORY neither imports nor starts the extension. See [integration and deployment](retrieval.md).
+Ordinary MemorySearchProviders remain unchanged. When independent retrieval resources are needed, explicitly import RemoteRetrievalSearchProvider from `@codesoul-co/ditto-retrieval/adapters/memory`, supplying a fixed target and, where needed, batch mapOutput. It delegates MEMORY.SEARCH to RETRIEVAL.SEARCH without changing the caller contract. MEMORY neither imports nor starts the extension. See [integration and deployment](retrieval.md).
 
 The same storage plugin/connection can also supply native search. Optional helpers support both directions: createMemoryRetrievalProvider wraps that native search for RETRIEVAL; createRetrievalMemorySearchProvider runs an embedding/search/fusion/rerank pipeline directly inside MEMORY without starting another Worker. Remote mapping is optional when candidates contain complete MemoryItems. See [database and embedding wiring](retrieval-providers.md). Embedding during SEARCH does not make WRITE automatically index or synchronize vectors.
 
@@ -249,11 +249,11 @@ The same storage plugin/connection can also supply native search. Optional helpe
 Complete source: [examples/memory.ts](examples/memory.ts). The functions below share its imports; importing the file executes no examples. Applications supply database, model, or MCP resources. Choose the function you need; writes, deletes, and model calls perform real operations when invoked.
 
 ```ts
-import { createDitto, graph, loadRuntimeConfigFile } from "@ditto/core";
+import { createDitto, graph, loadRuntimeConfigFile } from "@codesoul-co/ditto";
 import {
   createMemory, createMemoryWorker, MemoryError, memoryGetNode,
   type MemoryResources, type MemoryStore, type MemorySearchProvider,
-} from "@ditto/core/worker/memory";
+} from "@codesoul-co/ditto/worker/memory";
 ```
 
 ### createMemory / createMemoryWorker: setup
@@ -429,7 +429,7 @@ export const customGet = memoryGetNode.define("MEMORY", async () => ({
 }));
 ```
 
-Runnable database integration examples: [examples/worker](../../examples/worker/README.md), including SDK installation, env settings, invocation and cleanup.
+Runnable database integration examples: [examples/worker](examples/integrations/README.md), including SDK installation, env settings, invocation and cleanup.
 
 ## Cancellation and database SDKs
 
@@ -443,3 +443,5 @@ if (result.status === "cancelled") console.log(result.error?.code); // MEMORY_CA
 The direct SDK returns a cancelled NodeResult when it detects cancellation. Runtime invocation also enforces its own rejection semantics. Cancellation cannot roll back completed database writes and never triggers retries. Runtime Workers supply their signal and invocation-bound runtime; the MEMORY → RETRIEVAL bridge preserves both. Applications normally omit runtime. Database/embedding providers can still execute directly through their SDKs, delegating to RETRIEVAL only when separate execution is needed.
 
 For `RemoteRetrievalSearchProvider`, omit construction-time runtime inside a MEMORY Worker to inherit its invocation-bound Runtime. An explicit runtime always takes precedence; standalone SDK delegation requires it. Example: `new RemoteRetrievalSearchProvider({ target: { name: "memories" } })` for Worker-owned delegation.
+
+[Complete memory workflows](memory-workflows.md) demonstrate relational and vector storage, explicit embedding, scoped recall and durable recovery.

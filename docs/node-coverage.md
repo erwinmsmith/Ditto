@@ -37,7 +37,7 @@ CONTEXT caching stores working sets; INFER caching stores computation results; M
 
 | Need | Composition | Input/output mapping |
 | --- | --- | --- |
-| First run | LOAD → SELECT | SELECT returns context/selectedItemIds/purpose; run the [quickstart](../examples/runtime/quickstart.ts) |
+| First run | LOAD → SELECT | SELECT returns context/selectedItemIds/purpose; run the [quickstart](../examples/quickstart.ts) |
 | Document question answering | LOAD → SELECT(rag) → SAMPLE → OUTPUT | Inject ragStrategy, map selected items to messages and inspect SAMPLE NodeResult |
 | Durable recall | MEMORY.SEARCH → UPDATE → SELECT → SAMPLE | Check status, map complete MemoryItems to ContextIngress; search results are not model messages |
 | Multiple tool steps | ReAct: SAMPLE → TOOL/MCP invoke → OBSERVE → next SAMPLE | Supply model-visible schemas and register matching tools on the execution Worker; [flow API](worker-api/flows.md) |
@@ -48,7 +48,7 @@ CONTEXT caching stores working sets; INFER caching stores computation results; M
 | Context budget management | SELECT / COMPRESS | Default selection/pruning; model summaries require explicit INFER calls and application-directed UPDATE |
 | Independent retrieval resources | MEMORY/CONTEXT adapter → RETRIEVAL.SEARCH | The same Provider can run within the original Worker, then move behind an independent retrieval Worker when needed |
 
-SQL and Milvus own storage and supported retrieval; Ditto does not duplicate databases. Embedding may be database-native or supplied by an external cloud/local Provider. Native database search does not require RETRIEVAL. [Database examples](../examples/worker/README.md) · [Retrieval Providers](worker-api/retrieval-providers.md).
+SQL and Milvus own storage and supported retrieval; Ditto does not duplicate databases. Embedding may be database-native or supplied by an external cloud/local Provider. Native database search does not require RETRIEVAL. [Database examples](worker-api/examples/integrations/README.md) · [Retrieval Providers](worker-api/retrieval-providers.md).
 
 ## Execution boundaries
 

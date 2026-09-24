@@ -2,7 +2,7 @@
 
 [English / 简体中文](composition.md) · [Runtime](runtime.zh-CN.md) · [API](README.zh-CN.md)
 
-本页覆盖构建应用所需的扩展接口。Graph/Loop、部署、取消和 Sandbox 见 [Runtime API](runtime.zh-CN.md)，配置读取见 [配置 API](configuration.zh-CN.md)。所有示例使用公开包入口，完整代码在 [api.ts](../../examples/runtime/api.ts)，执行 `npm run example:runtime:api`。导入文件不会运行请求。
+本页覆盖构建应用所需的扩展接口。Graph/Loop、部署、取消和 Sandbox 见 [Runtime API](runtime.zh-CN.md)，配置读取见 [配置 API](configuration.zh-CN.md)。所有示例使用公开包入口，完整代码在 [api.ts](examples/runtime/api.ts)，执行 `npm run example:runtime:api`。导入文件不会运行请求。
 
 ## Node 与 Worker 定义
 
@@ -23,16 +23,16 @@
 
 ```ts
 import assert from "node:assert/strict";
-import type { NodeContract } from "@ditto/core/contracts";
-import { createNodeScaffold, defineNode, defineWorker, extendWorker } from "@ditto/core/worker";
+import type { NodeContract } from "@codesoul-co/ditto/contracts";
+import { createNodeScaffold, defineNode, defineWorker, extendWorker } from "@codesoul-co/ditto/worker";
 import {
   createDitto, graph, InMemoryArtifactStore, LocalEventFabric,
   NoWorkerAvailableError, PayloadCodec,
-} from "@ditto/core/runtime";
+} from "@codesoul-co/ditto/runtime";
 ```
 
 ```ts
-declare module "@ditto/core/contracts" {
+declare module "@codesoul-co/ditto/contracts" {
   interface NodeContractMap {
     "EXAMPLE.TEXT.NORMALIZE": NodeContract<{ text: string }, { text: string; calls: number }>;
     "EXAMPLE.TEXT.PROCESS": NodeContract<{ text: string }, { text: string; calls: number }>;
@@ -208,7 +208,7 @@ export async function artifacts() {
 例如包装应用已有且已认证的 RPC 客户端（不是额外安装 RPC 库）：
 
 ```ts
-import type { InvocationEnvelope, InvocationResult, InvokeTransport } from "@ditto/core/runtime";
+import type { InvocationEnvelope, InvocationResult, InvokeTransport } from "@codesoul-co/ditto/runtime";
 
 export function adaptRpc(request: (
   envelope: InvocationEnvelope, signal?: AbortSignal,
@@ -217,4 +217,4 @@ export function adaptRpc(request: (
 }
 ```
 
-随后 `createDitto({ transports: [adaptRpc(request)] })`，使用 `registerRemote({address,capabilities,transportId:"application-rpc"})` 登记已部署的 Worker；request 为应用已连接的客户端函数。完整地址交换和资源清理见 [placement.ts](../../examples/runtime/placement.ts)。
+随后 `createDitto({ transports: [adaptRpc(request)] })`，使用 `registerRemote({address,capabilities,transportId:"application-rpc"})` 登记已部署的 Worker；request 为应用已连接的客户端函数。完整地址交换和资源清理见 [placement.ts](examples/runtime/placement.ts)。

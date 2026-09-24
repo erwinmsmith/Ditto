@@ -13,12 +13,12 @@ npm run example:runtime:quickstart
 npm run check
 ```
 
-`npm ci` 的 prepare 构建 dist；示例命令也会先构建。check 执行严格类型检查、构建和行为测试。首次示例只执行本地 Context，不需要 `.env`、模型密钥、Redis 或数据库。完整代码为 [quickstart.ts](../examples/runtime/quickstart.ts)：
+`npm ci` 的 prepare 构建 dist；示例命令也会先构建。check 执行严格类型检查、构建和行为测试。首次示例只执行本地 Context，不需要 `.env`、模型密钥、Redis 或数据库。完整代码为 [quickstart.ts](../examples/quickstart.ts)：
 
 ```ts
 import assert from "node:assert/strict";
-import { createDitto, graph, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createContextWorker } from "@ditto/core/worker/context";
+import { createDitto, graph, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createContextWorker } from "@codesoul-co/ditto/worker/context";
 ```
 ```ts
 export async function quickstart() {
@@ -41,32 +41,34 @@ export async function quickstart() {
 
 ## 外部项目引用
 
-包名 `@ditto/core`，当前 private，未发布 npm。在已经初始化 package.json 的应用目录使用本地依赖：
+在已经初始化 package.json 的应用目录从 npm 安装 Ditto：
 
 ```bash
-npm install /absolute/path/to/Ditto
+npm install @codesoul-co/ditto
+# 仅在使用可选检索 Worker 时安装：
+npm install @codesoul-co/ditto-retrieval
 ```
 
-先在 Ditto 仓库运行 npm ci/build。应用采用 ESM（package.json 设置 type=module）；TypeScript 可用 module/moduleResolution=NodeNext，target=ES2024。只从以下公开入口导入，不引用 src/dist 内部路径。业务自定义 Node 通过 [NodeContractMap 声明合并](worker-api/composition.zh-CN.md) 获得调用类型。
+应用采用 ESM（package.json 设置 type=module）；TypeScript 可用 module/moduleResolution=NodeNext，target=ES2024。只从以下公开入口导入，不引用 src/dist 内部路径。业务自定义 Node 通过 [NodeContractMap 声明合并](worker-api/composition.zh-CN.md) 获得调用类型。
 
 ## 公开包入口
 
 | Import | API |
 | --- | --- |
-| `@ditto/core` | Core Runtime + Worker factories + contracts + Sandbox |
-| `@ditto/core/contracts` | NodeContract / NodeContractMap / InputOf / OutputOf / shared types |
-| `@ditto/core/worker` | defineWorker / extendWorker / defineNode / createNodeScaffold / core factories |
-| `@ditto/core/worker/node` | defineNode / NodeHandler / WorkerContext / RuntimeClient |
-| `@ditto/core/runtime` | createDitto / graph / loop / flows / config / services / transports / events / artifacts |
-| `@ditto/core/runtime/sandbox` | Sandbox / PermissionDeniedError / createLocalSandboxExecutor |
-| `@ditto/core/worker/context` | CONTEXT SDK / factory / stores / strategies / resolver |
-| `@ditto/core/worker/infer` | INFER SDK / factory / reasoning / cache / providers |
-| `@ditto/core/worker/infer/providers` | ModelProvider / ProviderRegistry / HTTP adapters |
-| `@ditto/core/worker/memory` | MEMORY SDK / factory / store and search interfaces |
-| `@ditto/core/worker/interaction` | Factory / tool and MCP registries / handlers / command and web tools |
-| `@ditto/core/worker/retrieval` | Optional RETRIEVAL SDK / factory / embedding / retrieval providers |
-| `@ditto/core/worker/retrieval/adapters/memory` | MEMORY ↔ RETRIEVAL adapters |
-| `@ditto/core/worker/retrieval/adapters/context` | CONTEXT RAG ↔ RETRIEVAL adapters |
+| `@codesoul-co/ditto` | Core Runtime + Worker factories + contracts + Sandbox |
+| `@codesoul-co/ditto/contracts` | NodeContract / NodeContractMap / InputOf / OutputOf / shared types |
+| `@codesoul-co/ditto/worker` | defineWorker / extendWorker / defineNode / createNodeScaffold / core factories |
+| `@codesoul-co/ditto/worker/node` | defineNode / NodeHandler / WorkerContext / RuntimeClient |
+| `@codesoul-co/ditto/runtime` | createDitto / graph / loop / flows / config / services / transports / events / artifacts |
+| `@codesoul-co/ditto/runtime/sandbox` | Sandbox / PermissionDeniedError / createLocalSandboxExecutor |
+| `@codesoul-co/ditto/worker/context` | CONTEXT SDK / factory / stores / strategies / resolver |
+| `@codesoul-co/ditto/worker/infer` | INFER SDK / factory / reasoning / cache / providers |
+| `@codesoul-co/ditto/worker/infer/providers` | ModelProvider / ProviderRegistry / HTTP adapters |
+| `@codesoul-co/ditto/worker/memory` | MEMORY SDK / factory / store and search interfaces |
+| `@codesoul-co/ditto/worker/interaction` | Factory / tool and MCP registries / handlers / command and web tools |
+| `@codesoul-co/ditto-retrieval` | Optional RETRIEVAL SDK / factory / embedding / retrieval providers |
+| `@codesoul-co/ditto-retrieval/adapters/memory` | MEMORY ↔ RETRIEVAL adapters |
+| `@codesoul-co/ditto-retrieval/adapters/context` | CONTEXT RAG ↔ RETRIEVAL adapters |
 
 根入口不会自动导入可选 RETRIEVAL 实现。显式导入子路径后，仍需配置 Provider 并注册 Worker 才能执行；定义、类型声明和注册是不同步骤。
 
@@ -82,7 +84,7 @@ npm install /absolute/path/to/Ditto
 根入口还导出 `NODE_API_VERSION`（当前为 `2.0-rc.1`），可用于日志中的契约版本标识；它不执行协议协商。`Infer` 是仅类型命名空间，运行时工厂仍使用 createInfer/createInferWorker。
 
 ```ts
-import { NODE_API_VERSION } from "@ditto/core";
+import { NODE_API_VERSION } from "@codesoul-co/ditto";
 console.log(NODE_API_VERSION);
 ```
 
@@ -90,9 +92,9 @@ console.log(NODE_API_VERSION);
 
 | 用途 | 文档与可运行调用 |
 | --- | --- |
-| 多轮 Agent，真实工具与输出 | [Graph + Loop + Worker](../examples/graph-loop-worker.ts)：`npm run example:agent` |
+| 多轮 Agent，真实工具与输出 | [Graph + Loop + Worker](worker-api/examples/graph-loop-worker.ts)：`npm run example:agent` |
 | 自定义节点、私有 Graph、副本资源、事件、Artifact | [组合 API](worker-api/composition.zh-CN.md)：`npm run example:runtime:api` |
 | RAG / Skill / Tool / MCP / ReAct | [流程 API](worker-api/flows.zh-CN.md)：`npm run example:runtime:flows` |
 | Graph/Loop、独立 Sandbox、同机/跨机通信 | [Runtime](worker-api/runtime.zh-CN.md)：`npm run example:runtime:placement` |
-| Context Redis、Memory SQL/Milvus、独立 Retrieval | [数据库示例](../examples/worker/README.zh-CN.md) |
+| Context Redis、Memory SQL/Milvus、独立 Retrieval | [数据库示例](worker-api/examples/integrations/README.zh-CN.md) |
 | 全部 Worker、Provider 和具体 API | [API 索引](worker-api/README.zh-CN.md) |

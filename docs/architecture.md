@@ -126,6 +126,6 @@ The Router filters capabilities, capacity, and locality in one pass while retain
 
 ## Optional RETRIEVAL extension
 
-The four Core Workers retain 21 leaves. The optional `@ditto/core/worker/retrieval` entry adds the RETRIEVAL.SEARCH contract and implementation through explicit imports/registration. It invokes user providers through a Target/Strategy registry, owns no corpus, performs no RAG, and is not required by MEMORY/CONTEXT. Existing Runtime/HTTP facilities support independent deployment and replicas. See [API and deployment boundaries](worker-api/retrieval.md).
+The four Core Workers retain 21 leaves. The optional `@codesoul-co/ditto-retrieval` entry adds the RETRIEVAL.SEARCH contract and implementation through explicit imports/registration. It invokes user providers through a Target/Strategy registry, owns no corpus, performs no RAG, and is not required by MEMORY/CONTEXT. Existing Runtime/HTTP facilities support independent deployment and replicas. See [API and deployment boundaries](worker-api/retrieval.md).
 
 [Runtime API](worker-api/runtime.md) documents concurrency, cancellation, node placement, per-Worker services/Sandbox and IPC with examples.

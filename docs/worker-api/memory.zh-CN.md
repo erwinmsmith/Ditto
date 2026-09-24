@@ -7,8 +7,8 @@ MEMORY 提供长期记忆的六个访问原语：GET、QUERY、SEARCH、WRITE、
 ## 接入方式
 
 ```ts
-import { createDitto, createMemory, createMemoryWorker, loadRuntimeConfigFile } from "@ditto/core";
-import type { MemoryResources } from "@ditto/core/worker/memory";
+import { createDitto, createMemory, createMemoryWorker, loadRuntimeConfigFile } from "@codesoul-co/ditto";
+import type { MemoryResources } from "@codesoul-co/ditto/worker/memory";
 
 // resources 来自应用自己的数据库适配包，Ditto 不负责构造或关闭它们。
 function startMemory(resources: MemoryResources) {
@@ -99,7 +99,7 @@ interface NodeResult<T> {
 }
 ```
 
-`NodeResult` 来自共享 `@ditto/core/contracts`，与 INFER 共用。插件方法返回下面列出的原始 Output，节点仅包装一次。MEMORY 当前返回 `success` 或 `failed`；未增加独立取消/超时机制，也不会因调用超时假定数据库已回滚。底层超时由插件控制。
+`NodeResult` 来自共享 `@codesoul-co/ditto/contracts`，与 INFER 共用。插件方法返回下面列出的原始 Output，节点仅包装一次。MEMORY 当前返回 `success` 或 `failed`；未增加独立取消/超时机制，也不会因调用超时假定数据库已回滚。底层超时由插件控制。
 
 `content` 不被强制转成 Message、字符串或向量。进程内 SDK 可以使用应用自己的对象；跨 HTTP 或持久化时，应由应用/插件约定可序列化格式。metadata 中的租户、版本等保留字段由插件定义。id/key 必须是非空字符串。搜索 score 如提供必须为有限数值，其量纲和排序方向由插件定义，Ditto 不重新排序搜索结果。
 
@@ -253,7 +253,7 @@ export async function memoryToContext(resources: MemoryResources) {
 
 ## 可选独立 Retrieval 服务
 
-普通 MemorySearchProvider 保持不变。需要独立检索资源时，可显式导入 `@ditto/core/worker/retrieval/adapters/memory` 的 RemoteRetrievalSearchProvider，配置固定 target 与按需的批量 mapOutput，将 MEMORY.SEARCH 委托给 RETRIEVAL.SEARCH。调用方契约不变；MEMORY 不直接依赖或自动启动该扩展。见 [接入和部署说明](retrieval.zh-CN.md)。
+普通 MemorySearchProvider 保持不变。需要独立检索资源时，可显式导入 `@codesoul-co/ditto-retrieval/adapters/memory` 的 RemoteRetrievalSearchProvider，配置固定 target 与按需的批量 mapOutput，将 MEMORY.SEARCH 委托给 RETRIEVAL.SEARCH。调用方契约不变；MEMORY 不直接依赖或自动启动该扩展。见 [接入和部署说明](retrieval.zh-CN.md)。
 
 同一存储插件/连接也可以提供原生检索。可选 createMemoryRetrievalProvider 将现有原生 search 接入 RETRIEVAL；createRetrievalMemorySearchProvider 则让 MEMORY 在进程内直接复用 embedding/搜索/融合/重排链路，无需启动另一个 Worker。候选包含完整 MemoryItem 时，远程转接可省略 mapOutput。见[数据库与 embedding 接线](retrieval-providers.zh-CN.md)。SEARCH 的 embedding 不会让 WRITE 自动构建或同步向量索引。
 
@@ -262,11 +262,11 @@ export async function memoryToContext(resources: MemoryResources) {
 完整代码：[examples/memory.ts](examples/memory.ts)。下列函数共用该文件的 imports；函数不会在导入时自动执行。数据库、模型和 MCP 参数由应用注入，不是 Ditto 内置的模拟后端。选择需要的函数调用；写入、删除、模型调用等会产生对应的真实操作。
 
 ```ts
-import { createDitto, graph, loadRuntimeConfigFile } from "@ditto/core";
+import { createDitto, graph, loadRuntimeConfigFile } from "@codesoul-co/ditto";
 import {
   createMemory, createMemoryWorker, MemoryError, memoryGetNode,
   type MemoryResources, type MemoryStore, type MemorySearchProvider,
-} from "@ditto/core/worker/memory";
+} from "@codesoul-co/ditto/worker/memory";
 ```
 
 ### createMemory / createMemoryWorker：初始化
@@ -442,7 +442,7 @@ export const customGet = memoryGetNode.define("MEMORY", async () => ({
 }));
 ```
 
-可直接运行的数据库接入示例：[examples/worker](../../examples/worker/README.zh-CN.md)，包含 SDK 安装、env 配置、调用及资源清理。
+可直接运行的数据库接入示例：[examples/worker](examples/integrations/README.zh-CN.md)，包含 SDK 安装、env 配置、调用及资源清理。
 
 ## 取消与数据库 SDK
 
@@ -456,3 +456,5 @@ if (result.status === "cancelled") console.log(result.error?.code); // MEMORY_CA
 直接 SDK 检测到取消时返回 cancelled NodeResult；Runtime 调用还会根据自身取消语义 reject。取消不回滚已完成的数据库写入，不自动重试。Runtime Worker 自动提供当前 signal 和绑定本次执行的 runtime；MEMORY → RETRIEVAL 转接器复用这两者，普通应用无需设置 runtime。数据库/embedding Provider 仍可直接使用原生 SDK；仅需独立执行时才委托 RETRIEVAL。
 
 在 MEMORY Worker 内构造 `RemoteRetrievalSearchProvider` 时，可省略 runtime，继承本次执行绑定的 Runtime；显式 runtime 始终优先，独立 SDK 委托则必须提供它。例如 Worker 内可用 `new RemoteRetrievalSearchProvider({ target: { name: "memories" } })`。
+
+[完整记忆任务示例](memory-workflows.zh-CN.md) 展示关系型与向量存储、显式 embedding、作用域检索及持久化恢复。

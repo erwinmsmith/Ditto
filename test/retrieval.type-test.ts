@@ -1,6 +1,6 @@
-import type { InputOf, OutputOf, NodeResult } from "@ditto/core";
-import { createRetrievalWorker, type RetrievalSearchInput, type RetrievalSearchOutput, type RetrievalProviderRegistry } from "@ditto/core/worker/retrieval";
-import { RemoteRetrievalSearchProvider } from "@ditto/core/worker/retrieval/adapters/memory";
+import type { InputOf, OutputOf, NodeResult } from "@codesoul-co/ditto";
+import { createRetrievalWorker, type RetrievalSearchInput, type RetrievalSearchOutput, type RetrievalProviderRegistry } from "@codesoul-co/ditto-retrieval";
+import { RemoteRetrievalSearchProvider } from "@codesoul-co/ditto-retrieval/adapters/memory";
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
 type Expect<T extends true> = T;
 type _Input = Expect<Equal<InputOf<"RETRIEVAL.SEARCH">, RetrievalSearchInput>>;

@@ -116,16 +116,16 @@ export interface McpCapability { server: string; name: string; description?: str
 ## 4. Fixed Node inputs and outputs
 
 ```ts
-import type { NodeResult } from "@ditto/core/contracts";
+import type { NodeResult } from "@codesoul-co/ditto/contracts";
 import type {
   TrajectoryInput, TrajectoryOutput, ReflectInput, ReflectOutput,
   DeliberateInput, DeliberateOutput, SampleInput, SampleOutput,
   CacheLookupInput, CacheLookupOutput, CacheWriteInput, CacheWriteOutput,
   CacheInvalidateInput, CacheInvalidateOutput,
-} from "@ditto/core/worker/infer";
+} from "@codesoul-co/ditto/worker/infer";
 
 // Node inputs include explicit-context and scoped-cache calls.
-import type { ContextInput, ContextOutput } from "@ditto/core/worker/context";
+import type { ContextInput, ContextOutput } from "@codesoul-co/ditto/worker/context";
 type ContextLoadInput = ContextInput<"CONTEXT.LOAD">;
 type ContextLoadOutput = ContextOutput<"CONTEXT.LOAD">;
 type ContextSelectInput = ContextInput<"CONTEXT.SELECT">;
@@ -211,4 +211,4 @@ export type OutputOf<N extends NodeType> = NodeContractMap[N]["output"];
 
 ## Optional RETRIEVAL extension
 
-The four Core Workers retain 21 leaves. The optional `@ditto/core/worker/retrieval` entry adds the RETRIEVAL.SEARCH contract and implementation through explicit imports/registration. It invokes user providers through a Target/Strategy registry, owns no corpus, performs no RAG, and is not required by MEMORY/CONTEXT. Existing Runtime/HTTP facilities support independent deployment and replicas. See [API and deployment boundaries](worker-api/retrieval.md).
+The four Core Workers retain 21 leaves. The optional `@codesoul-co/ditto-retrieval` entry adds the RETRIEVAL.SEARCH contract and implementation through explicit imports/registration. It invokes user providers through a Target/Strategy registry, owns no corpus, performs no RAG, and is not required by MEMORY/CONTEXT. Existing Runtime/HTTP facilities support independent deployment and replicas. See [API and deployment boundaries](worker-api/retrieval.md).

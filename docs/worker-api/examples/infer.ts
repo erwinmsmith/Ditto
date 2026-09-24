@@ -1,11 +1,11 @@
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto";
 import {
   createInfer, createInferWorker, InMemoryInferCache, inferSampleNode,
   type InferClient, type ModelConfig, type TrajectoryInput, type ReflectInput,
   type DeliberateInput, type TrajectoryStrategy, type InferCacheProvider, type ModelProvider, type SampleInput,
-} from "@ditto/core/worker/infer";
+} from "@codesoul-co/ditto/worker/infer";
 
-import { ProviderRegistry, createHttpProvider, type HttpProviderOptions } from "@ditto/core/worker/infer/providers";
+import { ProviderRegistry, createHttpProvider, type HttpProviderOptions } from "@codesoul-co/ditto/worker/infer/providers";
 
 // example: setup
 export function setupInfer() {

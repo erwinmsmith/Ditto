@@ -6,7 +6,7 @@ CONTEXT 管理当前任务的工作上下文：LOAD 归一化输入，UPDATE 合
 
 ## 接入与配置
 
-从 `@ditto/core/worker/context` 或根入口导入工厂。共用数据类型 Context、ContextItem、Message、Reference 从 `@ditto/core/contracts` 导入。`createContext(options?)` 创建直接 SDK；`createContextWorker(options?)` 注册四个同名节点。两者共用实现，返回 Context 或 ContextSelection，失败抛出 ContextError；不返回 NodeResult。
+从 `@codesoul-co/ditto/worker/context` 或根入口导入工厂。共用数据类型 Context、ContextItem、Message、Reference 从 `@codesoul-co/ditto/contracts` 导入。`createContext(options?)` 创建直接 SDK；`createContextWorker(options?)` 注册四个同名节点。两者共用实现，返回 Context 或 ContextSelection，失败抛出 ContextError；不返回 NodeResult。
 
 | 选项 | 默认 / 行为 |
 | --- | --- |
@@ -132,7 +132,7 @@ RAG 的 candidate.score/metadata 不自动合并到 item.metadata；如需后续
 
 ContextError 的 code/message 可用于应用分支；Redis SDK、用户服务、Runtime 路由和传输异常也可能原样拒绝 Promise。没有后台重试或把异常包装成成功的空 Context。
 
-完整可调用代码见 [examples/context.ts](examples/context.ts)，所有函数共享下方 imports；函数不会在导入时执行。Redis SDK 安装及连接方式见[示例指南](../../examples/README.zh-CN.md#context--redis)。
+完整可调用代码见 [examples/context.ts](examples/context.ts)，所有函数共享下方 imports；函数不会在导入时执行。Redis SDK 安装及连接方式见[示例指南](examples/guide.zh-CN.md#context--redis)。
 
 ```ts
 import {
@@ -141,12 +141,12 @@ import {
   defaultSelect, deterministicCompress, isProtectedContextItem,
   type ContextStateStore, type RedisContextClient,
   type ContextServices, type ContextOptions, type ContextCompressor,
-} from "@ditto/core/worker/context";
-import { createDitto, graph, loadRuntimeConfigFile, runRagFlow, runSkillFlow } from "@ditto/core";
-import type { Context as WorkingContext, ContextItem as WorkingItem } from "@ditto/core/contracts";
-import type { InferClient, ModelConfig } from "@ditto/core/worker/infer";
-import { createMemoryWorker, type MemoryResources } from "@ditto/core/worker/memory";
-import type { RetrievalSearchProvider, RetrievalTarget } from "@ditto/core/worker/retrieval";
+} from "@codesoul-co/ditto/worker/context";
+import { createDitto, graph, loadRuntimeConfigFile, runRagFlow, runSkillFlow } from "@codesoul-co/ditto";
+import type { Context as WorkingContext, ContextItem as WorkingItem } from "@codesoul-co/ditto/contracts";
+import type { InferClient, ModelConfig } from "@codesoul-co/ditto/worker/infer";
+import { createMemoryWorker, type MemoryResources } from "@codesoul-co/ditto/worker/memory";
+import type { RetrievalSearchProvider, RetrievalTarget } from "@codesoul-co/ditto-retrieval";
 ```
 
 ### 创建 SDK 与 Worker
@@ -373,7 +373,7 @@ export const customContextLoad = contextLoadNode.define("CONTEXT", async input =
 ### 写入长期 MEMORY
 
 ```ts
-export async function contextToMemory(context: WorkingContext, memory: ReturnType<typeof import("@ditto/core/worker/memory").createMemory>) {
+export async function contextToMemory(context: WorkingContext, memory: ReturnType<typeof import("@codesoul-co/ditto/worker/memory").createMemory>) {
   const selected = await createContext().select({ context, purpose: "memory", limit: 8 });
   return memory.write({ memories: selected.context.items.map(item => ({
     content: item.content, metadata: { contextItemId: item.id },
@@ -385,9 +385,9 @@ export async function contextToMemory(context: WorkingContext, memory: ReturnTyp
 
 ```ts
 export async function toolToCachedContext(
-  runtime: import("@ditto/core").RuntimeClient,
-  scope: import("@ditto/core/worker/context").ContextScope,
-  call: import("@ditto/core/contracts").ToolCall,
+  runtime: import("@codesoul-co/ditto").RuntimeClient,
+  scope: import("@codesoul-co/ditto/worker/context").ContextScope,
+  call: import("@codesoul-co/ditto/contracts").ToolCall,
 ) {
   const result = await runtime.invoke("INTERACTION.ACT.TOOL", { call });
   const observation = await runtime.invoke("INTERACTION.OBSERVE", { result });
@@ -403,7 +403,7 @@ export async function toolToCachedContext(
 ### 委托独立 RETRIEVAL
 
 ```ts
-export function remoteContextRetrieval(runtime: import("@ditto/core").RuntimeClient, target: RetrievalTarget) {
+export function remoteContextRetrieval(runtime: import("@codesoul-co/ditto").RuntimeClient, target: RetrievalTarget) {
   return contextRetrieval({ async search(input) {
     const result = await runtime.invoke("RETRIEVAL.SEARCH", input);
     if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);
@@ -412,7 +412,7 @@ export function remoteContextRetrieval(runtime: import("@ditto/core").RuntimeCli
 }
 ```
 
-可直接运行的数据库接入示例：[examples/worker](../../examples/worker/README.zh-CN.md)，包含 SDK 安装、env 配置、调用及资源清理。
+可直接运行的数据库接入示例：[examples/worker](examples/integrations/README.zh-CN.md)，包含 SDK 安装、env 配置、调用及资源清理。
 
 ## 本地缓存、队列与引用加载
 
@@ -424,7 +424,7 @@ export function remoteContextRetrieval(runtime: import("@ditto/core").RuntimeCli
 
 ```ts
 import { createContext, createInMemoryContextStore, createContextOperationQueue,
-  loadRuntimeConfigFile } from "@ditto/core";
+  loadRuntimeConfigFile } from "@codesoul-co/ditto";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 const store = createInMemoryContextStore(config.context.localCache);
 const queue = createContextOperationQueue(config.context.queue);
@@ -448,4 +448,6 @@ await queue.enqueue(scope, async () => "application operation");
 
 所有 SDK 方法在 input 后接受可选 `ContextCallOptions`；execute 是第三个参数。signal 传递至 selector、RAG 各阶段、compressor、tokenEstimator、referenceResolver、stateStore 和 operationQueue；各端口在原参数之后接收 options，compareAndSet 为第四个参数。SDK 取消时 reject，持久化前取消不会提交 CAS，但无法撤回外部已完成的写入。Runtime Worker 自动提供当前 signal 和绑定本次执行的 runtime 以委托其他 Worker；应用通常只需设置 signal。
 
-数据库检索可以直接复用 [Context 检索适配器](retrieval-providers.zh-CN.md#context-检索适配器)，完整可运行代码见 [SQLite 示例](../../examples/worker/context-retrieval.ts)。
+数据库检索可以直接复用 [Context 检索适配器](retrieval-providers.zh-CN.md#context-检索适配器)，完整可运行代码见 [SQLite 示例](examples/integrations/context-retrieval.ts)。
+
+[完整上下文任务示例](context-workflows.zh-CN.md) 展示公开 Runtime 组装、语义摘要、持久化检查点和 npm 消费端验收。

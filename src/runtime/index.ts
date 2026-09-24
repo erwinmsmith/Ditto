@@ -23,3 +23,11 @@ export * from "./communication/http.js";
 export { runReactFlow } from "./react.js";
 export type { ReactFlowInput, ReactFlowResult } from "./react.js";
 export * from "./communication/ipc.js";
+
+export { graphStep } from "./graph-plan.js";
+export type {
+  GraphPlan,
+  GraphInvocation,
+  LoopPlanDefinition,
+  LoopGraphEvent,
+} from "./graph-plan.js";

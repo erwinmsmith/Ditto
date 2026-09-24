@@ -1,157 +1,96 @@
-# 示例说明
+# Ditto 示例
 
-[English](README.md) · **简体中文** · [Worker API](../docs/worker-api/README.zh-CN.md)
+[English](README.md) · [项目首页](../README.zh-CN.md) · [API 参考](../docs/worker-api/README.zh-CN.md)
 
-本目录放可以直接运行的完整流程示例。建议先看 `graph-loop-worker.ts` 理解 Graph、Loop、Worker 的分工，再看 `interaction-tools.ts` 接入真实命令及组合工具。
+本目录围绕控制流程、Agent 基础能力和执行模式组织示例主题，介绍从单项能力到完整任务模式的组合方式。
 
-## 示例一览
+## 目录导航
 
-| 示例代码 | 做什么 | 运行命令 | 前置条件 |
-| --- | --- | --- | --- |
-| [graph-loop-worker.ts](graph-loop-worker.ts) | 用 Graph 编排读取、观察、输出；用 Loop 处理两个文件；在 Worker 内定义文件统计工具 | `npm run example:agent` | Node 24+、npm 11+；无需模型、数据库或 MCP |
-| [interaction-tools.ts](interaction-tools.ts) | 注册可选只读命令和一个底层命令示例，再把命令输出与 SHA-256 工具组合 | `npm run example:tools` | 同上；Linux 或 macOS，系统提供 grep / uname / printf |
-| [runtime/quickstart.ts](runtime/quickstart.ts)、[api.ts](runtime/api.ts)、[flows.ts](runtime/flows.ts) | 入门与公共 API：自定义节点、生命周期、事件/Artifact、预定义流程 | `npm run example:runtime:quickstart` / `example:runtime:api` / `example:runtime:flows` | 本地入口无需外部服务；MCP/ReAct 函数需注入服务 |
-| [runtime/](runtime/README.zh-CN.md) | 多 Graph Loop、独立 Worker Sandbox、同机 IPC 与跨机 HTTP | `npm run example:runtime` / `npm run example:runtime:placement` | 无额外 SDK 或服务 |
-| [worker/](worker/README.zh-CN.md) | CONTEXT 接 Redis；MEMORY 接 SQLite/PostgreSQL/MySQL/Milvus | 见子目录运行命令 | 按需安装 SDK、配置数据库 |
+| 目录 | 内容 |
+| --- | --- |
+| [control-flow](control-flow/README.zh-CN.md) | 7 类控制流程：顺序、路由、并行、循环、恢复、人工介入、生命周期 |
+| [capabilities](capabilities/README.zh-CN.md) | 12 类基础能力：理解、规划、检索、分析、上下文、记忆、工具、观察、内容、多模态、数据与代码、验证 |
+| [patterns](patterns/README.zh-CN.md) | 16 种执行模式：RAG、ReAct、研究、反思、多 Agent、自动修复与长任务等 |
+| [_shared](_shared/README.zh-CN.md) | 共用配置与静态素材 |
 
-所有命令都在**项目根目录**运行。首次使用先安装依赖：
+```text
+examples/
+├── README.md / README.zh-CN.md
+├── quickstart.ts
+├── control-flow/       # 每个主题一个 .ts 文件
+├── capabilities/       # 每个主题一个 .ts 文件
+├── patterns/           # 每个模式一个目录
+└── _shared/            # 共用配置与素材
+```
+
+各目录 README 介绍主题、流程、组成和接口边界。[quickstart.ts](quickstart.ts) 提供本地入门入口，模型、数据库和部署接入代码见下方 API 示例。
+
+## 快速开始
+
+要求 Node.js 24+、npm 11+。从仓库根目录执行：
 
 ```bash
 npm ci
+npm run example:quickstart
 ```
 
-前两个 npm 示例命令都会先构建包，再执行对应 TypeScript 文件。两个示例均通过代码显式配置 Worker 和 Sandbox，不读取 `.env` 或 `ditto.yaml`，不需要在线模型密钥。
+Quickstart 执行 CONTEXT.LOAD → SELECT，返回包含 `Hello Ditto` 的 ContextSelection；无需 `.env`、模型、数据库或 MCP。导入模块不自动执行任务。
 
-## graph-loop-worker.ts：最小 Agent 执行流程
+## 组织约定
 
-**学习内容：**只定义 Graph、Loop 和 Worker 内的能力，就可以执行一段完整流程。
+- 控制流程描述步骤如何流转；基础能力描述单项功能；执行模式描述两者的组合。
+- 单项主题使用独立文件；模式使用 `index.ts`，专用工具、状态类型和素材放在同一目录。
+- 使用 `@codesoul-co/ditto` 公开入口，Graph、Loop 和状态转换保留在各示例中。
+- 共用配置与素材放在 `_shared/`，避免从其他示例入口导入任务编排。
+- 审批、重试、检查点持久化和任务交接由应用编排；Agent 角色与 Worker 部署边界分别定义。
+- 外部模型、SDK、存储与执行器由应用配置，凭据通过环境变量提供，资源在 `finally` 中关闭。
 
-| 部分 | 文件中的作用 |
-| --- | --- |
-| Graph `inspect` | 定义 `ACT.TOOL → OBSERVE → OUTPUT`，传递文件路径、调用 ID 和观察结果 |
-| Loop `inspectFiles` | 维护 paths/index 状态；依次处理两份文件，完成后停止 |
-| Tool `inspect_text` | 通过 Sandbox 真实读取文件，统计字符数和按换行分割的行数 |
-| Interaction Worker | 注册 inspect_text 和控制台 OutputSink |
-| Runtime | 开放该工具及读取权限，执行 Loop，并在结束时关闭 |
+在仓库根目录运行 `npm run typecheck` 检查 TypeScript 类型。
 
-```bash
-npm run example:agent
-```
+## 验证要求
 
-实际读取 `README.md` 和 `package.json`，控制台输出两行 JSON。每行包含 `deliveryId` 和 assistant 消息，消息数据中含 `path`、`characters`、`lines`；统计值会随文件内容变化。示例不修改这两个文件。
+验收终点是任务的业务结果。模型请求成功、工具返回 success 或 Graph 完成只是中间证据；必须从实际任务输入运行到可检查的交付产物或明确的失败、阻塞、审批、人工队列状态。文件流程使用真实文件并调用实际解码/OCR/转写工具，写入流程重新读取存储验证业务记录，审批流程验证批准、拒绝和恢复，重试流程验证副作用不重复。涉及持久化时，在关闭并重开存储后复核结果。
 
-可以修改 `paths` 换成其他工作区文件，并同步调整 `maxIterations`；也可以替换 Tool 的 execute 实现，再由 Graph 定义后续处理。此文件在顶层运行流程，**导入它也会执行示例**，适合直接运行或作为应用入口参考。
+每个示例的验收覆盖输入、Graph 调度、真实依赖、结果校验和最终输出。涉及模型的链路必须调用真实 Provider；控制流程示例通过组合真实模型步骤验证上游数据确实参与推理。涉及数据库、工具或其他外部系统时，使用其实际接入链路验证。
 
-## interaction-tools.ts：真实系统命令与普通工具组合
+单元测试和类型检查用于快速回归；端到端验证使用独立命令，显式加载凭据，并记录模型或服务、运行时间、关键输入输出及通过/失败结果。验证失败应非零退出，不以替身或固定答案代替真实依赖。使用公开包入口，并在包安装环境验证类型解析和运行方式。
 
-**学习内容：**显式注册 14 个可复用只读命令，并让它们与底层 `linux` tool 共用可插拔执行器；其他工具继续通过同一个 Worker 和 Graph 组合。
+顺序执行的运行方法见[真实模型端到端验证](control-flow/sequence/README.zh-CN.md#真实模型端到端验证)。
 
-```text
-linux tool → OBSERVE → sha256 tool → OBSERVE → OUTPUT
-```
+## API 接入示例
 
-| 导出 | 做什么 |
-| --- | --- |
-| `commandExecutor` | 使用 createLocalSandboxExecutor 执行命令，分开传递 command/args；设置工作目录、超时和输出上限 |
-| `readOnlyCommandTools` | Core 提供的 14 个可选、有界只读命令注册项 |
-| `linuxTool` | 校验命令参数，通过 SandboxExecutor 执行；返回 stdout、stderr、exitCode，非零退出码转为 failed |
-| `sha256Tool` | 对前一个工具输出的文本计算 SHA-256 |
-| `CommandInput` | 定义 Graph 输入：id、command、args |
-| `commandGraph` | 只包含命令及其 OBSERVE，供其他流程继续追加节点 |
-| `toolGraph` | 在 commandGraph 后追加哈希工具、观察和输出 |
+[API 示例目录](../docs/worker-api/examples/README.md) 提供公开接口的调用方式与接入参考：
 
-```bash
-npm run example:tools
-```
+- [接入指南](../docs/worker-api/examples/guide.zh-CN.md)：模型、MCP 与联调配置。
+- [Runtime 接入](../docs/worker-api/examples/runtime/README.zh-CN.md)：部署、事件、Artifact 与预定义流程。
+- [数据库接入](../docs/worker-api/examples/integrations/README.zh-CN.md)：Redis、SQL、Milvus 与检索。
 
-进入 Loop 前，`grep` 先通过 ACT.TOOL 和 OBSERVE 搜索 README。随后 Loop 执行两组输入：
+条件与路由的运行和真实模型验收见[六类路由示例](control-flow/routing/README.zh-CN.md)。
 
-1. `uname -s`：macOS 返回 `Darwin`，Linux 返回 `Linux`，并计算包含结尾换行的原始 stdout 的摘要。
-2. `printf`：原样输出 `Ditto: spaces; $(uname) stay literal` 并计算摘要。没有启动 shell，`$(uname)` 不会变成嵌套命令。
+条件与路由的完整任务实验：`npm run check:examples:routing:tasks:package`。安装与工具配置见[文件采集工具](_shared/tools/file-ingestion/README.zh-CN.md)。
 
-控制台第一行 JSON 是 grep Observation；后两行交付 ID 分别为 `os:delivery` 和 `literal:delivery`，每条消息包含命令结果及 SHA-256。命令失败时，Graph 不继续调用哈希工具。
+并行与汇总的完整任务实验：`npm run check:examples:parallel:tasks:package`，见[四类并行流程](control-flow/parallel/README.zh-CN.md)。
 
-本例执行器允许 14 个只读命令，以及底层示例和集成测试使用的 `uname`、`printf`、`false`。执行限制为 5 秒和 64 KiB 输出缓冲。它是显式的本机进程执行示例，不是操作系统隔离；部署时可以注入容器或 SSH 执行器，继续复用相同 Tool 契约。
+循环与动态调整的完整任务实验：`npm run check:examples:iteration:tasks:package`，见[六类循环流程](control-flow/iteration/README.zh-CN.md)。
 
-此文件仅在直接运行时启动示例。导入其导出对象不会执行命令，可复用 `commandExecutor`、工具与 Graph。
+异常、失败与恢复的完整任务实验：`npm run check:examples:recovery:tasks:package`，见[八类恢复流程](control-flow/recovery/README.zh-CN.md)。
 
-## 其他 API 示例与真实联调
+[人工介入控制 API 与示例](control-flow/human/README.zh-CN.md)：确认后执行、中间结果确认、人工编辑后继续、审核发布和异常交接。
 
-| 入口 | 内容 | 使用方式 |
-| --- | --- | --- |
-| [API 示例说明](../docs/worker-api/examples/README.md) | MEMORY、INFER、INTERACTION、可选 RETRIEVAL；逐个函数说明用途 | 注入应用资源后调用需要的函数；不是自动执行的完整应用 |
-| [MCP 实测脚本](../scripts/check-interaction-mcp-live.mjs) | 真实命令 → MCP 文件读取 → SHA-256 → OUTPUT | 按下方 [MCP](#mcp) 说明安装可选 SDK，并运行 `npm run check:interaction:mcp:live -- <依赖目录>` |
-| [INFER 实测脚本](../scripts/check-infer-live.ts) | 对配置的真实模型验证采样和推理策略 | 按下方 [INFER](#infer) 说明配置 `.env`，再运行 `npm run check:infer:live -- --provider <名称>` |
-| [Web search 实测脚本](../scripts/check-interaction-web-search-live.mjs) | Brave Search → ACT.TOOL → OBSERVE → CONTEXT.UPDATE | 设置 `DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY`，再运行 `npm run check:interaction:web-search:live -- "查询"` |
+[任务生命周期 API 与示例](control-flow/lifecycle/README.zh-CN.md)：状态跟踪、执行前状态检查、安全停止、定时触发与事件触发。
 
-### Web search
+[七类控制流程的公开 API 边界与统一包验收](../docs/worker-api/control-flow.zh-CN.md)：38 个示例的能力映射、包外严格类型检查及真实任务验证。
 
-实测脚本显式创建 Brave 适配器和 `web_search` Tool，开放该 Tool 与 Brave 精确 origin，并检查真实结果已生成 Observation 和一条 Context item。脚本只打印规范化结果，不打印 API key。Core 本身不会读取这个环境变量；脚本作为应用层负责注入。
+[请求理解与交互](capabilities/understanding/README.zh-CN.md)：六项能力与完整报告任务；包验收命令 `npm run check:examples:understanding:tasks:package`。
 
-```bash
-DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY="..." npm run check:interaction:web-search:live -- "Ditto agent runtime"
-```
+[Context / Memory 存储接入](_shared/tools/storage/README.zh-CN.md)：Agent 示例使用 Redis Context 与数据库 Memory；应用状态库独立保存业务事务。后续示例遵循相同存储与端到端验收约定。
 
-### MCP
+[规划与任务管理](capabilities/planning/README.zh-CN.md)：五项能力与实际补货任务；包验收命令 `npm run check:examples:planning:tasks:package`。
 
-安装脚本使用的可选 MCP SDK 和 filesystem server，再执行命令、文件读取和工具组合：
+[文档与多模态理解](capabilities/multimodal/README.zh-CN.md)：八项能力、原始媒体解析和完整任务验收；包验收命令 `npm run check:examples:multimodal:tasks:package`。
 
-```bash
-mcp_deps="$(mktemp -d)"
-npm install --prefix "$mcp_deps" --no-audit --no-fund --ignore-scripts \
-  @modelcontextprotocol/sdk@1.30.0 \
-  @modelcontextprotocol/server-filesystem@2026.8.31
-npm run check:interaction:mcp:live -- "$mcp_deps"
-```
+[数据与代码能力](capabilities/data-and-code/README.zh-CN.md)：十二项能力与完整业务结果验收；`npm run check:examples:data-code:tasks:package`。
 
-### INFER
+[验证、评估与安全能力](capabilities/validation/README.zh-CN.md)：九项能力、发布门禁及完整任务验收；`npm run check:examples:validation:tasks:package`。
 
-参照根目录 [`.env.example`](../.env.example) 创建 `.env` 并填写供应商配置；在 [`ditto.yaml`](../ditto.yaml) 设置推理参数。配置字段见[统一配置 API](../docs/worker-api/configuration.zh-CN.md)。供应商名称应与配置一致：
-
-```bash
-npm run check:infer:live -- --provider deepseek
-```
-
-使用 `--strategies cot,tot,got` 筛选策略，`--cases sample,tot` 筛选用例，`--max-tokens 4096` 调整本次调用预算。`--report path` 指定结果文件；默认写入被 Git 忽略的 `.infer-live-results.json`。
-
-## CONTEXT / Redis
-
-`createContext()` 可直接执行无状态示例。缓存调用需要应用提供 Redis 服务及 SDK；从根目录运行：
-
-```bash
-redis_deps="$(mktemp -d)"
-npm install --prefix "$redis_deps" --no-audit --no-fund --ignore-scripts redis@6.2.1
-DITTO_WORKER_CONTEXT_REDIS_URL=redis://127.0.0.1:6379 npm run check:context:redis:live -- "$redis_deps"
-```
-
-应用项目中安装 `redis`，使用 `.env` 的地址创建连接，再注入 Worker。使用 Node `--env-file=.env` 或应用自己的环境加载器：
-
-```ts
-import { createClient } from "redis";
-import { createContextWorker, createDitto, loadRuntimeConfigFile } from "@ditto/core";
-const config = loadRuntimeConfigFile("ditto.yaml", process.env);
-const redis = createClient({ url: process.env.DITTO_WORKER_CONTEXT_REDIS_URL });
-redis.on("error", () => { /* Application logging/health reporting. */ });
-await redis.connect();
-const runtime = createDitto({ config, workers: [createContextWorker({
-  ...(config.context.policy ? { policy: config.context.policy } : {}),
-  redis: { client: redis, ...config.context.cache },
-})] });
-try {
-  const scope = { sessionId: "tenant-a:session-1" };
-  await runtime.invoke("CONTEXT.LOAD", { scope, sources: [{ role: "user", content: "hello" }] });
-  const selected = await runtime.invoke("CONTEXT.SELECT", { scope, purpose: "infer" });
-  console.log(selected.context);
-} finally {
-  await runtime.close();
-  await redis.quit();
-}
-```
-
-[每个 CONTEXT 示例的说明](../docs/worker-api/examples/README.md#contextts) · [完整 API](../docs/worker-api/context.zh-CN.md)
-
-## CONTEXT 与 RETRIEVAL 组合
-
-[worker/context-retrieval.ts](worker/context-retrieval.ts) 使用真实 SQLite FTS5，比较普通 CONTEXT 内联检索与可选 RETRIEVAL Worker，包含本地缓存、队列、引用解析及 LOAD → SELECT Graph。运行 `npm run example:worker:context-retrieval`；无外部凭据，详细说明见 [Worker 示例](worker/README.zh-CN.md#context-缓存与可选检索)。
-
-`interaction-tools.ts` 的 commandExecutor 复用 Core 的 `createLocalSandboxExecutor`，timeoutMs/maxOutputBytes 来自根 YAML 的 runtime.sandbox；示例不再维护另一套进程执行实现。运行 `npm run example:tools` 可验证命令 → OBSERVE → SHA-256 → OUTPUT 的 Graph/Loop。
+全部 Agent 基础能力的统一发布检查见 [公开 API 组合](../docs/worker-api/capability-composition.zh-CN.md)。

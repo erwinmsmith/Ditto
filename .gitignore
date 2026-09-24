@@ -5,6 +5,10 @@ dist/
 *.tgz
 .DS_Store
 
+# Local agent instructions (all directory levels).
+AGENTS.md
+agents.md
+
 .env
 .env.*
 !.env.example
@@ -12,3 +16,19 @@ dist/
 /docs/refactor-2026-09-10.md
 
 .infer-live-results.json
+.examples-*-live-results.json
+
+# Application-side tool environments and task experiment artifacts.
+.venv/
+__pycache__/
+*.pyc
+/.examples-*-tasks/
+
+# Local database files, service logs and temporary outputs.
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+*.log
+*.pid
+*.tmp

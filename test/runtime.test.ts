@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createContextWorker, createInMemoryContextStore } from "../src/worker/context/index.js";
 import { setTimeout as delay } from "node:timers/promises";
 import {
   createDitto, createRuntimeServices, defineWorker, graph, loadRuntimeConfig, loop,
@@ -148,4 +149,197 @@ test("bindings are strict, graph IDs do not inherit object properties, and inval
     }
     assert.equal(calls, 1);
   } finally { await runtime.close(); }
+});
+
+test("Loop plans own multi-Graph sequencing, branching, recovery and repeated Graph execution", async () => {
+  const { graphStep } = await import("../src/runtime/index.js");
+  const first = graph<{ text: string }>("plan-first").node(
+    "context",
+    "CONTEXT.LOAD",
+    [],
+    (i) => ({ sources: [{ id: "text", content: i.text }] }),
+  );
+  const second = graph<{
+    context: import("../src/contracts/index.js").Context;
+  }>("plan-second").node("context", "CONTEXT.UPDATE", [], (i) => ({
+    context: i.context,
+    add: [{ id: "second", content: "processed" }],
+  }));
+  const runtime = createDitto({
+    workers: [
+      createContextWorker({
+        services: { stateStore: createInMemoryContextStore() },
+      }),
+    ],
+  });
+  const events: import("../src/runtime/index.js").LoopGraphEvent[] = [];
+  const definition = loop({
+    id: "composed",
+    maxIterations: 3,
+    plan: function* (text: string) {
+      let result = yield* graphStep(first, { text });
+      for (let i = 0; i < 2; i++)
+        result = yield* graphStep(second, { context: result.context });
+      return result.context;
+    },
+  });
+  try {
+    const result = await runtime.loop(definition, "input", {
+      onGraph: (event) => events.push(event),
+    });
+    assert.equal(result.items.length, 2);
+    assert.deepEqual(
+      events.filter((e) => e.status === "started").map((e) => e.graphId),
+      ["plan-first", "plan-second", "plan-second"],
+    );
+    await assert.rejects(
+      runtime.loop({ ...definition, maxIterations: 2 }, "input"),
+      /iteration limit/,
+    );
+    const recovery = loop({
+      id: "recovery-plan",
+      plan: function* () {
+        try {
+          yield* graphStep(
+            graph("unavailable").node("missing", "MEMORY.GET", [], () => ({
+              keys: ["missing"],
+            })),
+            {},
+          );
+        } catch {
+          return (yield* graphStep(first, { text: "recovered" })).context;
+        }
+        throw new Error("Expected missing Worker");
+      },
+    });
+    assert.equal(
+      (await runtime.loop(recovery, undefined)).items[0]!.content,
+      "recovered",
+    );
+  } finally {
+    await runtime.close();
+  }
+});
+
+test("Loop plan cancellation and iteration budgets cannot be swallowed; close drains active Graphs", async () => {
+  const { graphStep } = await import("../src/runtime/index.js");
+  let finish!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  let entered!: () => void;
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  let calls = 0,
+    disposed = false;
+  const worker = defineWorker({
+    type: "CONTEXT",
+    nodes: {
+      "CONTEXT.LOAD": async () => {
+        calls++;
+        entered();
+        await waiting;
+        return { items: [] };
+      },
+    },
+    dispose() {
+      disposed = true;
+    },
+  });
+  const runtime = createDitto({ workers: [worker] });
+  const operation = graph("wait").node("result", "CONTEXT.LOAD", [], () => ({
+    sources: [],
+  }));
+  const definition = loop({
+    id: "cancel-plan",
+    plan: function* () {
+      try {
+        yield* graphStep(operation, {});
+      } catch {
+        yield* graphStep(operation, {});
+      }
+      return "done";
+    },
+  });
+  const controller = new AbortController();
+  const running = runtime.loop(definition, undefined, {
+    signal: controller.signal,
+  });
+  const rejected = assert.rejects(running);
+  await started;
+  const closing = runtime.close();
+  assert.equal(disposed, false);
+  controller.abort();
+  finish();
+  await rejected;
+  await closing;
+  assert.equal(calls, 1);
+  assert.equal(disposed, true);
+});
+
+test("Loop plans retain Worker bindings and recover stage cancellation within one shared budget", async () => {
+  const { graphStep } = await import("../src/runtime/index.js");
+  const seen: string[] = [];
+  const runtime = createDitto({
+    config: loadRuntimeConfig({}, { runtime: { loopMaxIterations: 2 } }),
+  });
+  const definition = worker(async (id, context) => {
+    seen.push(context.worker.workerId);
+    return id;
+  });
+  runtime.register(definition, "first");
+  runtime.register(definition, "second");
+  const operation = graph<string>("bound").node("read", "MEMORY.GET", [], read);
+  const events: string[] = [];
+  const workflow = loop({
+    id: "stage-recovery",
+    plan: function* () {
+      try {
+        yield* graphStep(operation, "cancelled", {
+          signal: AbortSignal.abort(new Error("stage deadline")),
+        });
+      } catch {
+        return yield* graphStep(operation, "recovered");
+      }
+      throw new Error("Expected stage failure");
+    },
+  });
+  try {
+    await runtime.loop(workflow, undefined, {
+      workers: { bound: { read: "second" } },
+      onGraph: (event) => events.push(event.status),
+    });
+    assert.deepEqual(seen, ["second"]);
+    assert.deepEqual(events, ["started", "failed", "started", "completed"]);
+    seen.length = 0;
+    await assert.rejects(
+      runtime.loop({ ...workflow, maxIterations: 1 }, undefined),
+      /iteration limit/,
+    );
+    assert.deepEqual(seen, []);
+    let cleaned = false;
+    const endless = loop({
+      id: "budget-cannot-be-caught",
+      maxIterations: 1,
+      plan: function* () {
+        try {
+          while (true) {
+            try {
+              yield* graphStep(operation, "repeat");
+            } catch {
+              /* Graph failures may be recovered. */
+            }
+          }
+        } finally {
+          cleaned = true;
+        }
+      },
+    });
+    await assert.rejects(runtime.loop(endless, undefined), /iteration limit/);
+    assert.equal(cleaned, true);
+    assert.equal(seen.length, 1);
+  } finally {
+    await runtime.close();
+  }
 });

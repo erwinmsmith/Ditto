@@ -7,7 +7,7 @@
 ## Interface and registration
 
 ```ts
-import type { SampleInput, SampleOutput } from "@ditto/core/worker/infer";
+import type { SampleInput, SampleOutput } from "@codesoul-co/ditto/worker/infer";
 export type ModelStreamEvent =
   | { type: "text_delta"; delta: string }
   | { type: "result"; output: SampleOutput };
@@ -20,7 +20,7 @@ export interface ModelProvider {
 invoke is required; stream is optional. Streams yield public text deltas, then exactly one complete result with message, actions and usage, then end. Providers return SampleOutput; INFER adds the NodeResult envelope. Custom providers should honor signal. The SDK stops waiting for uncooperative calls but cannot forcibly terminate their work.
 
 ```ts
-import { ProviderRegistry } from "@ditto/core/worker/infer/providers";
+import { ProviderRegistry } from "@codesoul-co/ditto/worker/infer/providers";
 const providers = new ProviderRegistry({
   fixture: { invoke: async input => ({
     message: { role: "assistant", content: `Received ${input.messages.length} messages` },
@@ -43,7 +43,7 @@ createInfer({ providers }) and createInferWorker({ providers }) accept a registr
 ## HTTP providers
 
 ```ts
-import { createHttpProvider } from "@ditto/core/worker/infer/providers";
+import { createHttpProvider } from "@codesoul-co/ditto/worker/infer/providers";
 const provider = createHttpProvider({
   kind: "anthropic", baseUrl: "https://api.anthropic.com/v1",
   ...(process.env.ANTHROPIC_API_KEY ? { apiKey: process.env.ANTHROPIC_API_KEY } : {}),
@@ -91,7 +91,7 @@ Usage comes from provider counters; missing counters are not fabricated. Anthrop
 ## Environment and multiple providers
 
 ```ts
-import { createDitto, createInferWorker, loadRuntimeConfigFile } from "@ditto/core";
+import { createDitto, createInferWorker, loadRuntimeConfigFile } from "@codesoul-co/ditto";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 const runtime = createDitto({ config, workers: [createInferWorker()] });
 if (!config.model) throw new Error("Configure DITTO_WORKER_INFER_MODEL_PROVIDER and DITTO_WORKER_INFER_MODEL");
@@ -114,14 +114,14 @@ Protocol references: [Anthropic streaming](https://platform.claude.com/docs/en/b
 Complete source: [examples/infer.ts](examples/infer.ts). The functions below share its imports; importing the file executes no examples. Applications supply database, model, or MCP resources. Choose the function you need; writes, deletes, and model calls perform real operations when invoked.
 
 ```ts
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto";
 import {
   createInfer, createInferWorker, InMemoryInferCache, inferSampleNode,
   type InferClient, type ModelConfig, type TrajectoryInput, type ReflectInput,
   type DeliberateInput, type TrajectoryStrategy, type InferCacheProvider, type ModelProvider, type SampleInput,
-} from "@ditto/core/worker/infer";
+} from "@codesoul-co/ditto/worker/infer";
 
-import { ProviderRegistry, createHttpProvider, type HttpProviderOptions } from "@ditto/core/worker/infer/providers";
+import { ProviderRegistry, createHttpProvider, type HttpProviderOptions } from "@codesoul-co/ditto/worker/infer/providers";
 ```
 
 ### ProviderRegistry.register / get / unregister and invoke

@@ -4,13 +4,13 @@
 
 本文对应 `src/worker/infer/` 的实际实现。INFER 提供模型采样、推理轨迹、反思、候选审议和显式推理缓存。Context / Memory 默认由 Graph 提前传入；工具、MCP、Shell 等能力由其他 Worker 执行。INFER 不直接导入其他 Worker 的实现。
 
-从 `@ditto/core/worker/infer` 导入 INFER 契约，或通过根入口 `Infer` 类型命名空间访问。Graph 负责将 Context / Memory 输出转换为 INFER 所需的字段。
+从 `@codesoul-co/ditto/worker/infer` 导入 INFER 契约，或通过根入口 `Infer` 类型命名空间访问。Graph 负责将 Context / Memory 输出转换为 INFER 所需的字段。
 
 ## 1. 接入与生命周期
 
 ```ts
 import { createDitto, createInfer, createInferWorker,
-  createHttpProvider } from "@ditto/core";
+  createHttpProvider } from "@codesoul-co/ditto";
 
 const runtime = createDitto({ sandbox: { network: ["https://api.openai.com"] } });
 runtime.services.providers.register("openai", createHttpProvider({
@@ -61,7 +61,7 @@ await runtime.close();
 每个方法返回 `Promise<NodeResult<Output>>`，支持第二参数 `InferCallOptions`。Runtime 的 `invoke` 返回同样的包，不再额外嵌套；`INFER`、`INFER.REASONING`、`INFER.CACHE` 和策略名均不能路由。
 
 ```ts
-import type { SampleInput, SampleOutput } from "@ditto/core/worker/infer";
+import type { SampleInput, SampleOutput } from "@codesoul-co/ditto/worker/infer";
 const result = await infer.execute("INFER.REASONING.SAMPLE", input);
 // 动态调用方可显式指定类型，仍会进行运行时输入校验：
 const dynamic = await infer.execute<SampleInput, SampleOutput>(
@@ -128,7 +128,7 @@ export interface ActionRequest {
 }
 export interface ContextItem { id?: string; content: unknown; source?: string; score?: number }
 export interface MemoryItem { id: string; content: unknown; score?: number; timestamp?: number }
-export type Observation = import("@ditto/core").Observation;
+export type Observation = import("@codesoul-co/ditto").Observation;
 export interface ReasoningStep {
   id: string;
   type: "plan" | "model" | "decision" | "action_request" | "observation" | "reflection" | "final";
@@ -236,7 +236,7 @@ Token 预算会限制下一次请求的 `generation.maxTokens` 并阻止超预�
 ReAct 是 Runtime 的预定义 Graph 流程，通过 `runReactFlow(runtime, input, options?)` 调用；完整接口见 [Runtime 流程](../interaction-runtime.zh-CN.md#react-预定义-graph-流程)。需要规划时先在 Graph 中调用 SAMPLE，再将计划传给 ReAct。检索 Context/Memory 同样由上游 Graph 完成。
 
 ```ts
-import type { TrajectoryStrategy } from "@ditto/core/worker/infer";
+import type { TrajectoryStrategy } from "@codesoul-co/ditto/worker/infer";
 const refine: TrajectoryStrategy = async ctx => {
   const draft = await ctx.sample(ctx.messages);
   return (await ctx.sample([...ctx.messages, draft.message,
@@ -430,17 +430,17 @@ Node 内的错误转为 `NodeResult`；构造阶段的错误直接抛出。Runti
 完整代码：[examples/infer.ts](examples/infer.ts)。下列函数共用该文件的 imports；函数不会在导入时自动执行。数据库、模型和 MCP 参数由应用注入，不是 Ditto 内置的模拟后端。选择需要的函数调用；写入、删除、模型调用等会产生对应的真实操作。
 
 ```ts
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto";
 import {
   createInfer, createInferWorker, InMemoryInferCache, inferSampleNode,
   type InferClient, type ModelConfig, type TrajectoryInput, type ReflectInput,
   type DeliberateInput, type TrajectoryStrategy, type InferCacheProvider, type ModelProvider, type SampleInput,
-} from "@ditto/core/worker/infer";
+} from "@codesoul-co/ditto/worker/infer";
 
-import { ProviderRegistry, createHttpProvider, type HttpProviderOptions } from "@ditto/core/worker/infer/providers";
+import { ProviderRegistry, createHttpProvider, type HttpProviderOptions } from "@codesoul-co/ditto/worker/infer/providers";
 ```
 
-导出类型应优先从 `@ditto/core/worker/infer` 获取，避免与 Core 的 Message / MemoryItem 同名类型混淆。INFER Message.content 是文本或 Provider 内容数组；Interaction Message.content 允许更广的 JSON。
+导出类型应优先从 `@codesoul-co/ditto/worker/infer` 获取，避免与 Core 的 Message / MemoryItem 同名类型混淆。INFER Message.content 是文本或 Provider 内容数组；Interaction Message.content 允许更广的 JSON。
 
 ### createInfer / createInferWorker：共享配置与缓存
 
@@ -697,3 +697,5 @@ await runtime.invoke("INFER.REASONING.SAMPLE", {
 跨机器 HTTP 或同机 IPC 的信号当前只控制调用方等待，不自动中断远端执行；服务端仍应配置模型超时。
 
 外部 `InferCacheProvider.lookup/write/invalidate(input, options?)` 的第二参数为 `InferCacheCallOptions { signal?: AbortSignal }`。例如 `lookup: (input, options) => databaseCache.lookup(input, options)`，由适配器按底层 SDK 约定继续传递取消；INFER 超时停止等待，不会撤销数据库已提交的缓存写入。
+
+[内容处理完整流程](content-workflows.zh-CN.md) 组合 SAMPLE 生成与独立复核、Redis Context、数据库 Memory 及校验后的文件发布。

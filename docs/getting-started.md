@@ -13,12 +13,12 @@ npm run example:runtime:quickstart
 npm run check
 ```
 
-The npm ci prepare hook builds dist; example commands also build first. check runs strict type checking, builds and behavior tests. The first example uses local Context and needs no .env, model key, Redis or database. Complete code: [quickstart.ts](../examples/runtime/quickstart.ts).
+The npm ci prepare hook builds dist; example commands also build first. check runs strict type checking, builds and behavior tests. The first example uses local Context and needs no .env, model key, Redis or database. Complete code: [quickstart.ts](../examples/quickstart.ts).
 
 ```ts
 import assert from "node:assert/strict";
-import { createDitto, graph, loadRuntimeConfigFile } from "@ditto/core/runtime";
-import { createContextWorker } from "@ditto/core/worker/context";
+import { createDitto, graph, loadRuntimeConfigFile } from "@codesoul-co/ditto/runtime";
+import { createContextWorker } from "@codesoul-co/ditto/worker/context";
 ```
 ```ts
 export async function quickstart() {
@@ -41,32 +41,34 @@ The result is a ContextSelection containing purpose/context/selectedItemIds. SEL
 
 ## Use from another project
 
-`@ditto/core` is private and has not been published to npm. In an application with an initialized package.json, install a local dependency:
+In an application with an initialized package.json, install Ditto from npm:
 
 ```bash
-npm install /absolute/path/to/Ditto
+npm install @codesoul-co/ditto
+# Add this only when using the optional retrieval Worker:
+npm install @codesoul-co/ditto-retrieval
 ```
 
-Run npm ci/build in Ditto first. Use ESM (type=module in application package.json); TypeScript can use module/moduleResolution=NodeNext and target=ES2024. Import public entry points rather than internal src/dist paths. Extend [NodeContractMap](worker-api/composition.md) for typed application nodes.
+Use ESM (type=module in application package.json); TypeScript can use module/moduleResolution=NodeNext and target=ES2024. Import public entry points rather than internal src/dist paths. Extend [NodeContractMap](worker-api/composition.md) for typed application nodes.
 
 ## Public package entries
 
 | Import | API |
 | --- | --- |
-| `@ditto/core` | Core Runtime + Worker factories + contracts + Sandbox |
-| `@ditto/core/contracts` | NodeContract / NodeContractMap / InputOf / OutputOf / shared types |
-| `@ditto/core/worker` | defineWorker / extendWorker / defineNode / createNodeScaffold / core factories |
-| `@ditto/core/worker/node` | defineNode / NodeHandler / WorkerContext / RuntimeClient |
-| `@ditto/core/runtime` | createDitto / graph / loop / flows / config / services / transports / events / artifacts |
-| `@ditto/core/runtime/sandbox` | Sandbox / PermissionDeniedError / createLocalSandboxExecutor |
-| `@ditto/core/worker/context` | CONTEXT SDK / factory / stores / strategies / resolver |
-| `@ditto/core/worker/infer` | INFER SDK / factory / reasoning / cache / providers |
-| `@ditto/core/worker/infer/providers` | ModelProvider / ProviderRegistry / HTTP adapters |
-| `@ditto/core/worker/memory` | MEMORY SDK / factory / store and search interfaces |
-| `@ditto/core/worker/interaction` | Factory / tool and MCP registries / handlers / command and web tools |
-| `@ditto/core/worker/retrieval` | Optional RETRIEVAL SDK / factory / embedding / retrieval providers |
-| `@ditto/core/worker/retrieval/adapters/memory` | MEMORY ↔ RETRIEVAL adapters |
-| `@ditto/core/worker/retrieval/adapters/context` | CONTEXT RAG ↔ RETRIEVAL adapters |
+| `@codesoul-co/ditto` | Core Runtime + Worker factories + contracts + Sandbox |
+| `@codesoul-co/ditto/contracts` | NodeContract / NodeContractMap / InputOf / OutputOf / shared types |
+| `@codesoul-co/ditto/worker` | defineWorker / extendWorker / defineNode / createNodeScaffold / core factories |
+| `@codesoul-co/ditto/worker/node` | defineNode / NodeHandler / WorkerContext / RuntimeClient |
+| `@codesoul-co/ditto/runtime` | createDitto / graph / loop / flows / config / services / transports / events / artifacts |
+| `@codesoul-co/ditto/runtime/sandbox` | Sandbox / PermissionDeniedError / createLocalSandboxExecutor |
+| `@codesoul-co/ditto/worker/context` | CONTEXT SDK / factory / stores / strategies / resolver |
+| `@codesoul-co/ditto/worker/infer` | INFER SDK / factory / reasoning / cache / providers |
+| `@codesoul-co/ditto/worker/infer/providers` | ModelProvider / ProviderRegistry / HTTP adapters |
+| `@codesoul-co/ditto/worker/memory` | MEMORY SDK / factory / store and search interfaces |
+| `@codesoul-co/ditto/worker/interaction` | Factory / tool and MCP registries / handlers / command and web tools |
+| `@codesoul-co/ditto-retrieval` | Optional RETRIEVAL SDK / factory / embedding / retrieval providers |
+| `@codesoul-co/ditto-retrieval/adapters/memory` | MEMORY ↔ RETRIEVAL adapters |
+| `@codesoul-co/ditto-retrieval/adapters/context` | CONTEXT RAG ↔ RETRIEVAL adapters |
 
 The root entry does not automatically import the optional RETRIEVAL implementation. Explicit subpath imports still require Provider configuration and Worker registration; definitions, type declarations and registration are separate steps.
 
@@ -82,7 +84,7 @@ The root entry does not automatically import the optional RETRIEVAL implementati
 The root also exports `NODE_API_VERSION` (currently `2.0-rc.1`) for contract-version metadata in logs; it does not negotiate transport protocols. `Infer` is a type-only namespace; use createInfer/createInferWorker for runtime factories.
 
 ```ts
-import { NODE_API_VERSION } from "@ditto/core";
+import { NODE_API_VERSION } from "@codesoul-co/ditto";
 console.log(NODE_API_VERSION);
 ```
 
@@ -90,9 +92,9 @@ console.log(NODE_API_VERSION);
 
 | Task | Reference and runnable command |
 | --- | --- |
-| Agent loop, real tools and output | [Graph + Loop + Worker](../examples/graph-loop-worker.ts): `npm run example:agent` |
+| Agent loop, real tools and output | [Graph + Loop + Worker](worker-api/examples/graph-loop-worker.ts): `npm run example:agent` |
 | Custom/private nodes, resources, events and Artifacts | [Composition](worker-api/composition.md): `npm run example:runtime:api` |
 | RAG / Skill / Tool / MCP / ReAct | [Flows](worker-api/flows.md): `npm run example:runtime:flows` |
 | Graph/Loop, separate Sandbox, IPC/HTTP | [Runtime](worker-api/runtime.md): `npm run example:runtime:placement` |
-| Context Redis, Memory SQL/Milvus, independent Retrieval | [Database examples](../examples/worker/README.md) |
+| Context Redis, Memory SQL/Milvus, independent Retrieval | [Database examples](worker-api/examples/integrations/README.md) |
 | All Workers, Providers and individual APIs | [API index](worker-api/README.md) |

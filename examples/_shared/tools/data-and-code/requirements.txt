@@ -1,0 +1,2 @@
+# Application-side chart renderer. SQL uses Python's standard sqlite3 module.
+matplotlib==3.10.8

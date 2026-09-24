@@ -2,7 +2,7 @@
 
 [English / 简体中文](composition.zh-CN.md) · [Runtime](runtime.md) · [API](README.md)
 
-This reference covers application extension interfaces. See [Runtime](runtime.md) for graphs, loops, placement, cancellation and Sandbox, and [configuration](configuration.md) for loaders. Complete code uses public exports in [api.ts](../../examples/runtime/api.ts); run `npm run example:runtime:api`. Importing the file performs no requests.
+This reference covers application extension interfaces. See [Runtime](runtime.md) for graphs, loops, placement, cancellation and Sandbox, and [configuration](configuration.md) for loaders. Complete code uses public exports in [api.ts](examples/runtime/api.ts); run `npm run example:runtime:api`. Importing the file performs no requests.
 
 ## Node and Worker definitions
 
@@ -23,16 +23,16 @@ Imports for these examples:
 
 ```ts
 import assert from "node:assert/strict";
-import type { NodeContract } from "@ditto/core/contracts";
-import { createNodeScaffold, defineNode, defineWorker, extendWorker } from "@ditto/core/worker";
+import type { NodeContract } from "@codesoul-co/ditto/contracts";
+import { createNodeScaffold, defineNode, defineWorker, extendWorker } from "@codesoul-co/ditto/worker";
 import {
   createDitto, graph, InMemoryArtifactStore, LocalEventFabric,
   NoWorkerAvailableError, PayloadCodec,
-} from "@ditto/core/runtime";
+} from "@codesoul-co/ditto/runtime";
 ```
 
 ```ts
-declare module "@ditto/core/contracts" {
+declare module "@codesoul-co/ditto/contracts" {
   interface NodeContractMap {
     "EXAMPLE.TEXT.NORMALIZE": NodeContract<{ text: string }, { text: string; calls: number }>;
     "EXAMPLE.TEXT.PROCESS": NodeContract<{ text: string }, { text: string; calls: number }>;
@@ -208,7 +208,7 @@ Prefer the supplied [IPC / HTTP APIs](runtime.md#ipc-and-http-adapters). A custo
 Wrap an application-owned, authenticated RPC client as follows:
 
 ```ts
-import type { InvocationEnvelope, InvocationResult, InvokeTransport } from "@ditto/core/runtime";
+import type { InvocationEnvelope, InvocationResult, InvokeTransport } from "@codesoul-co/ditto/runtime";
 
 export function adaptRpc(request: (
   envelope: InvocationEnvelope, signal?: AbortSignal,
@@ -217,4 +217,4 @@ export function adaptRpc(request: (
 }
 ```
 
-Then use `createDitto({ transports: [adaptRpc(request)] })` and `registerRemote({address,capabilities,transportId:"application-rpc"})` for an already deployed Worker; request is the connected application client function. See [placement.ts](../../examples/runtime/placement.ts) for complete address exchange and cleanup.
+Then use `createDitto({ transports: [adaptRpc(request)] })` and `registerRemote({address,capabilities,transportId:"application-rpc"})` for an already deployed Worker; request is the connected application client function. See [placement.ts](examples/runtime/placement.ts) for complete address exchange and cleanup.

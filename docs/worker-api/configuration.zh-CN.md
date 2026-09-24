@@ -5,7 +5,7 @@
 根目录 [`ditto.yaml`](../../ditto.yaml) 是可提交的行为参数配置；[`.env.example`](../../.env.example) 是部署模板，真实 `.env` 被 Git 忽略。Node 用 `--env-file=.env` 加载环境变量，应用显式加载 YAML，默认共享 Runtime services，也可在 register 时为 Worker 注入独立 services。导入库、创建默认 Runtime 不会读取文件或环境变量。
 
 ```ts
-import { createDitto, createInfer, createInferWorker, loadRuntimeConfigFile } from "@ditto/core";
+import { createDitto, createInfer, createInferWorker, loadRuntimeConfigFile } from "@codesoul-co/ditto";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 if (!config.model) throw new Error("Configure the default model in .env");
 const runtime = createDitto({ config, workers: [createInferWorker()] });
@@ -78,7 +78,7 @@ loadRuntimeConfig(env = process.env, settings: RuntimeSettings = {}): RuntimeCon
 不读取 YAML 或环境变量的嵌入式调用：第二个参数使用与 YAML 相同的 RuntimeSettings 结构；实际应用仍推荐根目录统一 YAML。
 
 ```ts
-import { createDitto, loadRuntimeConfig } from "@ditto/core/runtime";
+import { createDitto, loadRuntimeConfig } from "@codesoul-co/ditto/runtime";
 
 const config = loadRuntimeConfig({}, {
   runtime: { timeoutMs: 15_000, graphConcurrency: 2, loopMaxIterations: 4 },
@@ -189,7 +189,7 @@ workers:
 | workers.interaction.webSearch.timeoutMs | 30000 / 1–2147483647 ms |
 | workers.interaction.webSearch.maxResponseBytes | 1048576 / 1–16777216 |
 
-以上默认值在工厂与根 YAML 中一致；加载器输出不可变 config.context / config.interaction。显式传给 createInMemoryContextStore、createContextOperationQueue、createReadOnlyCommandTools、createBraveWebSearchProvider，参数加载不会自动启用工具、缓存或网络权限。[Context 示例](../../examples/worker/context-retrieval.ts) 与 [Interaction API](interaction.zh-CN.md#provider-取消和有界网页响应) 给出完整接线。
+以上默认值在工厂与根 YAML 中一致；加载器输出不可变 config.context / config.interaction。显式传给 createInMemoryContextStore、createContextOperationQueue、createReadOnlyCommandTools、createBraveWebSearchProvider，参数加载不会自动启用工具、缓存或网络权限。[Context 示例](examples/integrations/context-retrieval.ts) 与 [Interaction API](interaction.zh-CN.md#provider-取消和有界网页响应) 给出完整接线。
 
 Brave 密钥由应用读取 `DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY`；CONTEXT 与 MEMORY 连接信息分别使用 `DITTO_WORKER_CONTEXT_*`、`DITTO_WORKER_MEMORY_*`，见根 .env.example。env 放连接/密钥，YAML 放行为/容量；没有隐式加载插件。
 

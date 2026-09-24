@@ -10,8 +10,8 @@ import {
 import {
   createRetrieval, createRetrievalWorker, RetrievalTargetRegistry, RetrievalError,
   type RetrievalSearchInput, type RetrievalSearchProvider, type RetrievalSearchOutput,
-} from "../src/worker/retrieval/index.js";
-import { RemoteRetrievalSearchProvider } from "../src/worker/retrieval/adapters/memory.js";
+} from "@codesoul-co/ditto-retrieval";
+import { RemoteRetrievalSearchProvider } from "@codesoul-co/ditto-retrieval/adapters/memory";
 
 function fixture() {
   const calls: RetrievalSearchInput[] = [];

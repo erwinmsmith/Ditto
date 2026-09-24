@@ -7,8 +7,8 @@ INTERACTION executes external actions, normalizes observations, and delivers fin
 ## 1. Imports and API inventory
 
 ```ts
-import { createBraveWebSearchProvider, createInteractionWorker, createReadOnlyCommandTools, createWebSearchTool, ToolRegistry, McpRegistry } from "@ditto/core/worker/interaction";
-// Also exported by @ditto/core.
+import { createBraveWebSearchProvider, createInteractionWorker, createReadOnlyCommandTools, createWebSearchTool, ToolRegistry, McpRegistry } from "@codesoul-co/ditto/worker/interaction";
+// Also exported by @codesoul-co/ditto.
 ```
 
 | API | Return / purpose |
@@ -40,12 +40,12 @@ These Nodes return the listed Output directly, **without NodeResult**, execution
 Examples share the imports from [examples/interaction.ts](examples/interaction.ts). The complete file is checked by `npm run typecheck`; importing executes no examples. Connect SDK resources in your application before injecting them.
 
 ```ts
-import { createDitto, defineWorker, graph, loop, type WorkerContext } from "@ditto/core";
+import { createDitto, defineWorker, graph, loop, type WorkerContext } from "@codesoul-co/ditto";
 import {
   createInteractionWorker, createInteractionNodes, createToolHandler, createMcpHandler,
   createOutputHandler, observeExternalResult, ToolRegistry, McpRegistry,
   interactionObserveNode, type RegisteredTool, type McpClient, type OutputSink,
-} from "@ditto/core/worker/interaction";
+} from "@codesoul-co/ditto/worker/interaction";
 ```
 
 ### RegisteredTool.validate / execute
@@ -267,7 +267,7 @@ export function mcpClientAdapter(client: McpClient): McpClient {
 }
 ```
 
-This wrapper preserves method receivers and optional fields; its client already satisfies the neutral port. Adapt native SDK result unions first. See the [real MCP script](../../scripts/check-interaction-mcp-live.mjs) and [setup instructions](../../examples/README.md#mcp) for an executable official-SDK example. Ditto installs no MCP SDK and opens no transports automatically. Adapt SDK-specific result unions to McpToolResult. isError=true becomes failed, with MCP_TOOL_ERROR when no safe error object is available.
+This wrapper preserves method receivers and optional fields; its client already satisfies the neutral port. Adapt native SDK result unions first. See the [real MCP script](../../scripts/check-interaction-mcp-live.mjs) and [setup instructions](examples/guide.md#mcp) for an executable official-SDK example. Ditto installs no MCP SDK and opens no transports automatically. Adapt SDK-specific result unions to McpToolResult. isError=true becomes failed, with MCP_TOOL_ERROR when no safe error object is available.
 
 ## 5. ExternalResult, OBSERVE, and messages
 
@@ -302,7 +302,7 @@ export async function observeApis() {
 
 ### Shared JSON / Message types
 
-Import these from `@ditto/core/contracts` or the root package. INFER has its own model-specific Message contract; map content explicitly across Workers. MCP client discovery requires inputSchema for each tool, while the shared McpCapability type marks it optional.
+Import these from `@codesoul-co/ditto/contracts` or the root package. INFER has its own model-specific Message contract; map content explicitly across Workers. MCP client discovery requires inputSchema for each tool, while the shared McpCapability type marks it optional.
 
 ```ts
 export type JsonValue = string | number | boolean | null
@@ -375,7 +375,7 @@ Public error.code is at most 64 characters using letters, digits, underscores, d
 | `MCP discovery limits` | new McpRegistry({ maxDiscoveryPages, maxCapabilities }) |
 | `workers.interaction YAML` | commands/webSearch behavior settings; explicitly pass config.interaction groups to factories |
 
-Cancellation comes from Runtime call options through WorkerContext to tools/MCP/WebSearch providers, rather than from Node payload fields. Executors/applications own deadlines, retries and SDK cleanup. Stopping Runtime waiting does not imply stopping an external action. The Linux example explicitly injects SandboxExecutor; it is not a default Core capability. See the [Linux/macOS tool example](../../examples/interaction-tools.ts).
+Cancellation comes from Runtime call options through WorkerContext to tools/MCP/WebSearch providers, rather than from Node payload fields. Executors/applications own deadlines, retries and SDK cleanup. Stopping Runtime waiting does not imply stopping an external action. The Linux example explicitly injects SandboxExecutor; it is not a default Core capability. See the [Linux/macOS tool example](examples/interaction-tools.ts).
 
 ## 8. Lower-level composition
 
@@ -438,7 +438,7 @@ export async function interactionGraph() {
 
 Registering one Worker definition multiple times shares supplied tools, registries, clients, and sinks. Construct separate definitions or use defineWorker resources/dispose for independent resources. unregister only affects future lookups; it neither cancels started operations nor closes SDKs. Drain runtime.close() before closing application-owned clients.
 
-See the [example guide](../../examples/README.md) for command, tool, and MCP composition. Database capabilities belong in MEMORY. Model action loops are documented in [ReAct Graph](../interaction-runtime.md#react-predefined-graph-flow).
+See the [example guide](examples/guide.md) for command, tool, and MCP composition. Database capabilities belong in MEMORY. Model action loops are documented in [ReAct Graph](../interaction-runtime.md#react-predefined-graph-flow).
 
 ## Compose with CONTEXT
 
@@ -446,9 +446,9 @@ Observe tool results before updating CONTEXT through ingress. Cached Graphs pass
 
 ```ts
 export async function toolToCachedContext(
-  runtime: import("@ditto/core").RuntimeClient,
-  scope: import("@ditto/core/worker/context").ContextScope,
-  call: import("@ditto/core/contracts").ToolCall,
+  runtime: import("@codesoul-co/ditto").RuntimeClient,
+  scope: import("@codesoul-co/ditto/worker/context").ContextScope,
+  call: import("@codesoul-co/ditto/contracts").ToolCall,
 ) {
   const result = await runtime.invoke("INTERACTION.ACT.TOOL", { call });
   const observation = await runtime.invoke("INTERACTION.OBSERVE", { result });
@@ -468,8 +468,8 @@ export async function toolToCachedContext(
 `WebSearchProvider.search(input, options?: WebSearchCallOptions)` accepts `{ signal?: AbortSignal }`; the tool supplies WorkerContext.signal. Brave's maxResponseBytes defaults to 1048576 and accepts 1–16777216. Streaming byte accounting stops oversized bodies and closes the stream before JSON parsing. timeoutMs defaults to 30000 and accepts 1–2147483647. Tool errors are sanitized: WEB_SEARCH_CANCELLED for cancellation, WEB_SEARCH_FAILED otherwise. Credentials and network permissions remain explicit.
 
 ```ts
-import { createBraveWebSearchProvider, createReadOnlyCommandTools, createWebSearchTool } from "@ditto/core/worker/interaction";
-import { loadRuntimeConfigFile } from "@ditto/core";
+import { createBraveWebSearchProvider, createReadOnlyCommandTools, createWebSearchTool } from "@codesoul-co/ditto/worker/interaction";
+import { loadRuntimeConfigFile } from "@codesoul-co/ditto";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 const provider = createBraveWebSearchProvider({
   apiKey: process.env.DITTO_WORKER_INTERACTION_BRAVE_SEARCH_API_KEY!,
@@ -482,3 +482,7 @@ const tools = [...createReadOnlyCommandTools(config.interaction.commands), creat
 `McpClient.listTools(params?, options?: McpCallOptions)` and `callTool(params, options?: McpCallOptions)` accept signal; McpRegistry.execute accepts it as the third argument. Discovery checks cancellation around every page. When adapting the neutral port to the official MCP SDK, listTools takes options second, while callTool takes options third: `client.callTool(params, undefined, options)`; the second argument is the result schema. See the [real MCP example](../../scripts/check-interaction-mcp-live.mjs). Custom RegisteredTool implementations can forward context.signal to Sandbox.run or their SDK.
 
 Use the public `createLocalSandboxExecutor` factory or replace it with an application SandboxExecutor; see [Sandbox API](runtime.md#sandbox-api-and-local-execution) for configuration, permissions and examples. ReAct forwards its signal to sampling, action and observation Graphs, so tools receive cancellation through context.signal.
+
+[Complete tool and system workflows](tool-workflows.md): native model tool selection and argument completion, ten application adapters, persistence, recovery and installed-package task tests.
+
+[Execution result understanding workflows](observation-workflows.md) compose OBSERVE, model interpretation, Context/Memory checkpoints and actual follow-up tools.

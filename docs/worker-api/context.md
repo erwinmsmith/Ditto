@@ -6,7 +6,7 @@ CONTEXT manages working context through LOAD, SELECT, UPDATE, and COMPRESS. Call
 
 ## Construction and configuration
 
-Import factories from `@ditto/core/worker/context` or the root package; import Context, ContextItem, Message and Reference from `@ditto/core/contracts`. `createContext(options?)` and `createContextWorker(options?)` share handlers. Results are Context or ContextSelection, without a NodeResult envelope. Failures reject with ContextError or infrastructure/provider errors.
+Import factories from `@codesoul-co/ditto/worker/context` or the root package; import Context, ContextItem, Message and Reference from `@codesoul-co/ditto/contracts`. `createContext(options?)` and `createContextWorker(options?)` share handlers. Results are Context or ContextSelection, without a NodeResult envelope. Failures reject with ContextError or infrastructure/provider errors.
 
 | Option | Default / behavior |
 | --- | --- |
@@ -132,7 +132,7 @@ These two helpers take explicit Context; cached Graphs can invoke the four nodes
 
 ContextError exposes code/message. Redis SDK, user-service, Runtime routing and transport exceptions can also reject directly. There are no background retries or successful empty results hiding failures.
 
-Complete callable source: [examples/context.ts](examples/context.ts). Functions share the imports below and do not execute on import. See the [example guide](../../examples/README.md#context--redis) for SDK installation and connection.
+Complete callable source: [examples/context.ts](examples/context.ts). Functions share the imports below and do not execute on import. See the [example guide](examples/guide.md#context--redis) for SDK installation and connection.
 
 ```ts
 import {
@@ -141,12 +141,12 @@ import {
   defaultSelect, deterministicCompress, isProtectedContextItem,
   type ContextStateStore, type RedisContextClient,
   type ContextServices, type ContextOptions, type ContextCompressor,
-} from "@ditto/core/worker/context";
-import { createDitto, graph, loadRuntimeConfigFile, runRagFlow, runSkillFlow } from "@ditto/core";
-import type { Context as WorkingContext, ContextItem as WorkingItem } from "@ditto/core/contracts";
-import type { InferClient, ModelConfig } from "@ditto/core/worker/infer";
-import { createMemoryWorker, type MemoryResources } from "@ditto/core/worker/memory";
-import type { RetrievalSearchProvider, RetrievalTarget } from "@ditto/core/worker/retrieval";
+} from "@codesoul-co/ditto/worker/context";
+import { createDitto, graph, loadRuntimeConfigFile, runRagFlow, runSkillFlow } from "@codesoul-co/ditto";
+import type { Context as WorkingContext, ContextItem as WorkingItem } from "@codesoul-co/ditto/contracts";
+import type { InferClient, ModelConfig } from "@codesoul-co/ditto/worker/infer";
+import { createMemoryWorker, type MemoryResources } from "@codesoul-co/ditto/worker/memory";
+import type { RetrievalSearchProvider, RetrievalTarget } from "@codesoul-co/ditto-retrieval";
 ```
 
 ### Construct SDK and Worker
@@ -373,7 +373,7 @@ export const customContextLoad = contextLoadNode.define("CONTEXT", async input =
 ### Write to durable MEMORY
 
 ```ts
-export async function contextToMemory(context: WorkingContext, memory: ReturnType<typeof import("@ditto/core/worker/memory").createMemory>) {
+export async function contextToMemory(context: WorkingContext, memory: ReturnType<typeof import("@codesoul-co/ditto/worker/memory").createMemory>) {
   const selected = await createContext().select({ context, purpose: "memory", limit: 8 });
   return memory.write({ memories: selected.context.items.map(item => ({
     content: item.content, metadata: { contextItemId: item.id },
@@ -385,9 +385,9 @@ export async function contextToMemory(context: WorkingContext, memory: ReturnTyp
 
 ```ts
 export async function toolToCachedContext(
-  runtime: import("@ditto/core").RuntimeClient,
-  scope: import("@ditto/core/worker/context").ContextScope,
-  call: import("@ditto/core/contracts").ToolCall,
+  runtime: import("@codesoul-co/ditto").RuntimeClient,
+  scope: import("@codesoul-co/ditto/worker/context").ContextScope,
+  call: import("@codesoul-co/ditto/contracts").ToolCall,
 ) {
   const result = await runtime.invoke("INTERACTION.ACT.TOOL", { call });
   const observation = await runtime.invoke("INTERACTION.OBSERVE", { result });
@@ -403,7 +403,7 @@ export async function toolToCachedContext(
 ### Delegate to independent RETRIEVAL
 
 ```ts
-export function remoteContextRetrieval(runtime: import("@ditto/core").RuntimeClient, target: RetrievalTarget) {
+export function remoteContextRetrieval(runtime: import("@codesoul-co/ditto").RuntimeClient, target: RetrievalTarget) {
   return contextRetrieval({ async search(input) {
     const result = await runtime.invoke("RETRIEVAL.SEARCH", input);
     if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);
@@ -412,7 +412,7 @@ export function remoteContextRetrieval(runtime: import("@ditto/core").RuntimeCli
 }
 ```
 
-Runnable database integration examples: [examples/worker](../../examples/worker/README.md), including SDK installation, env settings, invocation and cleanup.
+Runnable database integration examples: [examples/worker](examples/integrations/README.md), including SDK installation, env settings, invocation and cleanup.
 
 ## Local cache, queues and reference loading
 
@@ -424,7 +424,7 @@ Runnable database integration examples: [examples/worker](../../examples/worker/
 
 ```ts
 import { createContext, createInMemoryContextStore, createContextOperationQueue,
-  loadRuntimeConfigFile } from "@ditto/core";
+  loadRuntimeConfigFile } from "@codesoul-co/ditto";
 const config = loadRuntimeConfigFile("ditto.yaml", process.env);
 const store = createInMemoryContextStore(config.context.localCache);
 const queue = createContextOperationQueue(config.context.queue);
@@ -448,4 +448,6 @@ await queue.enqueue(scope, async () => "application operation");
 
 All SDK methods accept optional `ContextCallOptions` after input; execute accepts it as the third argument. `signal` propagates to selectors, RAG stages, compressors, token estimation, reference resolution, cache and queue ports. These ports accept options after their existing arguments (fourth for compareAndSet). Cancellation rejects the SDK call; cancellation before persistence prevents CAS. Cancellation cannot undo a completed external write. Runtime Workers supply the current signal and an invocation-bound `runtime` for nested delegation; applications normally only set signal.
 
-For reusable inline or delegated database retrieval, see [Context retrieval adapter](retrieval-providers.md#context-retrieval-adapter) and the runnable [SQLite example](../../examples/worker/context-retrieval.ts).
+For reusable inline or delegated database retrieval, see [Context retrieval adapter](retrieval-providers.md#context-retrieval-adapter) and the runnable [SQLite example](examples/integrations/context-retrieval.ts).
+
+[Complete context workflows](context-workflows.md) show public Runtime composition, semantic summarization, durable checkpoints and package-consumer validation.

@@ -4,13 +4,13 @@
 
 RETRIEVAL v0.1 provides only `RETRIEVAL.SEARCH`: an optional execution boundary for relevance retrieval that needs independent resources, deployment or scaling. Core Workers remain INFER, CONTEXT, MEMORY and INTERACTION. Existing local/external MEMORY and CONTEXT providers need no extra service hop.
 
-It ships as `@ditto/core/worker/retrieval` in the current package, without a separate npm package or new dependencies. Core's root and worker entry points do not export/load it. Import and register explicitly; YAML alone never starts a Worker. Applications decide when to deploy it; Core does not automatically start services based on load.
+It ships as the separate optional npm package `@codesoul-co/ditto-retrieval`, with `@codesoul-co/ditto` as a peer dependency. Install both packages when retrieval is needed. Core's root and worker entry points do not export/load it. Import and register explicitly; YAML alone never starts a Worker. Applications decide when to deploy it; Core does not automatically start services based on load.
 
 ## Enable explicitly
 
 ```ts
-import { createDitto, loadRuntimeConfigFile } from "@ditto/core";
-import { createRetrievalWorker, RetrievalTargetRegistry, type RetrievalSearchProvider } from "@ditto/core/worker/retrieval";
+import { createDitto, loadRuntimeConfigFile } from "@codesoul-co/ditto";
+import { createRetrievalWorker, RetrievalTargetRegistry, type RetrievalSearchProvider } from "@codesoul-co/ditto-retrieval";
 
 function startRetrieval(kbProvider: RetrievalSearchProvider, codeProvider: RetrievalSearchProvider) {
   const providers = new RetrievalTargetRegistry({
@@ -110,8 +110,8 @@ Normalization uses the requested logical target and selected strategy, preservin
 ## Optional MEMORY bridge
 
 ```ts
-import { createMemoryWorker } from "@ditto/core";
-import { RemoteRetrievalSearchProvider } from "@ditto/core/worker/retrieval/adapters/memory";
+import { createMemoryWorker } from "@codesoul-co/ditto";
+import { RemoteRetrievalSearchProvider } from "@codesoul-co/ditto-retrieval/adapters/memory";
 
 const search = new RemoteRetrievalSearchProvider({
   runtime, target: { name: "agent-memory" },
@@ -143,7 +143,7 @@ Run a Runtime containing only RETRIEVAL in a separate process and mount existing
 
 ```ts
 import { createServer } from "node:http";
-import { createWorkerHttpHandler } from "@ditto/core";
+import { createWorkerHttpHandler } from "@codesoul-co/ditto";
 const token = process.env.DITTO_TRANSPORT_HTTP_WORKER_TOKEN;
 if (!token) throw new Error("Missing transport token");
 const server = createServer(createWorkerHttpHandler(retrievalRuntime, { token }));
@@ -154,7 +154,7 @@ server.listen(8080, "127.0.0.1");
 The client installs a transport and registers the address:
 
 ```ts
-import { createHttpTransport } from "@ditto/core";
+import { createHttpTransport } from "@codesoul-co/ditto";
 const transport = createHttpTransport({ id: "retrieval-service", url, token });
 const runtime = createDitto({ transports: [transport] });
 runtime.registerRemote({ address, transportId: transport.id, capabilities: ["RETRIEVAL.SEARCH"] });
@@ -209,8 +209,8 @@ RAG is an application composition: RETRIEVAL.SEARCH → explicit candidate mappi
 Complete source: [examples/retrieval.ts](examples/retrieval.ts). The functions below share its imports; importing the file executes no examples. Applications supply database, model, or MCP resources. Choose the function you need; writes, deletes, and model calls perform real operations when invoked.
 
 ```ts
-import { createDitto, createMemoryWorker, loadRuntimeConfigFile } from "@ditto/core";
-import type { MemorySearchProvider, MemoryStore, MemoryItem } from "@ditto/core/worker/memory";
+import { createDitto, createMemoryWorker, loadRuntimeConfigFile } from "@codesoul-co/ditto";
+import type { MemorySearchProvider, MemoryStore, MemoryItem } from "@codesoul-co/ditto/worker/memory";
 import {
   createRetrieval, createRetrievalWorker, RetrievalTargetRegistry, RetrievalError, retrievalSearchNode,
   embedContents, validateVector, createVectorSearchProvider, createTextSearchProvider,
@@ -218,11 +218,11 @@ import {
   createHttpEmbeddingProvider, embeddingConfigFromEnv, createSqlSearchProvider, createMilvusSearchProvider,
   type RetrievalSearchProvider, type RetrievalSearchInput, type RetrievalSearchOutput,
   type EmbeddingProvider, type RerankProvider, type SqlSearchOptions, type MilvusSearchOptions,
-} from "@ditto/core/worker/retrieval";
+} from "@codesoul-co/ditto-retrieval";
 import {
   createMemoryRetrievalProvider, createRetrievalMemorySearchProvider,
   RemoteRetrievalSearchProvider, mapMemoryCandidates,
-} from "@ditto/core/worker/retrieval/adapters/memory";
+} from "@codesoul-co/ditto-retrieval/adapters/memory";
 
 export const request: RetrievalSearchInput = { query: { content: "agent memory" }, target: { name: "kb" }, limit: 5 };
 ```
@@ -301,7 +301,7 @@ export function retrievalDescriptor(provider: RetrievalSearchProvider) {
 CONTEXT.SELECT ragStrategy can reuse a SearchProvider or delegate to RETRIEVAL.SEARCH through Runtime. Check delegated NodeResult, map candidates to ContextItem[], and explicitly UPDATE if persistence is needed. [Complete CONTEXT API and examples](context.md)。
 
 ```ts
-export function remoteContextRetrieval(runtime: import("@ditto/core").RuntimeClient, target: RetrievalTarget) {
+export function remoteContextRetrieval(runtime: import("@codesoul-co/ditto").RuntimeClient, target: RetrievalTarget) {
   return contextRetrieval({ async search(input) {
     const result = await runtime.invoke("RETRIEVAL.SEARCH", input);
     if (result.status !== "success" || !result.output) throw new Error(result.error?.code ?? result.status);
@@ -317,3 +317,5 @@ export function remoteContextRetrieval(runtime: import("@ditto/core").RuntimeCli
 The built-in RETRIEVAL Worker forwards the current Runtime signal in the provider's RetrievalExecutionContext; embedding, database, fusion and reranking adapters propagate it. Example: `await runtime.invoke("RETRIEVAL.SEARCH", { query: { content: "question" }, target: { name: "docs" } }, { signal: AbortSignal.timeout(5000) })`. MEMORY and CONTEXT delegation adapters inherit their parent invocation context; see the [Context provider bridge](retrieval-providers.md#context-retrieval-adapter). HTTP/IPC cancellation does not imply that a server-side database operation was canceled.
 
 For `RemoteRetrievalSearchProvider`, omit construction-time runtime inside a MEMORY Worker to inherit its invocation-bound Runtime. An explicit runtime always takes precedence; standalone SDK delegation requires it. Example: `new RemoteRetrievalSearchProvider({ target: { name: "memories" } })` for Worker-owned delegation.
+
+For complete Agent tasks with persistence and citations, see [information retrieval and search workflows](search-workflows.md).

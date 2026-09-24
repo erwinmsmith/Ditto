@@ -5,6 +5,7 @@ import type { WorkerDefinition } from "../worker/define-worker.js";
 import { PayloadCodec, type ArtifactStore } from "./artifact.js";
 import { LocalEventFabric, type EventFabric, type EventHandler, type RuntimeEvent } from "./communication/events.js";
 import { graph, runGraph, type ExecutionGraph, type GraphRunOptions } from "./graph.js";
+import { runGraphPlan, type LoopPlanDefinition, type LoopGraphEvent } from "./graph-plan.js";
 import { runLoop, type LoopDefinition } from "./loop.js";
 import { WorkerRouter, type WorkerEntry } from "./router.js";
 import { createRuntimeServices, type RuntimeServices, type RuntimeServiceOptions } from "./services.js";
@@ -27,6 +28,7 @@ export interface RunOptions extends GraphRunOptions {
   readonly workers?: Readonly<Record<string, string>>;
 }
 export interface LoopRunOptions extends GraphRunOptions {
+  readonly onGraph?: (event: LoopGraphEvent) => void;
   readonly workers?: Readonly<Record<string, Readonly<Record<string, string>>>>;
 }
 export interface WorkerRegistrationOptions {
@@ -145,11 +147,65 @@ export class DittoRuntime implements RuntimeClient {
     return this.#operation(() => this.#run(plan, input, options));
   }
 
-  async loop<S, I, O extends object>(definition: LoopDefinition<S, I, O>, initialState: NoInfer<S>, options: LoopRunOptions = {}): Promise<S> {
+  async loop<I, R>(
+    definition: LoopPlanDefinition<I, R>,
+    input: NoInfer<I>,
+    options?: LoopRunOptions,
+  ): Promise<R>;
+  async loop<S, I, O extends object>(
+    definition: LoopDefinition<S, I, O>,
+    initialState: NoInfer<S>,
+    options?: LoopRunOptions,
+  ): Promise<S>;
+  async loop<S, I, O extends object, R>(
+    definition: LoopDefinition<S, I, O> | LoopPlanDefinition<S, R>,
+    initialState: NoInfer<S>,
+    options: LoopRunOptions = {},
+  ): Promise<S | R> {
     this.#assertOpen();
-    return this.#operation(() => runLoop({ ...definition, maxIterations: definition.maxIterations ?? this.services.config.loopMaxIterations }, initialState, (plan, input) => this.#run(plan, input, {
-      ...options, workers: options.workers?.[plan.id] ?? {},
-    }), options.signal));
+    if ("plan" in definition)
+      return this.#operation(() =>
+        runGraphPlan(
+          {
+            ...definition,
+            maxIterations:
+              definition.maxIterations ??
+              this.services.config.loopMaxIterations,
+          },
+          initialState,
+          (plan, input, stepOptions) =>
+            this.#run(plan, input, {
+              ...options,
+              ...stepOptions,
+              workers: options.workers?.[plan.id] ?? {},
+              ...(options.signal
+                ? {
+                    signal: stepOptions.signal
+                      ? AbortSignal.any([options.signal, stepOptions.signal])
+                      : options.signal,
+                  }
+                : {}),
+            }),
+          options.signal,
+          options.onGraph,
+        ),
+      );
+    return this.#operation(() =>
+      runLoop(
+        {
+          ...definition,
+          maxIterations:
+            definition.maxIterations ?? this.services.config.loopMaxIterations,
+        },
+        initialState,
+        (plan, input) =>
+          this.#run(plan, input, {
+            ...options,
+            workers: options.workers?.[plan.id] ?? {},
+          }),
+        options.signal,
+      ),
+    );
   }
 
   #run<I, O extends object>(plan: ExecutionGraph<I, O>, input: I, options: RunOptions): Promise<O> {

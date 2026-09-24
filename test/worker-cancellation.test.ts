@@ -4,8 +4,8 @@ import {
   createDitto, createInferWorker, createMemory, createMemoryWorker, createInteractionWorker,
   createBraveWebSearchProvider, createWebSearchTool, type MemoryCallOptions, type MemoryStore,
 } from "../src/index.js";
-import { createRetrievalWorker, RetrievalTargetRegistry } from "../src/worker/retrieval/index.js";
-import { RemoteRetrievalSearchProvider } from "../src/worker/retrieval/adapters/memory.js";
+import { createRetrievalWorker, RetrievalTargetRegistry } from "@codesoul-co/ditto-retrieval";
+import { RemoteRetrievalSearchProvider } from "@codesoul-co/ditto-retrieval/adapters/memory";
 
 const emptyStore: MemoryStore = {
   get: async () => [], query: async () => ({ items: [] }), write: async () => [], update: async () => [], delete: async () => ({ deleted: [] }),

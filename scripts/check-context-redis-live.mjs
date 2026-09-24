@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { createContext, createContextWorker, createDitto, createHttpTransport, createWorkerHttpHandler, createRedisContextStore, contextScopeKey } from "@ditto/core";
+import { createContext, createContextWorker, createDitto, createHttpTransport, createWorkerHttpHandler, createRedisContextStore, contextScopeKey } from "@codesoul-co/ditto";
 
 if (!process.argv[2]) throw new Error("Pass an external directory containing the redis SDK");
 const requireSdk = createRequire(join(resolve(process.argv[2]), "package.json"));
