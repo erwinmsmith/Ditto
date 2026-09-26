@@ -8,6 +8,7 @@ import type {
 import type { RuntimeClient } from "../worker/execution-context.js";
 import type { ContextSelection } from "../worker/context/contracts.js";
 import type { InteractionMcpInput, InteractionMcpOutput, InteractionToolOutput } from "../worker/interaction/contracts.js";
+import { checkpointState, restoreState, stateDigest, type GraphCheckpointOptions } from "./checkpoint.js";
 
 export interface GraphTask {
   readonly id: string;
@@ -57,6 +58,7 @@ export interface GraphRunOptions {
   /** Maximum simultaneously running graph nodes. No hidden invocation queue. */
   readonly concurrency?: number;
   readonly signal?: AbortSignal;
+  readonly checkpoint?: GraphCheckpointOptions;
 }
 
 export async function runGraph<I, O extends object>(
@@ -70,6 +72,16 @@ export async function runGraph<I, O extends object>(
     throw new Error("Graph concurrency must be a positive integer");
   }
   options.signal?.throwIfAborted();
+  const checkpoint = options.checkpoint;
+  const graphHash = checkpoint ? stateDigest(graph.tasks.map(t => [t.id, t.node, t.dependencies, t.bind.toString()])) : "";
+  const inputHash = checkpoint ? stateDigest(input) : "";
+  const restored = checkpoint?.resume ? restoreState(checkpoint.resume, `graph:${graph.id}`, checkpoint.version) : undefined;
+  if (restored && (restored.graphHash !== graphHash || restored.inputHash !== inputHash || restored.uncertain.length))
+    throw new Error("Graph checkpoint is incompatible or has uncertain operations");
+  const outputs: Record<string, unknown> = Object.assign(Object.create(null), restored?.outputs ?? {});
+  const known = new Set(graph.tasks.map(t => t.id));
+  if (Object.keys(outputs).some(id => !known.has(id)) || graph.tasks.some(t => Object.hasOwn(outputs, t.id) && t.dependencies.some(id => !Object.hasOwn(outputs, id))))
+    throw new Error("Graph checkpoint has an invalid completed dependency set");
   // Build adjacency once: O(nodes + edges), with no promise per dependency.
   const remaining = new Map<GraphTask, number>();
   const dependents = new Map<string, GraphTask[]>();
@@ -82,17 +94,33 @@ export async function runGraph<I, O extends object>(
       children.push(task);
     }
     dependents.set(task.id, []);
-    remaining.set(task, task.dependencies.length);
-    if (!task.dependencies.length) ready.push(task);
+    const pending = task.dependencies.filter(id => !Object.hasOwn(outputs, id)).length;
+    remaining.set(task, pending);
+    if (!pending && !Object.hasOwn(outputs, task.id)) ready.push(task);
   }
   const runId = randomUUID();
-  const outputs: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
   return new Promise<O>((resolve, reject) => {
     let cursor = 0, active = 0, failed = false;
+    let saving = false, savedBoundary = "";
+    const uncertain: string[] = [];
     let failure: unknown;
     const stop = (error: unknown): void => { if (!failed) { failed = true; failure = error; } };
     const pump = (): void => {
+      if (saving) return;
       if (options.signal?.aborted) stop(options.signal.reason);
+      if (checkpoint) {
+        // Checkpoint mode runs ready waves; no resource is in flight while save is awaited.
+        if (active) return;
+        const boundary = `${Object.keys(outputs).length}:${uncertain.length}`;
+        if (boundary !== savedBoundary) {
+          saving = true;
+          void Promise.resolve().then(() => checkpoint.save(checkpointState(`graph:${graph.id}`, checkpoint.version,
+            { graphHash, inputHash, outputs, uncertain }))).then(() => {
+              savedBoundary = boundary; saving = false; pump();
+            }, reject);
+          return;
+        }
+      }
       while (!failed && active < concurrency && cursor < ready.length) {
         const task = ready[cursor++]!;
         active++;
@@ -105,11 +133,12 @@ export async function runGraph<I, O extends object>(
         }).then(output => {
           outputs[task.id] = output;
           for (const child of dependents.get(task.id)!) {
+            if (Object.hasOwn(outputs, child.id)) continue;
             const count = remaining.get(child)! - 1;
             remaining.set(child, count);
             if (!count) ready.push(child);
           }
-        }, stop).finally(() => { active--; pump(); });
+        }, error => { uncertain.push(task.id); stop(error); }).finally(() => { active--; pump(); });
       }
       // Finish only after every started node settles, including on cancellation.
       if (!active) {

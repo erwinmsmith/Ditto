@@ -23,6 +23,9 @@ export * from "./communication/http.js";
 export { runReactFlow } from "./react.js";
 export type { ReactFlowInput, ReactFlowResult } from "./react.js";
 export * from "./communication/ipc.js";
+export * from "./checkpoint.js";
+export * from "./state-store.js";
+export * from "./budget.js";
 
 export { graphStep } from "./graph-plan.js";
 export type {

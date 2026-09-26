@@ -40,7 +40,7 @@ try {
     assert.equal(integrity, artifact.integrity, "Published tarball differs from the verified local artifact");
   }
   await writeFile(join(app, "package.json"), JSON.stringify({ private: true, type: "module" }));
-  const install = (name: string) => values.registry ? `${name}@${core.version}` : artifacts.find(a => a.name === name)!.path;
+  const install = (name: string) => values.registry ? `${name}@${artifacts.find(a => a.name === name)!.version}` : artifacts.find(a => a.name === name)!.path;
   await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", install(core.name), `@types/node@${core.devDependencies["@types/node"]}`, "redis@6.2.1"]);
   await cp(join(root, "examples/package-basics"), join(app, "examples/package-basics"), { recursive: true });
   for (const name of ["workers.ts", "redis-context.ts", "sqlite-memory.ts", "sql-memory.ts", "dependencies/package.json"]) {
@@ -49,6 +49,11 @@ try {
   await cp(join(root, "examples/_shared/tools/package-basics.ts"), join(app, "examples/_shared/tools/package-basics.ts"));
   await run(process.execPath, ["--input-type=module", "-e", `import assert from 'node:assert/strict';
 for(const name of ${JSON.stringify(Object.keys(core.exports).map(k => core.name + (k === "." ? "" : k.slice(1))))}) await import(name);
+const {BranchStore,checkpointState,restoreState,TokenBudget,budgetedProvider}=await import(${JSON.stringify(core.name)});
+const cp=checkpointState('consumer','1',{step:1}); assert.equal(restoreState(cp,'consumer','1').step,1);
+const store=new BranchStore('consumer'), branch=store.fork(); branch.set('memory:k',1); branch.commit(); assert.equal(store.fork().get('memory:k'),1);
+const budget=new TokenBudget(100); const provider=budgetedProvider({async invoke(){return {message:{role:'assistant',content:'ok'},finishReason:'stop',usage:{totalTokens:10}};}},budget,{reserveTokens:()=>20,scope:{runId:'consumer'},requireUsage:true});
+await provider.invoke({messages:[]},{signal:new AbortController().signal}); assert.equal(budget.spent,10);
 await assert.rejects(import(${JSON.stringify(retrieval.name)}));
 await assert.rejects(import(${JSON.stringify(core.name + "/src/index.ts")}));
 await assert.rejects(import(${JSON.stringify(core.name + "/dist/index.js")}));`]);

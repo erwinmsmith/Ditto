@@ -118,7 +118,7 @@ try {
   const pkg = JSON.parse(await readFile(join(root,'package.json'),'utf8'));
   const scripts = Object.fromEntries(Object.entries(pkg.scripts).filter(([k]) => k.startsWith('example:')).map(([k,v]) => [k,v.replace(/^npm run build && /,'')]));
   await put(join(temp,'package.json'),JSON.stringify({name:'ditto-consumer-examples',private:true,type:'module',scripts,
-    dependencies:{'@codesoul-co/ditto':'0.1.0','@codesoul-co/ditto-retrieval':'0.1.0',redis:'6.2.1'},devDependencies:{typescript:pkg.devDependencies.typescript,'@types/node':pkg.devDependencies['@types/node']}},null,2)+'\n');
+    dependencies:{'@codesoul-co/ditto':pkg.version,'@codesoul-co/ditto-retrieval':'0.1.0',redis:'6.2.1'},devDependencies:{typescript:pkg.devDependencies.typescript,'@types/node':pkg.devDependencies['@types/node']}},null,2)+'\n');
   await put(join(temp,'README.md'),'# Ditto consumer examples\n\nRun `npm install`, then `node examples/package-basics/context.ts`. For real-model examples, copy `examples/package-basics/.env.example` to `.env` and configure the provider and Redis. See each example README for optional application dependencies.\n\nThis archive installs published npm packages. Framework build and check:* scripts described in repository documentation belong to the source repository and are not required here. Keep relative paths when copying application adapters.\n');
   await put(join(temp,'.gitignore'),'.env\nnode_modules/\n.examples-*-tasks/\n*.sqlite*\n');
   execFileSync('zip',['-q','-r',join(out,'public/downloads/ditto-examples.zip'),'.'],{cwd:temp});

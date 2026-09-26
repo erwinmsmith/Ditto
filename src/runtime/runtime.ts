@@ -7,6 +7,7 @@ import { LocalEventFabric, type EventFabric, type EventHandler, type RuntimeEven
 import { graph, runGraph, type ExecutionGraph, type GraphRunOptions } from "./graph.js";
 import { runGraphPlan, type LoopPlanDefinition, type LoopGraphEvent } from "./graph-plan.js";
 import { runLoop, type LoopDefinition } from "./loop.js";
+import type { LoopCheckpointOptions } from "./checkpoint.js";
 import { WorkerRouter, type WorkerEntry } from "./router.js";
 import { createRuntimeServices, type RuntimeServices, type RuntimeServiceOptions } from "./services.js";
 import type {
@@ -28,6 +29,7 @@ export interface RunOptions extends GraphRunOptions {
   readonly workers?: Readonly<Record<string, string>>;
 }
 export interface LoopRunOptions extends GraphRunOptions {
+  readonly stateCheckpoint?: LoopCheckpointOptions;
   readonly onGraph?: (event: LoopGraphEvent) => void;
   readonly workers?: Readonly<Record<string, Readonly<Record<string, string>>>>;
 }
@@ -163,6 +165,8 @@ export class DittoRuntime implements RuntimeClient {
     options: LoopRunOptions = {},
   ): Promise<S | R> {
     this.#assertOpen();
+    if (options.checkpoint) throw new Error("Use per-Graph checkpoints or a Loop stateCheckpoint");
+    if ("plan" in definition && options.stateCheckpoint) throw new Error("Generator Loop checkpoints are unsupported; use an explicit state Loop");
     if ("plan" in definition)
       return this.#operation(() =>
         runGraphPlan(
@@ -204,6 +208,7 @@ export class DittoRuntime implements RuntimeClient {
             workers: options.workers?.[plan.id] ?? {},
           }),
         options.signal,
+        options.stateCheckpoint,
       ),
     );
   }

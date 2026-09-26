@@ -1,5 +1,6 @@
 import type { LoopPlanDefinition } from "./graph-plan.js";
 import type { ExecutionGraph } from "./graph.js";
+import { checkpointState, restoreState, type LoopCheckpointOptions } from "./checkpoint.js";
 
 /** Each iteration executes one selected DAG; the application owns state and termination. */
 export interface LoopDefinition<S, I, O extends object> {
@@ -26,19 +27,27 @@ export async function runLoop<S, I, O extends object>(
   initialState: NoInfer<S>,
   run: (graph: ExecutionGraph<I, O>, input: I) => Promise<O>,
   signal?: AbortSignal,
+  checkpoint?: LoopCheckpointOptions,
 ): Promise<S> {
   const { graph, bind, update, done, maxIterations = 32 } = definition;
   if (!Number.isSafeInteger(maxIterations) || maxIterations < 1) {
     throw new Error("maxIterations must be a positive integer");
   }
-  let state = initialState;
-  for (let iteration = 0; iteration < maxIterations; iteration++) {
+  const restored = checkpoint?.resume ? restoreState(checkpoint.resume, `loop:${checkpoint.id}`, checkpoint.version) : undefined;
+  if (restored && (!Number.isSafeInteger(restored.iteration) || restored.iteration < 0 || restored.iteration > maxIterations))
+    throw new Error("Invalid loop checkpoint iteration");
+  let state = restored ? restored.state as S : initialState;
+  if (restored?.completed) return state;
+  for (let iteration = restored?.iteration ?? 0; iteration < maxIterations; iteration++) {
     signal?.throwIfAborted();
     const plan = typeof graph === "function" ? graph(state) : graph;
     const output = await run(plan, bind(state));
     signal?.throwIfAborted();
     state = update(state, output);
-    if (done(state, output)) return state;
+    const completed = done(state, output);
+    if (checkpoint) await checkpoint.save(checkpointState(`loop:${checkpoint.id}`, checkpoint.version,
+      { iteration: iteration + 1, state, completed }));
+    if (completed) return state;
   }
   throw new Error("Loop iteration limit reached");
 }

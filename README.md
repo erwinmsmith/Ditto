@@ -203,3 +203,5 @@ Behavior defaults live in root [`ditto.yaml`](https://github.com/erwinmsmith/Dit
 See the [MEMORY API](https://github.com/erwinmsmith/Ditto/blob/main/docs/worker-api/memory.md) for plugin wiring, six node contracts and configuration.
 
 More public APIs and examples: [Worker composition / events / Artifacts](https://github.com/erwinmsmith/Ditto/blob/main/docs/worker-api/composition.md), [predefined flows](https://github.com/erwinmsmith/Ditto/blob/main/docs/worker-api/flows.md), and the [local quickstart](https://github.com/erwinmsmith/Ditto/blob/main/examples/quickstart.ts).
+
+Portable JSON checkpoints, isolated state branches and shared token budgets are available from the root package. See [checkpoint and budget contracts](https://github.com/erwinmsmith/Ditto/blob/main/docs/worker-api/checkpoints.md) for examples and external-resource limitations.

@@ -1,6 +1,6 @@
 {
   "name": "@codesoul-co/ditto",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Lightweight Node-native Agent runtime with extensible Workers and location-independent graphs.",
   "type": "module",
   "sideEffects": false,
