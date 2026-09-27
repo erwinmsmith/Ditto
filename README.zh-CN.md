@@ -203,3 +203,5 @@ Runtime 的节点绑定、独立 Sandbox、Loop 和两种部署通信方式详�
 MEMORY 的接入、插件边界、六个节点和配置详见 [MEMORY API](https://github.com/erwinmsmith/Ditto/blob/main/docs/worker-api/memory.zh-CN.md)。
 
 其他公共接口与调用方式：[Worker 组合 / 事件 / Artifact](https://github.com/erwinmsmith/Ditto/blob/main/docs/worker-api/composition.zh-CN.md)、[预定义流程](https://github.com/erwinmsmith/Ditto/blob/main/docs/worker-api/flows.zh-CN.md)、[无需外部服务的入门示例](https://github.com/erwinmsmith/Ditto/blob/main/examples/quickstart.ts)。
+
+`@codesoul-co/ditto@0.1.1` 从根入口提供可移植 JSON checkpoint、隔离状态分支与共享 token 预算。用法、恢复边界和外部资源限制见[检查点与预算契约](https://github.com/erwinmsmith/Ditto/blob/main/docs/worker-api/checkpoints.zh-CN.md)。

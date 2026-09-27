@@ -1,5 +1,7 @@
 # Checkpoints, isolated state and token budgets
 
+**English** · [简体中文](checkpoints.zh-CN.md) · [Worker API](README.md)
+
 Available in `@codesoul-co/ditto@0.1.1` from the root package or `/runtime`.
 All APIs are opt-in; existing execution behavior is unchanged.
 

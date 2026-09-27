@@ -14,6 +14,8 @@
 
 [Runtime / Graph / Loop 详细 API](runtime.zh-CN.md)：节点连接、Worker 分配、独立 Sandbox、本地 IPC 与跨机 HTTP。
 
+[可移植检查点、隔离状态与 token 预算](checkpoints.zh-CN.md)：`@codesoul-co/ditto@0.1.1` 的 Graph/Loop 恢复、BranchStore 和 Provider 用量计费。
+
 [Sandbox API](runtime.zh-CN.md#sandbox-api-与本地执行器)：权限、工作区读写、可替换执行器与真实本地命令执行。
 
 [Worker 组合、事件与 Artifact](composition.zh-CN.md)：自定义 Node/Worker、resources/dispose、WorkerContext、数据引用及通信扩展。

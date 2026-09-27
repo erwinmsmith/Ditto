@@ -56,11 +56,11 @@ npm install @codesoul-co/ditto-retrieval
 
 | Import | API |
 | --- | --- |
-| `@codesoul-co/ditto` | Core Runtime + Worker factories + contracts + Sandbox |
+| `@codesoul-co/ditto` | Core Runtime + Worker 工厂 + contracts + Sandbox + checkpoint + BranchStore + TokenBudget |
 | `@codesoul-co/ditto/contracts` | NodeContract / NodeContractMap / InputOf / OutputOf / shared types |
 | `@codesoul-co/ditto/worker` | defineWorker / extendWorker / defineNode / createNodeScaffold / core factories |
 | `@codesoul-co/ditto/worker/node` | defineNode / NodeHandler / WorkerContext / RuntimeClient |
-| `@codesoul-co/ditto/runtime` | createDitto / graph / loop / flows / config / services / transports / events / artifacts |
+| `@codesoul-co/ditto/runtime` | createDitto / graph / loop / flows / config / services / transports / events / artifacts / checkpoint / budget |
 | `@codesoul-co/ditto/runtime/sandbox` | Sandbox / PermissionDeniedError / createLocalSandboxExecutor |
 | `@codesoul-co/ditto/worker/context` | CONTEXT SDK / factory / stores / strategies / resolver |
 | `@codesoul-co/ditto/worker/infer` | INFER SDK / factory / reasoning / cache / providers |
@@ -97,5 +97,6 @@ console.log(NODE_API_VERSION);
 | 自定义节点、私有 Graph、副本资源、事件、Artifact | [组合 API](worker-api/composition.zh-CN.md)：`npm run example:runtime:api` |
 | RAG / Skill / Tool / MCP / ReAct | [流程 API](worker-api/flows.zh-CN.md)：`npm run example:runtime:flows` |
 | Graph/Loop、独立 Sandbox、同机/跨机通信 | [Runtime](worker-api/runtime.zh-CN.md)：`npm run example:runtime:placement` |
+| 恢复显式状态并共享 token 准入 | [检查点与预算](worker-api/checkpoints.zh-CN.md) |
 | Context Redis、Memory SQL/Milvus、独立 Retrieval | [数据库示例](worker-api/examples/integrations/README.zh-CN.md) |
 | 全部 Worker、Provider 和具体 API | [API 索引](worker-api/README.zh-CN.md) |

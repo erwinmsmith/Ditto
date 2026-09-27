@@ -56,11 +56,11 @@ Use ESM (type=module in application package.json); TypeScript can use module/mod
 
 | Import | API |
 | --- | --- |
-| `@codesoul-co/ditto` | Core Runtime + Worker factories + contracts + Sandbox |
+| `@codesoul-co/ditto` | Core Runtime + Worker factories + contracts + Sandbox + checkpoints + BranchStore + TokenBudget |
 | `@codesoul-co/ditto/contracts` | NodeContract / NodeContractMap / InputOf / OutputOf / shared types |
 | `@codesoul-co/ditto/worker` | defineWorker / extendWorker / defineNode / createNodeScaffold / core factories |
 | `@codesoul-co/ditto/worker/node` | defineNode / NodeHandler / WorkerContext / RuntimeClient |
-| `@codesoul-co/ditto/runtime` | createDitto / graph / loop / flows / config / services / transports / events / artifacts |
+| `@codesoul-co/ditto/runtime` | createDitto / graph / loop / flows / config / services / transports / events / artifacts / checkpoints / budgets |
 | `@codesoul-co/ditto/runtime/sandbox` | Sandbox / PermissionDeniedError / createLocalSandboxExecutor |
 | `@codesoul-co/ditto/worker/context` | CONTEXT SDK / factory / stores / strategies / resolver |
 | `@codesoul-co/ditto/worker/infer` | INFER SDK / factory / reasoning / cache / providers |
@@ -97,5 +97,6 @@ console.log(NODE_API_VERSION);
 | Custom/private nodes, resources, events and Artifacts | [Composition](worker-api/composition.md): `npm run example:runtime:api` |
 | RAG / Skill / Tool / MCP / ReAct | [Flows](worker-api/flows.md): `npm run example:runtime:flows` |
 | Graph/Loop, separate Sandbox, IPC/HTTP | [Runtime](worker-api/runtime.md): `npm run example:runtime:placement` |
+| Resume explicit state and share token admission | [Checkpoints and budgets](worker-api/checkpoints.md) |
 | Context Redis, Memory SQL/Milvus, independent Retrieval | [Database examples](worker-api/examples/integrations/README.md) |
 | All Workers, Providers and individual APIs | [API index](worker-api/README.md) |

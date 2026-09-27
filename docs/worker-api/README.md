@@ -14,6 +14,8 @@ These references follow current public exports and cover factories, SDK methods,
 
 [Runtime / Graph / Loop API](runtime.md): node dependencies, Worker placement, independent sandboxes, local IPC and cross-host HTTP.
 
+[Portable checkpoints, isolated state and token budgets](checkpoints.md): Graph/Loop recovery, BranchStore and provider accounting in `@codesoul-co/ditto@0.1.1`.
+
 [Worker composition, events and Artifacts](composition.md): custom nodes/Workers, resources/dispose, WorkerContext, references and communication adapters.
 
 [Predefined flows](flows.md): complete inputs, outputs and examples for RAG, Skill, Tool, MCP and ReAct.
