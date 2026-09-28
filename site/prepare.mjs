@@ -79,6 +79,11 @@ for (const file of documents) {
     const content = execFileSync(process.execPath, ['-e', 'process.stdout.write(require("fs").readFileSync(process.argv[1],"utf8"))', join(root,path)], {encoding:'utf8'});
     return '```' + (extname(path) === '.ts' ? 'ts' : 'js') + '\n' + content + '\n```';
   });
+  // Repository Markdown keeps its bilingual link rows. On the website, the
+  // persistent header is the only language selector, and it changes the shell too.
+  markdown = markdown.replace(/^(?:\*\*English\*\*|\[English\]\([^)]*\)).*(?:简体中文|中文).*$/gm, line =>
+    line.split(' · ').filter(part => !/English|简体中文|中文/.test(part)).join(' · '));
+  markdown = markdown.replace(/^.*<.*English.*简体中文.*$/gm, '');
   // Rewrite navigation outside code fences; source code and shell commands remain exact.
   const chunks = markdown.split(/(^```[^\n]*\n[\s\S]*?^```\s*$)/gm);
   markdown = chunks.map(chunk => chunk.startsWith('```') ? chunk : chunk.replace(/(!?\[[^\]\n]*\])\(([^\s)]+)\)/g, (_m, label, href) => `${label}(${target(href,file,label)})`)).join('');

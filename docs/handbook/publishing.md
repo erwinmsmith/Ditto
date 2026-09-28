@@ -52,4 +52,4 @@ npm 上已经发布的版本保留发布时的 README。等 Pages 上线后，�
 
 部署流程参考 [VitePress 官方部署文档](https://vitepress.dev/guide/deploy) 和 [GitHub Pages 文档](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site)。
 
-语言菜单切换当前主题，不携带不同语言的标题锚点。旧 `.zh-CN.html` 页面会跳转到 `/zh/` 对应页面；`/en/` 保留为英文首页别名。开发和验证先在 dev 完成，再合并 main 发布，结束后回到 dev。
+页头在桌面和手机始终显示 English / 简体中文。切换会加载当前主题的完整语言页面，统一更新首页、导航、侧栏、搜索和界面提示，不携带不同语言的标题锚点。首次进入根路径为英文，后续页面跳转保持 URL 中选择的语言。旧 `.zh-CN.html` 页面会跳转到 `/zh/` 对应页面；`/en/` 保留为英文首页别名。开发和验证先在 dev 完成，再合并 main 发布，结束后回到 dev。

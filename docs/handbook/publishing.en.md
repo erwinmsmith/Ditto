@@ -1,6 +1,6 @@
 # Maintain Markdown and publish documentation
 
-The site uses the standard VitePress theme. English is the default at `/`; Simplified Chinese lives under `/zh/`. Each topic has matching routes so the standard language menu keeps the current topic. No page-specific frontend components are required.
+The site uses the standard VitePress theme. English is the default at `/`; Simplified Chinese lives under `/zh/`. Each topic has matching routes so the always-visible website language selector keeps the current topic. No page-specific frontend components are required.
 
 ## 1. Build locally
 
@@ -24,7 +24,7 @@ Rebuild after editing source Markdown. The build does not mutate source document
 4. Keep runnable code in example files and include it with `<<< ../../examples/...`.
 5. Build and validate links, locale pairs and rendered language controls. Check desktop/mobile navigation and search.
 
-The preparation step derives language routes from source pairs. Code viewers keep original executable code but translate their surrounding labels. Old `.zh-CN.html` addresses redirect to the corresponding `/zh/` page. `/en/` remains an alias for the English home. Language changes return to the same topic without carrying incompatible translated heading fragments.
+The preparation step derives language routes from source pairs. Code viewers keep original executable code but translate their surrounding labels. Old `.zh-CN.html` addresses redirect to the corresponding `/zh/` page. `/en/` remains an alias for the English home. The header shows English and Simplified Chinese on desktop and mobile. Selecting a language loads the entire localized page, including navigation, search and interface labels, without carrying incompatible heading fragments. A fresh visit to the root opens English; internal navigation retains the language selected in the URL.
 
 Download archives retain original source paths. Credentials, node_modules, local agent instructions, databases and run reports are excluded.
 

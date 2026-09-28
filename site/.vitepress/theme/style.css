@@ -7,3 +7,31 @@
   background: #fff;
   border-radius: 4px;
 }
+
+/* Keep one explicit website-level switch visible at every breakpoint. */
+.VPNavBarTranslations,
+.VPNavScreenTranslations,
+.VPNavBarExtra .translations { display: none !important; }
+.site-language {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 6px;
+  margin-left: 16px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.site-language a { color: var(--vp-c-text-2); padding: 6px 0; }
+.site-language a[aria-current="true"] { color: var(--vp-c-brand-1); font-weight: 600; }
+.site-language a:hover { color: var(--vp-c-brand-1); text-decoration: underline; }
+.site-language a:focus-visible { outline: 2px solid var(--vp-c-brand-1); outline-offset: 3px; }
+html[lang="zh-CN"] { --vp-code-copy-copied-text-content: '已复制'; }
+@media (max-width: 767px) {
+  .VPNavBarTitle .logo { width: 40px; height: 30px; }
+  .VPNavBarTitle .title { font-size: 14px; }
+  .site-language { margin-left: 4px; font-size: 12px; gap: 4px; }
+  .VPNavBarHamburger { width: 36px !important; }
+}
+@media (max-width: 359px) {
+  .VPNavBarTitle .title > span { display: none; }
+}

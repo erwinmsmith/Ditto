@@ -1,6 +1,7 @@
 import { defineConfig, type DefaultTheme } from 'vitepress';
 import { slug } from 'github-slugger';
 import { logoName } from '../locales.mjs';
+import { themeI18n, markdownI18n } from '../theme-i18n.mjs';
 
 const repository = process.env.GITHUB_REPOSITORY || 'erwinmsmith/Ditto';
 const repositoryName = repository.split('/')[1]!;
@@ -15,7 +16,7 @@ function navigation(zh: boolean): DefaultTheme.Config {
   return {
     logo: {src:'/'+logoName,alt:'Ditto'},
     siteTitle: label('Ditto Docs','Ditto 文档'),
-    nav: [item(label('Guide','使用指南'),'docs/handbook/'),item('Worker API','docs/worker-api/README'),item(label('Examples','示例'),'docs/handbook/examples')],
+    nav: [item(label('Guide','使用指南'),'docs/handbook/'),item(label('Worker API','Worker API 参考'),'docs/worker-api/README'),item(label('Examples','示例'),'docs/handbook/examples')],
     sidebar: [
       {text:label('Getting started','开始使用'),items:[guide('Reading guide','阅读路线','index'),item(label('Install and make your first call','安装与第一次调用'),'docs/package-guide'),guide('Project structure and a complete Agent','项目结构与完整 Agent','agent'),guide('Graph and Loop','Graph 与 Loop','graph-loop'),guide('Results, errors and recovery','返回值、错误与恢复','reliability')]},
       {text:label('Connect application capabilities','连接应用能力'),items:[guide('Models and inference','模型配置与推理','models'),guide('Tools: define, select and execute','Tool：定义、选择与执行','tools'),guide('MCP: external tool services','MCP：连接外部工具服务','mcp'),guide('Skills: load and compose instructions','Skill：加载与组合指令','skills'),guide('Databases and Memory algorithms','数据库与 Memory 算法','memory')]},
@@ -47,7 +48,8 @@ export default defineConfig({
     zh:{label:'简体中文',lang:'zh-CN',description:'用 Node、Worker、Graph 与 Loop 构建 Agent 的开发者文档',themeConfig:navigation(true)},
   },
   sitemap:{hostname:origin+base,transformItems:items=>items.filter(item=>!item.url.includes('.zh-CN.html')&&!item.url.startsWith('en/'))},
-  markdown:{lineNumbers:true,anchor:{slugify:slug}},
+  markdown:{lineNumbers:true,anchor:{slugify:slug},config:markdownI18n},
+  vite:{plugins:[themeI18n()]},
   themeConfig:{
     i18nRouting:true,
     search:{provider:'local',options:{locales:{zh:{translations:{button:{buttonText:'搜索',buttonAriaLabel:'搜索文档'},modal:{displayDetails:'显示详细结果',resetButtonTitle:'清除搜索',backButtonTitle:'关闭搜索',noResultsText:'没有找到结果',footer:{selectText:'选择',selectKeyAriaLabel:'回车',navigateText:'切换',navigateUpKeyAriaLabel:'上方向键',navigateDownKeyAriaLabel:'下方向键',closeText:'关闭',closeKeyAriaLabel:'Esc'}}}}}}},
