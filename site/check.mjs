@@ -44,9 +44,15 @@ for (const topic of manifest.pairs) {
     const expectedLang = language === 'zh' ? 'zh-CN' : 'en';
     if (!html?.includes(`<html lang="${expectedLang}"`)) throw new Error(`Wrong/missing page language: ${path}`);
     const other = urlFor((language === 'en' ? 'zh/' : '')+topic);
-    const switchers = html.match(/<div class="[^"]*VPNav(?:Bar|Screen)Translations[\s\S]*?(?:<\/ul>|<\/div><\/div><\/div>)/g) || [];
-    if (!switchers.length || switchers.some(menu=>!menu.includes(`href="${other}"`))) {
-      throw new Error(`Language switch does not preserve topic: ${path} → ${other}`);
+    const switcher = html.match(/<nav class="site-language"[\s\S]*?<\/nav>/)?.[0];
+    if (!switcher?.includes(`href="${other}"`) || !switcher.includes('target="_self"')) {
+      throw new Error(`Site language switch does not preserve topic: ${path} → ${other}`);
+    }
+    const active = urlFor(path);
+    const current = switcher.match(/<a[^>]*aria-current="true"[^>]*>/)?.[0];
+    if (!current?.includes(`href="${active}"`)) throw new Error(`Wrong active site language: ${path}`);
+    if (language === 'zh' && /title="Copy Code"|aria-label="mobile navigation"|aria-label="Permalink to |>Pager</.test(html)) {
+      throw new Error(`Untranslated website controls: ${path}`);
     }
     // Sidebar and top navigation must not drift into the other locale.
     for (const region of html.match(/<aside class="VPSidebar[\s\S]*?<\/aside>|<nav[^>]*aria-labelledby="main-nav-aria-label"[\s\S]*?<\/nav>/g) || []) {
