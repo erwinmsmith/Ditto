@@ -31,3 +31,34 @@ for(const [page,html] of content) for(const match of html.matchAll(/href="([^"\s
 }
 if(failures.length){console.error(failures.slice(0,40));throw new Error(`${failures.length} broken section links`);}
 console.log(`Verified ${pages.length} HTML pages, local links, section anchors, assets and downloads.`);
+
+// A successful build must include real content and matching language controls
+// for every topic, not merely working links back to the two home pages.
+const manifest = JSON.parse(await readFile(join(root,'../../.content/locale-manifest.json'),'utf8'));
+function outputPath(markdown) { return join(root,markdown.replace(/\.md$/,'.html')); }
+function urlFor(markdown) { return base+markdown.replace(/(^|\/)index\.md$/,'$1').replace(/\.md$/,'.html'); }
+for (const topic of manifest.pairs) {
+  for (const language of ['en','zh']) {
+    const path = (language === 'zh' ? 'zh/' : '')+topic;
+    const html = content.get(outputPath(path));
+    const expectedLang = language === 'zh' ? 'zh-CN' : 'en';
+    if (!html?.includes(`<html lang="${expectedLang}"`)) throw new Error(`Wrong/missing page language: ${path}`);
+    const other = urlFor((language === 'en' ? 'zh/' : '')+topic);
+    const switchers = html.match(/<div class="[^"]*VPNav(?:Bar|Screen)Translations[\s\S]*?(?:<\/ul>|<\/div><\/div><\/div>)/g) || [];
+    if (!switchers.length || switchers.some(menu=>!menu.includes(`href="${other}"`))) {
+      throw new Error(`Language switch does not preserve topic: ${path} → ${other}`);
+    }
+    // Sidebar and top navigation must not drift into the other locale.
+    for (const region of html.match(/<aside class="VPSidebar[\s\S]*?<\/aside>|<nav[^>]*aria-labelledby="main-nav-aria-label"[\s\S]*?<\/nav>/g) || []) {
+      for (const [,href] of region.matchAll(/href="([^"#]+)"/g)) {
+        if (!href.startsWith(base)) continue;
+        if (href.startsWith(base+'zh/') !== (language === 'zh')) throw new Error(`Mixed-language navigation: ${path} → ${href}`);
+      }
+    }
+  }
+}
+for (const {from,to} of manifest.redirects) {
+  const html=content.get(outputPath(from));
+  if (!html?.includes('http-equiv="refresh"') || !html.includes(`0;url=${base}${to.slice(1)}`)) throw new Error(`Missing legacy redirect: ${from}`);
+}
+console.log(`Verified ${manifest.pairs.length} bilingual topic pairs and ${manifest.redirects.length} legacy redirects.`);

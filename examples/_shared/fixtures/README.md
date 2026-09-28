@@ -1,3 +1,3 @@
-# Shared fixtures / 共用素材
+# Shared fixtures
 
-此目录用于多个示例共用的小型静态输入。素材需要注明用途和来源，不包含凭据、用户隐私或真实业务数据。专用素材留在各示例自己的 fixtures/ 中。
+Small static inputs shared by several examples belong here. Document each fixture's purpose and source. Do not include credentials, personal information or real business records. Keep task-specific material in the owning example's fixtures directory.

@@ -1,0 +1,9 @@
+/* Preserve the full white line-art logo in both standard-theme appearances. */
+.VPNavBarTitle .logo {
+  width: 48px;
+  height: 36px;
+  object-fit: contain;
+  flex-shrink: 0;
+  background: #fff;
+  border-radius: 4px;
+}
