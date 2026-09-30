@@ -4,6 +4,46 @@
 
 CONTEXT manages working context through LOAD, SELECT, UPDATE, and COMPRESS. Calls either transform an explicit Context or address temporary cached state by scope. Redis is the default cache adapter when an application-owned client is injected; ContextStateStore supports replaceable backends. `createContext()` opens no connections. Only scoped calls access the configured cache. MEMORY owns durable database records.
 
+## Functional selection and parameter effects
+
+| Node | Suitable tasks | Controls and state effects |
+| --- | --- | --- |
+| `CONTEXT.LOAD` | Initialize messages, Skills, evidence and references; restore a working set | `sources` supplies content; `resolveReferences` controls resolution. Scope plus sources initializes/replaces cache; scope alone reads existing state |
+| `CONTEXT.SELECT` | Choose evidence for reasoning or reusable information for durable memory | `purpose`, `query`, `strategy`, `limit`, `maxTokens` control a projection without changing the original working set or scoped cache |
+| `CONTEXT.UPDATE` | Add results, replace by ID, remove stale evidence | Removes, adds, then merges ingress; scoped mode saves with CAS |
+| `CONTEXT.COMPRESS` | Fit history into budgets | `maxItems`, `maxTokens` and metadata control trimming; defaults to removing item groups, saving the result in scoped mode |
+
+### Parameters change evidence coverage
+
+| Parameter / design | Behavioral effect | Tradeoff and boundary |
+| --- | --- | --- |
+| SELECT `limit` / COMPRESS `maxItems` | Larger values admit more items | Increase downstream input; item count is not token count, and one long document may fill the budget |
+| SELECT / COMPRESS `maxTokens` | Larger values admit more estimated tokens; smaller values discard evidence more readily | A content budget excluding complete model protocols, extra prompts and output. Reserve room for them. SELECT skips items that do not fit |
+| SELECT `purpose:"infer"` | Prioritizes system, protected and currentGoal | Priority is not guaranteed retention; budget can still exclude them. Verify required instructions before inference |
+| SELECT `purpose:"memory"` | Prioritizes memoryCandidate, reusable and stable; excludes private=true / memoryEligible=false | Selects without writing MEMORY; these rules are not universal permission filters |
+| SELECT `query` / `strategy` | default scores current items using term overlap and other signals; rag/provider invokes injected services | Term overlap is not semantic similarity. Chinese segmentation, vector search or external knowledge needs an adapter and may add network/embedding calls |
+| metadata `priority` / `relevance` | Adjusts default selection and compression retention | Application values, not calibrated confidence. Large priority values can overpower relevance |
+| metadata `protected` / `safety` / `currentGoal` / `pending` / role=system | COMPRESS retains these items | Fails if protected content exceeds budget; compression protection differs from SELECT ranking |
+| metadata `callId` | Groups correlated tool entries during COMPRESS | Keeps/removes the whole group to preserve request/result pairing; a large protected group may yield BUDGET_UNSATISFIABLE |
+| LOAD `resolveReferences:true` | Resolves bare References through the resolver, retaining source identity | Defaults to false. Adds I/O, content and latency; bound access, size and permissions in the resolver |
+| UPDATE IDs / policy.duplicate | replace, keep-first or reject same-ID items; new IDs add entries | replace preserves insertion position. Stable IDs avoid accumulating duplicate evidence each round |
+
+Request limit/maxItems/maxTokens allow 0–1000000; zero is a zero budget. Policy values are positive ceilings. Defaults: maxItems=256, maxInlineBytes=65536, maxTokens unset. Higher policy does not enlarge model windows or Redis capacity; LOAD/UPDATE exceeding item capacity fail without automatic COMPRESS.
+
+The default estimator rounds JSON UTF-8 bytes / 4 upward rather than using a model tokenizer. Actual counts vary by language, images and protocol. Inject an appropriate estimator and record actual usage for precise budgets. Default compression removes groups; semantic summaries require explicit INFER → validation → UPDATE → COMPRESS, with separate cost and information-loss evaluation.
+
+### Scopes and Worker resources
+
+Explicit context computes over a snapshot; scope accesses injected Redis/stateStore. They are mutually exclusive. sessionId, turnId and invocationId together identify cached state; changing turnId every turn creates a different working set. Use a consistent controlled scope for shared conversations. Multi-Agent applications may put roles in sessionId, but scopes are not authentication credentials.
+
+expectedVersion fails on version changes or expiry instead of overwriting newer state. Longer Redis TTL improves cache availability while retaining data longer; durable tasks still need Memory. Wire Context policy/services at construction, explicitly passing loaded YAML. Request budgets can only tighten policy ceilings.
+
+Worker concurrency limits entry calls; same-scope writes also depend on CAS and operationQueue. A configured local queue serializes by scope with default maxPending=1024. More capacity admits more waiting work and increases memory/waiting time without accelerating one scope. Local replicas sharing state need appropriate shared store/queue instances; a local queue is not cross-process concurrency control.
+
+### A tradeoff example
+
+If RAG retrieves 20 items, SELECT `limit:8,maxTokens:3000` keeps at most eight within the estimated budget. Raising limit to 20 may still fit only a few long items. Check selectedItemIds, required evidence and actual input usage before enlarging budgets, splitting documents or changing ranking. Shorter input can reduce cost while discarding the only critical evidence.
+
 ## Construction and configuration
 
 Import factories from `@codesoul-co/ditto/worker/context` or the root package; import Context, ContextItem, Message and Reference from `@codesoul-co/ditto/contracts`. `createContext(options?)` and `createContextWorker(options?)` share handlers. Results are Context or ContextSelection, without a NodeResult envelope. Failures reject with ContextError or infrastructure/provider errors.

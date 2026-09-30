@@ -4,6 +4,46 @@
 
 CONTEXT 管理当前任务的工作上下文：LOAD 归一化输入，UPDATE 合并内容，SELECT 为推理或长期记忆选取内容，COMPRESS 控制预算。它支持显式 Context 计算，以及按 scope 读写临时缓存。缓存默认适配 Redis，客户端由应用创建并注入；也可通过 ContextStateStore 替换后端。`createContext()` 不建立连接；只有 scope 调用访问已配置的缓存。长期记录与数据库操作仍由 MEMORY 负责。
 
+## 功能选择与参数影响
+
+| Node | 适合的任务 | 关键参数与状态变化 |
+| --- | --- | --- |
+| `CONTEXT.LOAD` | 初始化消息、Skill、资料与引用，或恢复工作集 | `sources` 提供内容；`resolveReferences` 控制引用解析。scope 加 sources 初始化/替换缓存；只有 scope 时读取已有状态 |
+| `CONTEXT.SELECT` | 为当前推理选择证据，或为长期记忆选择可复用信息 | `purpose`、`query`、`strategy`、`limit`、`maxTokens` 控制本次投影，不修改原工作集或 scope 缓存 |
+| `CONTEXT.UPDATE` | 加入结果、替换同 ID 内容、删除失效资料 | 按 `removeIds` → `add` → `ingress` 合并；scoped 模式通过 CAS 保存新工作集 |
+| `CONTEXT.COMPRESS` | 将历史工作集限制在预算内 | `maxItems`、`maxTokens` 和 metadata 决定裁剪；默认删除条目组，scoped 模式保存结果 |
+
+### 参数怎样改变信息覆盖
+
+| 参数 / 设计 | 行为影响 | 取舍与边界 |
+| --- | --- | --- |
+| SELECT `limit` / COMPRESS `maxItems` | 较大值允许更多条目进入结果 | 增加下游输入量；条数不是 token 数，一条长文也可能占满预算 |
+| SELECT / COMPRESS `maxTokens` | 较大值容纳更多估算 token；较小值更容易舍弃资料 | 是 Context 内容预算，不包含完整模型协议、额外提示和输出，需为它们预留窗口；SELECT 跳过装不下的条目 |
+| SELECT `purpose:"infer"` | 默认优先 system、protected、currentGoal | 优先排序不等于保证保留，SELECT 仍可因预算跳过它们；推理前检查必要指令是否入选 |
+| SELECT `purpose:"memory"` | 默认优先 memoryCandidate、reusable、stable，排除 private=true / memoryEligible=false | 只选择候选，不写入 MEMORY；这些规则不是所有用途通用的权限过滤器 |
+| SELECT `query` / `strategy` | default 使用当前快照的词项重合等评分；rag / provider 使用注入服务 | 词项重合不等于语义相似；中文分词、向量检索或外部知识库需配置适配器，可能增加网络/embedding 调用 |
+| metadata `priority` / `relevance` | 调整默认选择与压缩的保留优先级 | 是应用数值，不是校准置信度；过大的优先级可能压过相关性信号 |
+| metadata `protected` / `safety` / `currentGoal` / `pending` / role=system | COMPRESS 保留这些条目 | 保护内容超预算时失败；压缩保护与 SELECT 排序不同 |
+| metadata `callId` | COMPRESS 将同一工具调用的相关条目作为一组 | 整组保留或移除，避免请求和结果断开；大保护组可能导致 BUDGET_UNSATISFIABLE |
+| LOAD `resolveReferences:true` | 通过 resolver 解析裸 Reference，保留来源身份 | 默认 false；增加 I/O、内容和耗时，应用 resolver 应限制访问范围、大小和权限 |
+| UPDATE ID / policy.duplicate | 同 ID 可 replace、keep-first 或 reject；新 ID 继续增加条目 | replace 保留原插入位置；使用稳定 ID 可避免每轮堆积重复资料 |
+
+请求 `limit`、`maxItems`、`maxTokens` 允许 0–1000000，0 是零预算；policy 数值为正整数并作为上限。默认 maxItems=256、maxInlineBytes=65536、maxTokens 未设置。提高 policy 不扩大模型窗口或 Redis 容量；LOAD / UPDATE 超条数上限会失败，不自动 COMPRESS。
+
+默认 tokenEstimator 使用 JSON UTF-8 字节数 / 4 向上取整，不是具体模型 tokenizer。不同语言、图片和协议的真实计数可能不同；需要准确预算时注入 estimator，并记录真实 usage。默认压缩删除条目组；语义摘要需要显式 INFER → 校验 → UPDATE → COMPRESS，并另行评估模型成本与信息损失。
+
+### scope 与 Worker 资源
+
+显式 `context` 计算快照，`scope` 访问注入 Redis / stateStore，二者互斥。sessionId、turnId、invocationId 一起决定缓存键；每轮改变 turnId 会产生不同工作集。需要共享会话时使用一致的受控 scope；多 Agent 可以把角色纳入 sessionId，但 scope 本身不是认证凭证。
+
+`expectedVersion` 在版本变化或过期时失败，避免旧状态覆盖新状态。更长 Redis TTL 提高缓存可用时间，也延长资料保留；长期任务仍需 Memory。Context policy/services 从构造参数接入，读取 YAML 后需显式传入；请求预算只能收紧 policy 上限。
+
+Worker `concurrency` 控制入口调用数；同 scope 写入还受 CAS 和 operationQueue 影响。配置的本地队列按 scope 串行，默认 maxPending=1024；扩大队列容纳更多等待操作，也增加内存和等待时间，不加速单个 scope。共享状态的本地副本应共享适当 store/queue；本地队列不能代替跨进程并发控制。
+
+### 参数取舍实例
+
+RAG 检索出 20 条资料，SELECT `limit:8,maxTokens:3000` 最多保留 8 条并满足估算预算。将 limit 改成 20，仍可能只容纳少量长条目。检查 selectedItemIds、必要证据和真实输入用量，再决定扩展预算、切分资料或改变排序。输入变短可以降低成本，也可能丢掉唯一关键证据。
+
 ## 接入与配置
 
 从 `@codesoul-co/ditto/worker/context` 或根入口导入工厂。共用数据类型 Context、ContextItem、Message、Reference 从 `@codesoul-co/ditto/contracts` 导入。`createContext(options?)` 创建直接 SDK；`createContextWorker(options?)` 注册四个同名节点。两者共用实现，返回 Context 或 ContextSelection，失败抛出 ContextError；不返回 NodeResult。

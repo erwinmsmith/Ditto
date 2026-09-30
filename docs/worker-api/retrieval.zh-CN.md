@@ -6,6 +6,48 @@ RETRIEVAL v0.1 只提供 `RETRIEVAL.SEARCH`。它是按需启用的通用相关�
 
 RETRIEVAL 作为独立的可选 npm 包 `@codesoul-co/ditto-retrieval` 分发，并将 `@codesoul-co/ditto` 声明为 peer dependency。需要检索时安装两个包。Core 根入口和 `@codesoul-co/ditto/worker` 不导出/加载 RETRIEVAL；只有显式导入并注册后才执行。YAML 配置不会启动 Worker。默认 MEMORY/CONTEXT 的本地或外部 Provider 接入不变，普通部署无需增加一跳远程调用。
 
+## 功能选择与参数影响
+
+`RETRIEVAL.SEARCH` 返回相关资料候选，用于文档、外部知识库、代码索引或记忆搜索。它不生成最终答案、不写入源库，也不自动选择知识库。完整问答由 Loop 组合检索、Context 选择、INFER 与引用校验 Graph。内部记忆通常从 MEMORY.SEARCH 进入；外部知识库可以直接调用 RETRIEVAL.SEARCH，两者可复用同一 Provider 算法。
+
+### 请求参数决定检索范围与返回规模
+
+| 参数 | 对 Node 的影响 | 对 Worker / 后端的影响 |
+| --- | --- | --- |
+| `query.content` | 文本、向量或结构化查询，具体语义由 Provider 校验 | 向量 Provider 可直接查询预计算向量，或先 embedding 文本；文本 Provider 不调用 embedding。更长文本可能增加模型成本，不保证检索更好 |
+| `target.name` | 从已注册的目标选择 Provider | 选择语料与后端绑定，不从名称推断 URL、表或连接；未知目标失败，不自动换库 |
+| `target.namespace` / metadata | 向 Provider 传递范围与应用元数据 | 只有 Provider 实际实施的约束才有效；namespace 本身不是授权身份。适配器从可信身份检查访问范围 |
+| `strategy` | 选择目标已注册的 vector / keyword / bm25 / hybrid / 自定义策略 | 省略时使用注册默认；设置 hybrid 不自动创建分支。不同算法分数不同，不能直接视为置信度或相加 |
+| `filter` | 传递版本、租户、时间或其他筛选条件 | Provider 必须实施或明确拒绝；更窄范围可能提高精度，也可能排除唯一证据，索引影响性能 |
+| `limit` | 控制最终最多返回的候选，默认 10，允许 1–10000 | 增大可能提高召回，也增加传输、排序与 Context 输入；不是 embedding batchSize 或模型采样 topK |
+| `options` | 传递 Provider 专用查询参数 | 不存在统一自动生效的 minScore / threshold 协议；按具体适配器说明配置并测试 |
+
+Node 包装器校验目标、策略、候选形状和数量，保留 Provider 顺序。它不自动归一化分数、去重或重排；以下算法行为来自显式组合的可选 Provider。
+
+### Provider 参数决定候选池与计算成本
+
+| 参数 | 默认 / 作用 | 调整后的取舍 |
+| --- | --- | --- |
+| `embedding.batchSize` | 默认 64，1–2048；embedContents 顺序执行有界批次 | 较大批次减少请求次数，但增加单次 payload、内存和失败影响范围，并受服务批次/token 限制；不是并行度 |
+| `embedding.dimensions` | 可选，验证向量长度 | 检查模型输出与索引是否匹配，不截断向量，也不改变 HTTP embedding 请求维度；修改模型/索引维度需重建兼容数据 |
+| vector `nativeEmbedding` / `embedding` | 选择数据库原生 embedding 或外部 EmbeddingProvider，二者互斥 | 原生模式由数据库处理文本，外部模式增加模型请求；相同维度但不同模型的向量仍可能不兼容 |
+| hybrid `candidateLimit` | 默认 100，每个分支使用至少 `max(request.limit,candidateLimit)` 的候选池 | 提高候选覆盖，也增加每个后端返回量与融合工作；是池容量下限，不是忽略 request.limit 的硬上限 |
+| hybrid branches / weight | 分支并发查询，默认权重 1，必须为正 | 更多分支增加后端调用；较高权重偏向该分支，但原始 score 不相加。任何分支失败使整个操作失败，已接收分支会先结束 |
+| hybrid `rrfK` | 默认 60，正整数；融合分数为各分支 `weight/(rrfK+rank)` 之和，rank 从 1 起 | 较小值强调前列排名差异；较大值缩小排名差异的影响，使跨分支出现的贡献相对更突出。不是候选数量 |
+| hybrid `key` | 默认用来源目标与 ID / ref 识别记录 | 决定去重与融合对象；不同来源的同一记录需共享身份映射，无 ID/ref 时需显式 key |
+| rerank `candidateLimit` | 默认 100，至少最终 limit；先扩大检索池再重排 | 提高裁判可见覆盖，也增加 reranker 工作；重排无法找回检索池之外的证据 |
+| `createCosineReranker(embedding)` | embedding 查询和候选内容，再按余弦相似度排序 | 候选越多 embedding 工作越多；它不是 cross-encoder，其他判分模型需注入 RerankProvider |
+
+最终 limit 优先级为请求 → Worker defaults → Runtime YAML → 10。Provider 数值优先级为构造 options → 对应 Worker defaults 字段 → YAML → 内置值。已在构造时写死 candidateLimit 的 Provider 不会因 YAML 修改该值；需要集中调参时省略相应构造值，并显式传入配置。
+
+### 资源占用与参数取舍实例
+
+Worker concurrency 限制 SEARCH 入口调用；一个 hybrid 搜索内部仍会并发调用多个分支。一个入口槽位不等于一个数据库请求。根据分支数、连接池与 embedding / rerank 配额设置并发，取消由 SDK / Provider 合作落实，远端 HTTP 取消不保证服务器停止。
+
+例如最终 limit=8、两个 hybrid 分支各 candidateLimit=100，最多各读取 100 个候选再融合为最多 8 个。若外层 rerank candidateLimit=50，它会把内层最终检索池扩大到至少 50，再选出 8 个；hybrid 分支自己的 100 下限仍生效。Context 之后还可能只选择其中 5 个；提高搜索池并不意味着所有资料都进入模型。评估时分别检查后端召回、候选排序、进入 Context 的证据、延迟与实际资源用量。
+
+完整构造与数据库适配见[检索 Provider 文档](retrieval-providers.zh-CN.md)。SEARCH 不创建索引或自动同步记忆写入；参数变化涉及向量模型、数据范围或索引时，先核对已有数据兼容性。
+
 ## 按需启用
 
 ```ts

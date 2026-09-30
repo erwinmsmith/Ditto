@@ -6,6 +6,48 @@ RETRIEVAL v0.1 provides only `RETRIEVAL.SEARCH`: an optional execution boundary 
 
 It ships as the separate optional npm package `@codesoul-co/ditto-retrieval`, with `@codesoul-co/ditto` as a peer dependency. Install both packages when retrieval is needed. Core's root and worker entry points do not export/load it. Import and register explicitly; YAML alone never starts a Worker. Applications decide when to deploy it; Core does not automatically start services based on load.
 
+## Functional selection and parameter effects
+
+`RETRIEVAL.SEARCH` returns relevant evidence candidates for documents, external knowledge bases, code indexes or memory search. It does not generate answers, write source stores or choose a corpus automatically. Loop composes retrieval, Context selection, inference and citation-checking Graphs for complete QA. Internal memory normally enters through MEMORY.SEARCH; external knowledge can call RETRIEVAL.SEARCH directly, reusing provider algorithms where appropriate.
+
+### Request parameters determine scope and result size
+
+| Parameter | Node impact | Worker/backend impact |
+| --- | --- | --- |
+| `query.content` | Text, vectors or structured queries with provider-defined semantics | Vector providers can search precomputed vectors or embed text first; text providers do not embed. Longer text may increase model cost without improving retrieval |
+| `target.name` | Resolves a registered target provider | Selects corpus/backend bindings without inferring URLs, tables or connections. Unknown targets fail without switching stores |
+| `target.namespace` / metadata | Passes scope and application metadata to the provider | Only implemented provider constraints take effect. Namespace is not authorization; adapters validate trusted identity and access scope |
+| `strategy` | Chooses a registered vector/keyword/bm25/hybrid/custom strategy | Omission uses the registered default; hybrid does not create branches automatically. Scores are not confidence and cannot be added across algorithms |
+| `filter` | Passes version, tenant, time or other constraints | Provider must enforce or reject them. Narrower scope may improve precision or exclude the only evidence; indexes affect performance |
+| `limit` | Caps final candidates; default 10, range 1–10000 | Larger limits can increase recall, transfer, ranking and Context input. Not embedding batchSize or sampling topK |
+| `options` | Passes provider-specific query controls | No universal automatic minScore/threshold protocol; configure and test the actual adapter |
+
+The Node wrapper validates target, strategy, shapes and counts while preserving provider order. It does not automatically normalize scores, deduplicate or rerank; the following behaviors belong to explicitly composed optional providers.
+
+### Provider settings determine pools and computation
+
+| Parameter | Default / behavior | Adjustment tradeoff |
+| --- | --- | --- |
+| `embedding.batchSize` | Default 64, range 1–2048; embedContents executes bounded batches sequentially | Larger batches reduce request count while increasing payload, memory and failure scope, subject to service batch/token limits. Not concurrency |
+| `embedding.dimensions` | Optional expected vector length | Validates output/index compatibility; does not truncate vectors or change HTTP request dimensions. Model/index dimension changes require compatible reindexing |
+| vector `nativeEmbedding` / `embedding` | Chooses database-native embedding or an external provider, mutually exclusive | Native mode delegates text processing to the database; external mode adds model calls. Equal dimensions do not guarantee model compatibility |
+| hybrid `candidateLimit` | Default 100; each branch uses at least max(request.limit,candidateLimit) | Expands coverage and backend/fusion work. A pool floor rather than a ceiling that ignores request.limit |
+| hybrid branches / weight | Concurrent branch queries; positive weights default to 1 | More branches add backend requests; higher weight favors that branch without adding raw scores. Any branch failure fails the operation after accepted branches settle |
+| hybrid `rrfK` | Default 60, positive integer; sum of weight/(rrfK+rank), rank starts at 1 | Smaller values emphasize leading rank differences; larger values reduce rank differences and make contributions across branches relatively more prominent. Not a candidate count |
+| hybrid `key` | Defaults to source target plus ID/ref identity | Determines deduplication/fusion identity. Cross-source equivalents need shared mapping; missing IDs/refs require an explicit key |
+| rerank `candidateLimit` | Default 100, never below final limit; retrieves a larger pool then reranks | Expands judge-visible coverage and scoring work. Reranking cannot recover evidence outside its search pool |
+| `createCosineReranker(embedding)` | Embeds query and candidate content, then sorts cosine similarity | More candidates require more embedding work. Not a cross-encoder; inject another RerankProvider for other scoring models |
+
+Final limit resolves request → Worker defaults → Runtime YAML → 10. Provider numbers resolve constructor options → matching Worker-default field → YAML → built-in value. A provider with constructor candidateLimit does not change that value from YAML; omit fixed options and explicitly supply configuration for centralized tuning.
+
+### Resource usage and a tradeoff example
+
+Worker concurrency bounds SEARCH entry calls; one hybrid search still queries several branches concurrently. One entry slot is not one database request. Match concurrency to branches, pools and embedding/rerank quotas. Cancellation is cooperative, and remote HTTP cancellation does not guarantee server termination.
+
+With final limit=8 and two hybrid branches each using candidateLimit=100, each reads at most 100 candidates before fusion returns at most eight. An outer reranker with candidateLimit=50 requests at least 50 fused results before selecting eight; each hybrid branch's own floor of 100 still applies. Context may subsequently select only five. Larger search pools do not put every document into the model. Evaluate backend recall, candidate ranking, evidence reaching Context, latency and actual resource usage separately.
+
+See [provider/database wiring](retrieval-providers.md). SEARCH does not create indexes or synchronize memory writes automatically. When changing embedding models, data scope or indexes, check existing data compatibility.
+
 ## Enable explicitly
 
 ```ts

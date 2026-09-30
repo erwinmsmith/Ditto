@@ -4,6 +4,40 @@
 
 MEMORY implements GET, QUERY, SEARCH, WRITE, UPDATE and DELETE as stable access primitives over externally supplied storage/search plugins. Ditto handles routing, validation, result envelopes and injection. Applications own database clients, connections, schema, indexes and migrations. Core includes no SQL statements, MySQL/PostgreSQL drivers, Milvus client or database deployment.
 
+## Functional selection and parameter effects
+
+| Node | Suitable tasks | How parameters affect results |
+| --- | --- | --- |
+| `MEMORY.GET` | Restore a known checkpoint, preference or handoff | Exact ids/keys union with deduplication; omits missing records without relevance search |
+| `MEMORY.QUERY` | Enumerate records by task, status, time or other structure | filter narrows the set, orderBy selects order, limit/cursor paginate; Store defines semantics |
+| `MEMORY.SEARCH` | Find durable memory relevant to the current question | query, strategy, filter, limit and options go to the search plugin; not fuzzy GET |
+| `MEMORY.WRITE` | Save new facts, stage artifacts or task-state records | memories key/content/metadata create records; Store defines IDs and key conflicts |
+| `MEMORY.UPDATE` | Correct known content or metadata | Updates supplied fields by ID; omitted fields remain, supplied metadata replaces the whole object |
+| `MEMORY.DELETE` | Remove confirmed expired, withdrawn or unwanted records | Deduplicates IDs and reports actual removals; does not clear other Worker caches or loaded Context |
+
+### Query, ordering and write tradeoffs
+
+| Parameter / design | Behavioral effect | Worker/backend impact |
+| --- | --- | --- |
+| QUERY / SEARCH `limit` | Larger values expand a page or relevant-result set and may admit weaker matches | More backend reads, transfer and downstream Context processing; not a total-history limit |
+| QUERY `cursor` / `orderBy` | Stable ordering and cursors support pagination; changing order can change pages | Plugin-defined cursor encoding is not freely reusable across queries/backends. Unstable order can skip or repeat items |
+| QUERY / SEARCH `filter` | Restricts tenant, task, time or document-version scope | Plugin defines support and indexes. Enforce access scope from trusted identity in application/adapters; caller filters are not permission evidence |
+| SEARCH `strategy` / `query` | Selects vector, keyword, hybrid or custom algorithms; queries may be text, vectors or structured objects | Requires plugin support; MEMORY neither embeds automatically nor creates a vector index on writes |
+| SEARCH `options` / `score` | options tunes plugin behavior; score expresses plugin relevance | No universal score-above-0.8 trust rule. Evaluate scale, direction and thresholds with the algorithm and corpus |
+| WRITE `key` / `metadata` | Stable keys support exact recovery; metadata can hold provenance, versions and task identity | Keys do not automatically mean upsert or idempotency. Store constraints/transactions must prevent duplicate retry writes |
+| UPDATE `content` / `metadata` | Omission retains values; content=null explicitly changes content, metadata={} clears metadata | Supplying one metadata field replaces the object. Merge explicitly in trusted application/adapters and handle concurrent changes |
+| WRITE / UPDATE batch size | Multiple objects per call can reduce application round trips | Larger payloads and transactions; Ditto does not guarantee atomic batches. Store must specify transactions, partial failures and compensation |
+
+Limits are integers in 1–10000. Defaults are QUERY=100 and SEARCH=10, resolving request limit → constructor defaults → Runtime YAML → built-in default. Constructor defaults are fallbacks rather than hard ceilings; a request can raise its limit within the contract. Standalone SDKs need explicit configuration.
+
+WRITE/UPDATE do not invoke models, validate facts, consolidate summaries, embed or update Context. Separate source stores and vector indexes require application-managed update/delete consistency. Empty batches return locally. Verify returned records, stable keys and actual persistence rather than accepting a model statement that data was saved.
+
+### Worker resources and recovery
+
+Worker concurrency bounds entry calls without creating database pools or controlling Store-internal fan-out. Higher concurrency can improve throughput or produce pool waits, lock contention and rate limits; match actual plugin capacity. Forward cancellation to drivers; stopping a wait does not prove a write rolled back. Applications define consistency boundaries across patches, checkpoints and external effects.
+
+Use GET with a known key to restore a stage, QUERY with explicit conditions to list unfinished tasks, and SEARCH for similar prior experience. Records do not automatically become model messages. Check permissions, provenance and versions, then map into CONTEXT while retaining record IDs for verification.
+
 ## Setup
 
 ```ts

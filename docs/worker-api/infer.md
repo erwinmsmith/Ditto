@@ -6,6 +6,85 @@ This reference describes the implementation in `src/worker/infer/`: model sampli
 
 Import INFER contracts from `@codesoul-co/ditto/worker/infer` or the root `Infer` type namespace. Graph bindings map Context/Memory outputs to INFER fields.
 
+## Functional selection and parameter effects
+
+### Choose a Node by task
+
+The table uses full Node IDs; short names such as SAMPLE are explanatory. The four REASONING Nodes generate content through providers; the three CACHE Nodes operate only on explicit cache entries.
+
+| Node | Suitable tasks | Behavior controls | Execution and Worker impact |
+| --- | --- | --- | --- |
+| `INFER.REASONING.SAMPLE` | Answers, classification, extraction, plans, text or action requests | `messages`, `model`, `generation`, `actions` | Generates one response. Built-in OpenAI-compatible and Gemini adapters enforce one candidate. INTERACTION executes requested actions separately |
+| `INFER.REASONING.TRAJECTORY` | Advance stages within one reasoning task, explore alternative solutions or vote on independent answers | `strategy`, `constraints`, `objective`, `context`, `memory` | One Node call can make several model requests, sharing its budget, deadline and Worker entry slot |
+| `INFER.REASONING.REFLECT` | Review an existing answer, plan, trajectory or artifact; propose a revision | `target`, `mode`, `criteria`, reference data | One model review parsed into a structured assessment; critical facts and permissions still need deterministic checks |
+| `INFER.REASONING.DELIBERATE` | Rank, select or combine existing candidates; organize disagreements | `candidates`, original task, `mode`, `selectCount` | One model deliberation; does not generate candidates. In select mode, `result` is the first-ranked original candidate; retained IDs appear in `selectedCandidateIds` |
+| `INFER.CACHE.LOOKUP` | Check for a reusable result before generating | `key.namespace`, `key.scope`, `key.key` | Returns an existing value on a hit or `hit:false`; a miss does not automatically call SAMPLE |
+| `INFER.CACHE.WRITE` | Save a validated inference result for reuse | `value`, `key`, `ttlMs`, `tags` | Writes the cache backend; does not write MEMORY or automatically cache other Node results |
+| `INFER.CACHE.INVALIDATE` | Remove old results after data, prompts or models change | A key, tag or namespace `selector` | Invalidates an exact entry or a group; broader invalidation can cause more subsequent misses and model calls |
+
+### Generation: stability, diversity and output budgets
+
+These parameters affect model decoding. They neither change SAMPLE's candidate count nor grant tool permissions. Ranges below are Ditto validation ranges; a model may support only a subset.
+
+| Parameter | Behavioral effect | Tradeoff and boundary |
+| --- | --- | --- |
+| `temperature`, 0–2 | On supporting models, lower values generally concentrate output; higher values increase sampling randomness and can produce different wording or approaches | Higher settings can also increase deviations from required formats or evidence. They are not confidence values and do not guarantee broader correct-answer coverage. Zero does not guarantee identical text |
+| `topP`, 0–1 | Limits possible tokens by cumulative probability mass; lower settings usually narrow the choices, higher settings admit more low-probability options | Interacts with temperature. Change one primary sampling control at a time so the cause of a difference remains clear |
+| `topK`, positive integer | On supporting models, restricts selection to the K most probable tokens; smaller K narrows choices | Not a retrieval result count and does not add facts. The OpenAI-compatible adapter sends `top_k`, which an endpoint may reject; Gemini support also depends on the model |
+| `maxTokens`, positive integer | Caps one generation's output budget; larger limits accommodate longer answers, JSON or revisions | Does not require using the entire budget or enlarge the input window. Small limits can produce `finishReason:"length"`; some models count internal reasoning toward the output budget |
+| `stop`, nonempty string array | Ends generation when a configured sequence appears | Useful for delimiters but can truncate JSON or prose. `finishReason:"stop"` does not replace completeness and format validation |
+| `seed`, safe integer | Supplies a sampling seed for repeated experiments where supported | Model version, endpoint and other settings still matter; deterministic output is not guaranteed. The built-in Anthropic adapter explicitly rejects `generation.seed` |
+
+Consult [OpenAI Chat Completions](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create) and [Gemini GenerationConfig](https://ai.google.dev/api/generate-content#generationconfig) for sampling semantics and model support. Check the specific model before applying a temperature profile. Ditto does not universally fill an omitted temperature with 1; Worker defaults and adapter/model defaults apply separately.
+
+### Input design also changes the result
+
+| Parameter | Node impact | Downstream impact |
+| --- | --- | --- |
+| `messages` roles, order and content | Establish the task, constraints, evidence and history; longer input generally increases input tokens and processing load | Identify untrusted evidence and specify the output structure. Temperature cannot compensate for missing facts or external text promoted into high-priority instructions |
+| `model.provider` / `model.model` | Select a registered adapter and model; model capabilities and native multimodal formats determine supported inputs | Can change cost, latency, context windows and action support. Re-evaluate the same tasks and validation after changing models |
+| `model.providerOptions` | Supplies provider-specific adapter fields | Does not make them portable. Core request fields and explicit generation settings can override corresponding values; `n` cannot bypass the single-candidate contract |
+| SAMPLE `actions[].description` / `inputSchema` | Helps the model choose actions and construct arguments | Descriptors define the model-visible protocol; tool validators still check arguments. SAMPLE checks declared action names and the trusted caller binds targets |
+| `metadata` | Provides call metadata whose use depends on the adapter | Built-in HTTP protocols do not automatically send top-level metadata as a prompt or request metadata. Put model-visible information in explicit message fields |
+| REFLECT `criteria`, `target` / DELIBERATE `objective`, `messages` | Defines review criteria and the original task so comparison remains relevant | Criteria weights and candidate scores are model input data, not a deterministic weighted total computed by the framework |
+
+### Multi-step reasoning: controls that increase actual model calls
+
+The table describes built-in strategies without errors or early budget stops. Their candidate calls currently run sequentially; raising Worker concurrency does not parallelize a loop inside one TRAJECTORY.
+
+| Strategy / parameter | Default | Effect of increasing it |
+| --- | --- | --- |
+| `cot.options.rounds` / `long-cot.options.rounds` | 2 / 4; range 1–64 | One model request per round, with earlier results carried forward. History and accumulated latency grow; correctness is not guaranteed to improve |
+| `self-consistency.options.candidates` | 3; range 1–16 | Generates that many independent answers and uses deterministic answer voting. No extra model judge; a tie for the highest vote fails |
+| `tot.options.breadth` / `depth` / `beamWidth` | 3 / 2 / 2; each 1–16 | Breadth adds alternatives per retained state, depth adds levels, beamWidth retains more states for later expansion. Each level also needs one model ranking call |
+| `got.options.breadth` / `depth` | 3 / 2; each 1–16 | Each level generates breadth perspectives and makes one model merge call: `depth * (breadth + 1)` requests |
+| `constraints.maxSteps` | 16; positive integer | Bounds actual model requests in this TRAJECTORY, including ranking/merging. It is neither `steps.length` nor the Loop's Graph count |
+| `constraints.maxTotalTokens` | Unset | Bounds cumulative input/output usage, requiring usable usage from every provider call. A smaller budget can yield partial output; large input can still make final usage exceed the limit |
+| `constraints.timeoutMs` | Inherited, also bounded by the call deadline | Increases available time only when other effective deadlines allow it; a larger budget does not restart a stopped call |
+
+For example, ToT breadth=3, depth=2, beamWidth=2 needs `3 + 1 + 2*3 + 1 = 11` model requests, including two rankings. `maxSteps:4` cannot complete that path; temperature does not change the request count. To generate candidates concurrently, place several SAMPLE branches in a Graph and then invoke DELIBERATE; see [candidate workflows](candidate-workflows.md).
+
+REFLECT critique identifies issues, verify requires a pass/fail assessment, and revise requires a revised result; one call does not repeatedly review itself. DELIBERATE select retains original candidates, merge generates a combined answer, consensus organizes agreement and uncertainty, and debate compares objections. These modes do not automatically start other Agents. Loop controls repeated review and stopping.
+
+### Worker defaults, caching and resource usage
+
+Ordinary generation fields resolve as request `generation` field → effective Worker generation default field → adapter/model default. DELIBERATE additionally overlays `defaults.deliberate.generation` on ordinary defaults before request fields. Explicit `createInferWorker({defaults})` replaces the Runtime infer defaults object rather than automatically deep-merging YAML; include every group you intend to retain.
+
+Request parameters do not mutate replica configuration. Worker concurrency limits simultaneous Node entry calls. One long trajectory holds one slot while potentially making many model requests. More slots can improve independent-task throughput but may hit provider rate limits. Standalone SDK calls bypass Runtime replica scheduling. Timeouts bound waiting and cooperative cancellation; custom providers must honor the signal to stop underlying I/O.
+
+The default memory inference cache holds at most 1000 entries, isolated per SDK/replica. For this backend, omitted `ttlMs` has no expiry but remains subject to LRU eviction; zero removes the old value without retaining the new one. Longer TTL increases reuse and the lifetime of stale information. Application keys should bind model, generation settings, prompt version and evidence version; different requests sharing a key can return an old result. Reusing one cached value also prevents new diversity even with a higher temperature.
+
+### Evaluate settings by scenario
+
+Start with model-recommended defaults. Where the model supports temperature tuning, the following are experimental starting points rather than Ditto defaults or quality guarantees.
+
+| Scenario | Design to try | What to check |
+| --- | --- | --- |
+| Classification, extraction, tool arguments, supervisor decisions | Low temperature, for example 0–0.2; explicit structure; enough output budget | Schema, business constraints, tool permissions, errors and truncation. Low temperature does not guarantee factual accuracy |
+| Copywriting and solution exploration | Higher temperature, for example 0.7–1; distinct perspectives; several SAMPLE branches | Candidate differences, goal coverage and feasibility, followed by lower-temperature deliberation. One random response does not cover several solutions |
+| Evidence-based factual answers | Provide evidence through CONTEXT/retrieval and require checked citations | Agreement with sources and evidence gaps. Raising temperature does not expand retrieval |
+| Long reasoning or revision | Set model-call, cumulative token, timeout and Loop limits together | Outer/inner status, stopReason, actual usage and task completion |
+
 ## 1. Setup and lifecycle
 
 ```ts
