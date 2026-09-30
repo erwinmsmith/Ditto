@@ -4,6 +4,46 @@
 
 INTERACTION 执行外部动作、标准化观察并交付最终消息。Graph 定义调用顺序与数据依赖，Loop 管理迭代和停止条件，Worker 注入工具、MCP 客户端与输出接收端。没有独立 Agent 管理层、命令自动注册或插件扫描器。
 
+## 功能选择与参数影响
+
+| Node | 适合的任务 | 输入如何改变执行 |
+| --- | --- | --- |
+| `INTERACTION.ACT.TOOL` | 执行已注册的文件、API、数据库、代码或业务操作 | `call.name` 选择工具，`arguments` 传递结构化参数，`call.id` 关联结果；一次调用执行一次工具 |
+| `INTERACTION.ACT.MCP` | 从已连接 MCP 服务发现能力或调用工具 | `operation` 选择 discover / invoke，`server` 限定服务，invoke 的 call 选择工具和参数 |
+| `INTERACTION.OBSERVE` | 把工具原始结果转为后续推理可用的观察 | `result.status/content/structuredContent/references/error` 决定 tool 消息与保留信息；不触发重试或状态更新 |
+| `INTERACTION.OUTPUT` | 将经校验的答案与产物交给 UI、队列或其他输出端 | `deliveryId` 关联回执，`message` 是交付内容，`artifacts` 是产物引用；真实交付语义由 OutputSink 定义 |
+
+### 参数设计影响动作范围与结果完整性
+
+| 参数 / 设计 | 对 Node 的影响 | 对 Worker 与业务的影响 |
+| --- | --- | --- |
+| 工具 `description` / `inputSchema` | 帮助模型理解何时调用、需要哪些字段 | 描述不是执行策略；ToolRegistry 调用 RegisteredTool.validate，框架不会自动运行一个完整 JSON Schema 校验器 |
+| 工具 `arguments` | 决定实际查询范围、文件路径、对象 ID 或写入内容 | 必须在 validate / execute 中检查业务约束与权限；较大批次/范围可能增加数据库、API 与输出负担 |
+| 工具 `effects` / `requiresApproval` | 提供动作效果和审批意图元数据 | 不自动弹出人工确认；应用 Graph / Loop 应先核验批准，再进入真实写入工具，工具端也校验批准与对象版本 |
+| `call.id` | 将动作、结果与观察关联起来 | 不自动生成幂等事务或避免重复外部操作；重试前按后端幂等键/receipt 核对副作用 |
+| MCP `operation:"discover"` / `server` | 指定 server 只发现该服务；省略则遍历已注册服务 | 服务越多，发现分页与能力体积可能越大；注册和 Sandbox 允许范围都必须满足，不自动连接新服务 |
+| MCP `operation:"invoke"` | 调用一个已连接服务的指定工具 | MCP server 仍负责工具业务权限与输入约束；工具返回 isError 会成为 failed 结果，不当作成功正文 |
+| OBSERVE `structuredContent` / `references` | 保留机器可读信息与引用，失败时保留状态和错误 | 可以帮助解析下一步，但大对象会增大模型输入；先裁剪/选择，再明确 CONTEXT.UPDATE，不自动加入会话 |
+| OUTPUT `deliveryId` / `artifacts` | 检查回执 ID 匹配、保留产物引用 | 稳定 deliveryId 可供 sink 幂等实现，但 Worker 不替 sink 去重；引用不是自动上传、复制或发布文件 |
+
+消息、工具请求和观察在 Contracts 与 Infer 之间需要显式映射。保留 callId 和工具来源，OpenAI 兼容的 Infer tool 消息需要 `metadata.actionRequestId`。只把工具字符串拼接成 user 消息会丢失调用身份和失败语义；按实际模型协议构造消息。
+
+### 数值限制与资源取舍
+
+| 配置 | 默认 / 范围 | 调整影响 |
+| --- | --- | --- |
+| `createReadOnlyCommandTools` maxEntries / maxOutputBytes / maxErrorBytes | 1000 条 / 64 KiB / 8 KiB；硬上限 10000 条 / 1 MiB / 64 KiB | 增大保留更多输出，也增加传输与 Context 成本；减小可能截掉关键错误，检查 structuredContent.truncated |
+| `web_search` arguments.limit | 默认 5，1–20 | 增大搜索结果覆盖，同时引入更多阅读和筛选工作；返回 title/url/snippet，不自动打开网页全文 |
+| Brave Provider timeoutMs / maxResponseBytes | 由 Provider / 配置设置，详见下文 | 较长等待允许慢响应但占用 Worker 更久；更大响应容量接纳更多数据但增加内存，超限显式失败 |
+| McpRegistry maxDiscoveryPages / maxCapabilities | 默认 100 页 / 1000 个能力，正整数 | 是一次 discover 跨服务的总预算；扩大可接纳大服务目录，但增加发现耗时与模型工具目录大小 |
+| Worker concurrency | 正整数，默认无限制 | 控制并发入口；不增加 MCP 连接、API 配额、工具内部连接池或输出 sink 吞吐 |
+
+工具、MCP 和输出资源在构造 Worker 时注入。ACT.TOOL / OBSERVE 默认存在；未注入 MCP 或 OutputSink 时，相应 Node 不会注册。YAML 数值配置需要传给对应 helper / Provider，不能仅靠写入配置就产生工具或服务。
+
+### 如何判断需要继续、重试还是结束
+
+先看 ExternalResult.status / OutputReceipt.status，再决定下一 Graph。OBSERVE 会描述 failed、timeout、cancelled、unknown，不会把它们提升为成功。unknown 表示需要核对；OUTPUT accepted 只证明 sink 按约定接收，是否意味着消息送达或文件可用要由 sink 定义。缩短超时不能撤销已执行的外部动作；取消与 deadline 需要 SDK / executor 配合，重试前仍需核对实际状态。
+
 ## 1. 入口与 API 清单
 
 ```ts

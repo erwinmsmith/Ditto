@@ -4,6 +4,46 @@
 
 INTERACTION executes external actions, normalizes observations, and delivers final messages. Graph defines dependencies; Loop owns iteration and termination; Worker injects tools, MCP clients, and output sinks. No separate Agent manager, automatic command registration, or plugin scanner is needed.
 
+## Functional selection and parameter effects
+
+| Node | Suitable tasks | How inputs change execution |
+| --- | --- | --- |
+| `INTERACTION.ACT.TOOL` | Registered file, API, database, code or business operations | call.name selects a tool, arguments supplies structured inputs, call.id correlates the result. Executes one tool per call |
+| `INTERACTION.ACT.MCP` | Discover capabilities or invoke tools on connected MCP services | operation chooses discover/invoke, server scopes the service, and invoke call specifies tool/arguments |
+| `INTERACTION.OBSERVE` | Convert raw tool results into observations for reasoning | result status/content/structuredContent/references/error determine the tool message and retained data; no automatic retry or state update |
+| `INTERACTION.OUTPUT` | Deliver a validated answer and artifacts to a UI, queue or other sink | deliveryId correlates receipts, message carries content, artifacts supplies references. OutputSink defines actual delivery semantics |
+
+### Parameters affect action scope and result completeness
+
+| Parameter / design | Node impact | Worker/business impact |
+| --- | --- | --- |
+| Tool `description` / `inputSchema` | Helps the model understand when to invoke and which fields to supply | Descriptions are not execution policy. ToolRegistry calls RegisteredTool.validate; it does not automatically run a complete JSON Schema validator |
+| Tool `arguments` | Determines query scope, paths, object IDs or write content | Validate business rules and permissions in validate/execute. Larger batches/scopes can increase database/API/output load |
+| Tool `effects` / `requiresApproval` | Describes effects and approval intent | Does not automatically request confirmation. Application Graph/Loop checks approval before writing; the tool also validates approval and object version |
+| `call.id` | Correlates actions, results and observations | Does not create idempotent transactions or suppress repeated effects. Check backend idempotency keys/receipts before retry |
+| MCP discover `server` | Explicit server discovers one service; omission traverses registered services | More services can increase pages and capability size. Registration and Sandbox permission must both hold; no automatic new connections |
+| MCP `operation:"invoke"` | Calls a specific tool on a connected server | The server enforces business permissions/input constraints; isError becomes a failed result rather than successful prose |
+| OBSERVE `structuredContent` / `references` | Retains machine-readable data and provenance, plus failure status/errors | Helps subsequent parsing, but large objects expand model input. Select/trim and explicitly UPDATE Context; no automatic conversation insertion |
+| OUTPUT `deliveryId` / `artifacts` | Checks receipt ID consistency and retains artifact references | Stable deliveryId supports sink idempotency, but the Worker does not deduplicate on its behalf. References do not automatically upload, copy or publish files |
+
+Map messages, action requests and observations explicitly between Contracts and Infer. Keep call IDs and tool sources; OpenAI-compatible Infer tool messages require metadata.actionRequestId. Concatenating a tool string into a user message loses call identity and failure semantics. Construct messages for the actual model protocol.
+
+### Numerical limits and resource tradeoffs
+
+| Setting | Default / range | Effect of adjustment |
+| --- | --- | --- |
+| Read-only command maxEntries / maxOutputBytes / maxErrorBytes | 1000 entries / 64 KiB / 8 KiB; hard caps 10000 / 1 MiB / 64 KiB | Larger values preserve more output and increase transfer/Context cost. Smaller values can hide errors; inspect structuredContent.truncated |
+| web_search arguments.limit | Default 5, range 1–20 | More search coverage and more reading/filtering work. Returns title/url/snippet without opening page bodies |
+| Brave Provider timeoutMs / maxResponseBytes | Configured on the provider, detailed below | Longer waits allow slow responses but hold Worker capacity; larger responses consume more memory. Limit violations fail explicitly |
+| McpRegistry maxDiscoveryPages / maxCapabilities | Default 100 pages / 1000 capabilities; positive integers | Total budget across services for one discover call. Larger catalogs increase discovery latency and model-visible tool directory size |
+| Worker concurrency | Positive integer; unlimited by default | Bounds entry calls without adding MCP connections, API quota, tool pools or sink throughput |
+
+Inject tools, MCP and output resources at construction. ACT.TOOL/OBSERVE exist by default; MCP/OUTPUT are registered only when their resources are injected. Pass YAML settings to the matching helper/provider; configuration alone does not create tools or connections.
+
+### Continue, retry or finish
+
+Read ExternalResult.status / OutputReceipt.status before choosing the next Graph. OBSERVE describes failed, timeout, cancelled and unknown without promoting them to success. Unknown calls for verification. OUTPUT accepted establishes sink acceptance under its contract; actual delivery/file availability needs sink-defined semantics. Shorter timeouts do not undo external effects. SDKs/executors must cooperate with cancellation/deadlines, and retries still require checking actual state.
+
 ## 1. Imports and API inventory
 
 ```ts

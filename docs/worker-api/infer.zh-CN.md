@@ -6,6 +6,85 @@
 
 从 `@codesoul-co/ditto/worker/infer` 导入 INFER 契约，或通过根入口 `Infer` 类型命名空间访问。Graph 负责将 Context / Memory 输出转换为 INFER 所需的字段。
 
+## 功能选择与参数影响
+
+### 按任务选择 Node
+
+以下使用完整 Node ID；`SAMPLE` 等简称仅用于说明。四个 REASONING Node 都通过 Provider 生成内容，三个 CACHE Node 只操作显式缓存。
+
+| Node | 适合的任务 | 决定行为的参数 | 对执行和 Worker 的影响 |
+| --- | --- | --- | --- |
+| `INFER.REASONING.SAMPLE` | 回答、分类、提取、规划、生成文本或动作请求 | `messages`、`model`、`generation`、`actions` | 一次生成一个响应；内置 OpenAI 兼容和 Gemini 适配器固定为一个候选。动作请求需要交给 INTERACTION 执行 |
+| `INFER.REASONING.TRAJECTORY` | 在同一推理任务中推进多个阶段、搜索备选解法或做独立答案投票 | `strategy`、`constraints`、`objective`、`context`、`memory` | 一次 Node 调用可能发出多次模型请求；共享该调用的预算、超时和 Worker 入口槽位 |
+| `INFER.REASONING.REFLECT` | 检查已有答案、计划、轨迹或产物，或提出修订 | `target`、`mode`、`criteria`、参考资料 | 一次模型审查并解析结构化结果；结果是模型评估，关键事实与权限仍需确定性核验 |
+| `INFER.REASONING.DELIBERATE` | 对已生成的候选排序、选择、融合或整理分歧 | `candidates`、原始任务、`mode`、`selectCount` | 一次模型审议；不会自动生成候选。`select` 的 `result` 是排名第一的原候选，多个入选 ID 在 `selectedCandidateIds` 中返回 |
+| `INFER.CACHE.LOOKUP` | 在调用模型前检查可复用结果 | `key.namespace`、`key.scope`、`key.key` | 命中返回已有值；未命中返回 `hit:false`，不会自动调用 SAMPLE |
+| `INFER.CACHE.WRITE` | 在校验后保存可复用的推理结果 | `value`、`key`、`ttlMs`、`tags` | 写入缓存后端；不会写入 MEMORY，也不会自动缓存其他 Node 的结果 |
+| `INFER.CACHE.INVALIDATE` | 资料、提示或模型改变后移除旧结果 | `selector` 的 key / tag / namespace | 精确或批量失效；范围越大，后续应用缓存未命中和模型调用可能越多 |
+
+### 生成参数：稳定性、多样性与输出预算
+
+这些参数影响模型解码。它们不改变 SAMPLE 的候选数量，也不决定工具权限。表内范围是 Ditto 校验范围；模型可能只支持其中一部分。
+
+| 参数 | 调整后的行为 | 取舍与边界 |
+| --- | --- | --- |
+| `temperature`，0–2 | 对支持该参数的模型，较低值通常使输出更集中；较高值增加采样随机性，可能产生更不同的措辞和解法 | 较高值也可能增加偏离格式或资料的概率；不代表置信度更低或必然覆盖更多正确答案。0 也不保证逐字复现 |
+| `topP`，0–1 | 按累计概率质量限制可选 token；降低值通常收窄选择，提高值允许更多低概率选项 | 与温度共同作用；先单独调整一个主要采样参数，避免无法判断是哪项改变了结果 |
+| `topK`，正整数 | 在支持的模型中限制为概率最高的 K 个 token；较小 K 收窄选择 | 不是检索返回数量；更大的 K 不会增加事实资料。OpenAI 兼容适配器会发送 `top_k`，实际端点可能拒绝；Gemini 也按具体模型决定是否接受 |
+| `maxTokens`，正整数 | 限制单次生成输出预算；增大可以容纳更长答案、JSON 或修订 | 不会要求模型用满预算，也不增加输入窗口。过小可能出现 `finishReason:"length"`；某些模型把内部推理 token 计入输出预算 |
+| `stop`，非空字符串数组 | 模型遇到停止序列时提前结束 | 可以约束分隔边界，也可能截断 JSON 或正文。`finishReason:"stop"` 不替代完整性与格式校验 |
+| `seed`，安全整数 | 支持时提供重复实验的采样种子 | 仍受模型版本、端点和其他参数影响；不能保证确定性。内置 Anthropic 适配器明确拒绝 `generation.seed` |
+
+采样语义和模型支持情况参考 [OpenAI Chat Completions](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create) 与 [Gemini GenerationConfig](https://ai.google.dev/api/generate-content#generationconfig)。使用具体模型时先检查它的参数支持；不要把一套温度配置原样应用于所有模型。Ditto 省略生成字段时不会统一补成温度 1；Worker 默认值和 Provider / 模型默认值另行生效。
+
+### 输入设计同样改变结果
+
+| 参数 | 对 Node 的影响 | 对下游流程的影响 |
+| --- | --- | --- |
+| `messages` 的角色、顺序和内容 | 定义任务、约束、资料与历史；输入更长通常增加输入 token 和处理负担 | 显式标记不可信资料，说明输出结构，避免让外部文本成为高优先级指令；温度无法补救缺失事实 |
+| `model.provider` / `model.model` | 选择已注册适配器与模型；模型能力和原生多模态格式决定可处理的输入 | 可能改变成本、时延、上下文窗口及动作支持；换模型后重新评估相同任务和输出校验 |
+| `model.providerOptions` | 向适配器提供供应商专用字段 | 不会自动变为跨模型通用能力；核心请求字段和显式生成字段可能覆盖对应值，不能用 `n` 绕过单候选契约 |
+| SAMPLE `actions[].description` / `inputSchema` | 帮助模型选择动作和构造参数 | 声明只提供模型可见协议，参数仍需工具验证器核验；SAMPLE 检查请求名已声明，目标由可信调用方绑定 |
+| `metadata` | 提供调用元数据，具体用途由适配器约定 | 当前内置 HTTP 协议不会把顶层 `metadata` 自动作为提示或请求元数据发送；需模型理解的内容应放入明确的消息字段 |
+| REFLECT `criteria`、`target` / DELIBERATE `objective`、`messages` | 明确评审标准及原始任务，降低“比较了候选但忘记目标”的风险 | `criteria.weight` 和候选 `score` 是给模型的数据，不是框架自动计算的确定性加权总分 |
+
+### 多步推理：哪些参数增加实际模型调用
+
+下表是内置策略无错误、无预算提前停止时的行为。策略中的候选调用当前按顺序执行；增加 Worker `concurrency` 不会把一次 TRAJECTORY 内的循环改为并行。
+
+| 策略 / 参数 | 默认值 | 增大后的影响 |
+| --- | --- | --- |
+| `cot.options.rounds` / `long-cot.options.rounds` | 2 / 4，允许 1–64 | 每轮调用一次模型，后续轮次携带已有结果；输入历史和累计耗时增加，不保证推理更正确 |
+| `self-consistency.options.candidates` | 3，允许 1–16 | 独立生成对应数量的答案，再做确定性答案投票；没有额外模型裁判，票数最高并列会失败 |
+| `tot.options.breadth` / `depth` / `beamWidth` | 3 / 2 / 2，各允许 1–16 | breadth 增加每个保留状态的备选数，depth 增加层数，beamWidth 增加后续扩展的状态；每层还需要一次模型排序 |
+| `got.options.breadth` / `depth` | 3 / 2，各允许 1–16 | 每层生成 breadth 个观点并做一次模型融合，总调用数为 `depth * (breadth + 1)` |
+| `constraints.maxSteps` | 16，正整数 | 限制本次 TRAJECTORY 的实际模型调用数，排序/融合也计数；不是 `steps.length` 或 Loop 的 Graph 执行数 |
+| `constraints.maxTotalTokens` | 未设置 | 限制累计输入和输出用量，需要每次 Provider 返回可用 usage；缩小可能返回 partial，大输入仍可能使最终用量超过预算 |
+| `constraints.timeoutMs` | 继承配置，且受调用 deadline 限制 | 增大只有在其他有效时限允许时才延长运行；增加预算不重新启动已停止调用 |
+
+例如 ToT 的 breadth=3、depth=2、beamWidth=2，需要 `3 + 1 + 2*3 + 1 = 11` 次模型调用，其中 2 次用于排序。`maxSteps:4` 会阻止完成这条路径；提高温度不会改变这个调用数量。若要并行生成多个候选，使用多个 SAMPLE 分支组成 Graph，再调用 DELIBERATE；见[多候选流程](candidate-workflows.zh-CN.md)。
+
+REFLECT 的 `critique` 用于问题识别，`verify` 要求返回是否通过，`revise` 要求返回修订结果；一次调用不会自行反复检查。DELIBERATE 的 `select` 保留原候选，`merge` 生成综合结果，`consensus` 组织共识与不确定性，`debate` 对比异议；这些模式都不自动启动其他 Agent。重复评审和停止条件由 Loop 控制。
+
+### Worker 默认值、缓存与资源占用
+
+普通生成参数按“本次 `generation` 字段 → 生效的 Worker generation 默认字段 → 适配器/模型默认”解析。DELIBERATE 还在普通 generation 默认之上叠加 `defaults.deliberate.generation`，最后由本次字段覆盖。显式 `createInferWorker({defaults})` 替换 Runtime infer 默认对象；它不是与 YAML 自动深度合并，需保留的分组应一并传入。
+
+请求参数不修改副本配置。Worker `concurrency` 限制同时接收的 Node 调用；一条长轨迹占一个入口槽位，但内部可能调用模型很多次。增加槽位可以提高独立任务吞吐，也可能触及供应商速率限制。SDK 直接调用不使用 Runtime 的副本并发调度。超时限制等待和合作取消；自定义 Provider 必须使用 signal 才能停止底层 I/O。
+
+默认内存推理缓存最多保留 1000 项，各 SDK / 副本独立。对该后端，`ttlMs` 省略表示无到期时间但仍可能被 LRU 淘汰，0 会删除同键旧值且不保留新值，较长 TTL 提高复用机会也延长旧资料的影响。应用缓存键应绑定模型、生成参数、提示版本和资料版本；请求不同但键相同可能返回旧结果。较高温度的探索若每次都复用同一缓存值，也不会产生新的多样性。
+
+### 按场景评估配置
+
+先使用模型建议的默认值，再在它支持温度调节时尝试下列起点；它们是实验配置，不是 Ditto 默认值或质量保证。
+
+| 场景 | 可以尝试的设计 | 应检查的结果 |
+| --- | --- | --- |
+| 分类、字段提取、工具参数、主管决策 | 低温度（例如 0–0.2）、明确结构、足够输出预算 | schema、业务约束、工具权限、错误和截断率；低温度不保证事实正确 |
+| 文案和方案探索 | 较高温度（例如 0.7–1）、不同角度的提示、多个 SAMPLE 分支 | 候选差异、目标覆盖和可执行性，再低温度审议；单次随机输出不等于覆盖多个方案 |
+| 有引用的事实问答 | CONTEXT / 检索提供证据，要求逐项引用并检查 | 答案与原文一致性、资料缺口；调高温度不会扩大检索范围 |
+| 长推理或修订 | 同时设调用数、累计 token、超时和 Loop 上限 | 内外两层 status、stopReason、实际用量和最终任务完成度 |
+
 ## 1. 接入与生命周期
 
 ```ts

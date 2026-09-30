@@ -4,6 +4,40 @@
 
 MEMORY 提供长期记忆的六个访问原语：GET、QUERY、SEARCH、WRITE、UPDATE、DELETE。Ditto 实现节点路由、输入/输出校验、结果封装和插件注入；数据库驱动、连接池、表/collection、索引和迁移由应用或外部插件管理。Core 不安装或启动 MySQL、PostgreSQL、Milvus，也不包含 SQL 或 Milvus 客户端。
 
+## 功能选择与参数影响
+
+| Node | 适合的任务 | 参数设计对结果的影响 |
+| --- | --- | --- |
+| `MEMORY.GET` | 恢复已知检查点、读取确切偏好或交接记录 | `ids` / `keys` 精确匹配，二者取并集、去重；缺失项省略，不做相关性搜索 |
+| `MEMORY.QUERY` | 按任务、状态、时间等结构条件枚举记录 | `filter` 缩小集合，`orderBy` 决定顺序，`limit` / `cursor` 控制分页；语义由 Store 定义 |
+| `MEMORY.SEARCH` | 从长期资料中寻找与当前问题相关的记忆 | `query`、`strategy`、`filter`、`limit`、`options` 交给搜索插件；不是 GET 的模糊匹配版本 |
+| `MEMORY.WRITE` | 保存新的事实、阶段产物或任务状态记录 | `memories[].key/content/metadata` 创建记录；ID 和 key 冲突策略由 Store 定义 |
+| `MEMORY.UPDATE` | 修正已知记录内容或元数据 | 按 ID 修改明确提供的字段；不提供的字段保留，metadata 整体替换，不自动合并 |
+| `MEMORY.DELETE` | 删除已确认过期、撤销或不应保留的记录 | `ids` 去重后删除，输出实际删除 ID；不会同步清除其他 Worker 的缓存或已加载 Context |
+
+### 查询、排序与写入的取舍
+
+| 参数 / 设计 | 行为影响 | 对 Worker 和后端的影响 |
+| --- | --- | --- |
+| QUERY / SEARCH `limit` | 较大值扩大本页或相关结果集合，也可能引入较弱相关结果 | 增加后端读取、结果传输和下游 Context 处理；不是所有历史记录的总量限制 |
+| QUERY `cursor` / `orderBy` | 稳定排序与游标支持连续分页；改变排序可能改变分页集合 | 游标编码由插件定义，不能在不同查询/后端间随意复用；缺少稳定排序可能重复或漏项 |
+| QUERY / SEARCH `filter` | 限定租户、任务、时间或文档版本等范围 | 是否支持及是否用索引由插件决定；应用/适配器从可信身份强制访问范围，任意调用方 filter 不是权限证明 |
+| SEARCH `strategy` / `query` | 选择向量、关键词、混合或自定义算法；query 可为文本、向量或结构化对象 | 插件必须支持约定；MEMORY 不自动 embedding，也不因写入内容而建立向量索引 |
+| SEARCH `options` / `score` | options 调整插件参数，score 表达该插件的相关性 | 没有通用“score 大于 0.8 就可信”的规则；量纲、排序方向与阈值应随算法、语料一起评估 |
+| WRITE `key` / `metadata` | 稳定 key 帮助精确恢复；metadata 可携带来源、版本和任务身份 | key 不自动意味着 upsert 或幂等；以 Store 的唯一约束/事务落实，避免重试重复写入 |
+| UPDATE `content` / `metadata` | 省略保留旧值；content=null 是显式新内容，metadata={} 清空元数据 | 只传一个 metadata 字段会替换整份对象。需要合并时在可信应用/适配器中保留所需字段，并处理并发冲突 |
+| WRITE / UPDATE 批次大小 | 每次可保存多个对象，可能减少应用往返次数 | 更大批次提高 payload 和事务负担；Ditto 不保证分批原子性，需 Store 明确事务、部分失败与补偿语义 |
+
+limit 必须为 1–10000。默认 QUERY=100、SEARCH=10；优先级是请求 limit → 构造 defaults → Runtime YAML → 内置默认。构造默认是缺省值，不是硬上限；请求可提高到契约允许的范围。Standalone SDK 要显式传配置才能继承应用默认。
+
+WRITE / UPDATE 不调用模型，不自动做事实验证、摘要整合、embedding 或 Context 更新。源库与向量索引分开时，更新/删除还需应用安排索引一致性。空批次本地返回；成功应核对输出记录、稳定 key 和实际持久状态，而不是仅检查模型说“已保存”。
+
+### Worker 资源与恢复
+
+Worker concurrency 限制并发入口，不创建数据库连接池，也不控制 Store 内部扇出。增大并发可能增加吞吐，也可能造成连接池等待、锁竞争或服务限流；根据插件实际容量配置。取消信号需要传递到驱动，停止等待不能证明写入被回滚。多个字段修改、检查点和外部动作需要应用定义一致性边界。
+
+例如恢复任务阶段使用 GET 的已知 key；列出未完成任务用 QUERY 的确定条件；寻找相似历史经验用 SEARCH。三者都返回记忆数据，但不会自动成为模型消息。先核对权限、来源和版本，再映射进入 CONTEXT，并保留需要核验的记录 ID。
+
 ## 接入方式
 
 ```ts

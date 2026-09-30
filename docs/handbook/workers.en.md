@@ -73,4 +73,29 @@ Create/connect shared SDKs → construct definitions → register with Runtime �
 
 A `resources` factory creates replica-specific resources; `dispose` releases them. Passing one client to several definitions shares it. Do not close a shared client when the first replica stops while others still need it.
 
+## 7. Understand Nodes and parameters by function
+
+Choose the Node's responsibility before tuning its parameters. The same `INFER.REASONING.SAMPLE` can answer a question, produce a plan or classify a request; messages and model configuration specify the task. The Node type establishes the execution contract; parameters select this call's inputs, algorithm or limits.
+
+| Parameter layer | What it controls | Effect on the Worker |
+| --- | --- | --- |
+| Node input | Content, selection conditions, generation settings, strategy and result count for one call | Changes that invocation without modifying Worker-wide configuration |
+| Worker construction | Providers, stores, tools, defaults and replica concurrency | Determines available capabilities, resources and simultaneous entry calls |
+| Runtime / Graph / Loop | Dependencies, Graph concurrency, Worker bindings, cancellation and Graph execution limits | Controls scheduling; does not automatically add model candidates or database pool capacity |
+| External adapter | Supported model parameters, database indexes, tool validation and backend deadlines | Determines actual resource behavior; passing Ditto validation does not prove every remote parameter is supported |
+
+These limits act together. Graph concurrency 4 and INFER replica concurrency 2 do not imply eight allowed simultaneous model calls. A long TRAJECTORY makes several model requests inside one Worker invocation; more rounds keep that slot occupied longer. Reducing Context limits model input, whereas INFER `maxTokens` limits an individual generation's output budget.
+
+### Follow the goal to its parameter guide
+
+| Goal | Read |
+| --- | --- |
+| Keep enough evidence for this step while limiting input | [CONTEXT: functional selection and parameter effects](../worker-api/context.md#functional-selection-and-parameter-effects) |
+| Balance stability, diversity, reasoning depth and cost | [INFER: functional selection and parameter effects](../worker-api/infer.md#functional-selection-and-parameter-effects) |
+| Restore tasks exactly, search durable memory or modify records | [MEMORY: functional selection and parameter effects](../worker-api/memory.md#functional-selection-and-parameter-effects) |
+| Execute tools, interpret action results and verify delivery | [INTERACTION: functional selection and parameter effects](../worker-api/interaction.md#functional-selection-and-parameter-effects) |
+| Tune retrieval coverage, candidate pools, fusion and reranking | [RETRIEVAL: functional selection and parameter effects](../worker-api/retrieval.md#functional-selection-and-parameter-effects) |
+
+Evaluate parameters against task outcomes. For models, record format validation, factual evidence, truncation rate, call count, token usage and latency. For retrieval, check whether relevant evidence reaches the candidate pool and final Context. For writes, check persisted records and actual receipts. Change one primary variable at a time using the same tasks and evidence. Temperature is not confidence, relevance scores are not correctness probabilities, and a successful return does not automatically establish business completion.
+
 Next: [optional RETRIEVAL](retrieval.en.md) or [custom Workers and Nodes](extensions.en.md).
