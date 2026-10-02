@@ -77,8 +77,8 @@ export const anthropic: ProviderProtocol = {
         const b = content[e.index as number]; if (!b || active !== e.index) throw new InferError("INVALID_MODEL_OUTPUT", "Missing content block");
         const d = object(e.delta);
         if (d.type === "text_delta") { text(d.text, "text", true); b.text = String(b.text ?? "") + d.text; yield { type: "text_delta", delta: d.text }; }
-        else if (d.type === "input_json_delta") { text(d.partial_json, "partial_json", true); json.set(e.index as number, (json.get(e.index as number) ?? "") + d.partial_json); }
-        else if (d.type === "thinking_delta") { text(d.thinking, "thinking", true); b.thinking = String(b.thinking ?? "") + d.thinking; }
+        else if (d.type === "input_json_delta") { text(d.partial_json, "partial_json", true); json.set(e.index as number, (json.get(e.index as number) ?? "") + d.partial_json); yield { type: "action_delta", index: e.index as number, id: String(b.id), name: String(b.name), delta: d.partial_json }; }
+        else if (d.type === "thinking_delta") { text(d.thinking, "thinking", true); b.thinking = String(b.thinking ?? "") + d.thinking; yield { type: "reasoning_delta", delta: d.thinking }; }
         else if (d.type === "signature_delta") { text(d.signature, "signature", true); b.signature = String(b.signature ?? "") + d.signature; }
       } else if (e.type === "content_block_stop") {
         if (active !== e.index) throw new InferError("INVALID_MODEL_OUTPUT", "Invalid content block stop");

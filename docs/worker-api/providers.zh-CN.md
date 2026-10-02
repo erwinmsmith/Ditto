@@ -9,7 +9,8 @@ Provider 实现在 `src/worker/infer/providers/`。一个 Registry、一套模�
 ```ts
 import type { SampleInput, SampleOutput } from "@codesoul-co/ditto/worker/infer";
 export type ModelStreamEvent =
-  | { type: "text_delta"; delta: string }
+  | { type: "text_delta" | "reasoning_delta"; delta: string }
+  | { type: "action_delta"; index: number; id?: string; name?: string; delta: string }
   | { type: "result"; output: SampleOutput };
 export interface ModelProvider {
   invoke(input: SampleInput, options: { signal: AbortSignal }): Promise<SampleOutput>;
@@ -17,7 +18,7 @@ export interface ModelProvider {
 }
 ```
 
-`invoke` 必需，`stream` 可选。stream 返回文本增量，然后恰好一个完整 result，包含 Message、动作和 usage，随后结束。Provider 返回 `SampleOutput`，INFER Node 负责转换为 `NodeResult`。自定义 Provider 应遵守 signal；SDK 会停止等待不配合的调用，但无法强制终止其内部工作。
+`invoke` 必需，`stream` 可选。stream 返回文本、推理及工具参数增量，然后恰好一个完整 result，包含 Message、动作和 usage，随后结束。Provider 返回 `SampleOutput`，INFER Node 负责转换为 `NodeResult`。自定义 Provider 应遵守 signal；SDK 会停止等待不配合的调用，但无法强制终止其内部工作。
 
 ```ts
 import { ProviderRegistry } from "@codesoul-co/ditto/worker/infer/providers";
@@ -143,7 +144,7 @@ export async function providerRegistryApis(provider: ModelProvider, input: Sampl
 
 ### ModelProvider.stream：原始流
 
-stream 是可选方法，故先检查。原始流没有 SDK 的 start/step 事件；它只包含 text_delta 和一个完整 result。无 stream 时可调用 invoke，但不要声称返回真实 token 流。
+stream 是可选方法，故先检查。原始流没有 SDK 的 start/step 事件；它包含 text_delta、reasoning_delta、action_delta 和一个完整 result。无 stream 时可调用 invoke，但不要声称返回真实 token 流。
 
 ```ts
 export async function providerStream(provider: ModelProvider, input: SampleInput) {
@@ -169,3 +170,9 @@ export function httpModelProvider(options: HttpProviderOptions) {
 //   apiKey: process.env.DITTO_SHARED_PROVIDER_OPENAI_API_KEY, sandbox: runtime.services.sandbox }
 // Omit apiKey entirely when the endpoint has no authentication.
 ```
+
+### 生成进度与空闲检测（0.1.2）
+
+可选 `idleTimeoutMs` 只作用于流式调用，范围 1–2^31−1，默认关闭。从请求开始计时；非空文本、推理、工具参数增量或最终结果会刷新计时，SSE 注释和空心跳不会。超时以 `PROVIDER_IDLE_TIMEOUT` 取消请求，不限制总输出或运行时长；`timeoutMs` 与调用方 signal 仍生效。请按模型排队与生成延迟配置。
+
+`action_delta.index` 标识本响应中的工具调用；可用时 `id`、`name` 是累计值，`delta` 是本次参数片段（Gemini 每个函数调用 part 提供完整 JSON）。片段可能不是完整 JSON，不可信，只有最终 `result.output.actionRequests` 才能用于执行。推理增量与公开文本分离，可能包含敏感内容，默认不要展示或记录。INFER 上层文本流仍只转发文本。

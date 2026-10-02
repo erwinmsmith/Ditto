@@ -82,7 +82,8 @@ export const gemini: ProviderProtocol = {
       const candidate = object(data.candidates[0]); if (candidate.finishReason) reason = candidate.finishReason;
       const next = object(candidate.content ?? { parts: [] }); list(next.parts, "parts");
       for (const rawPart of next.parts) { const p = object(rawPart); content.push(p);
-        if (p.text !== undefined && !p.thought) { text(p.text, "text", true); yield { type: "text_delta", delta: p.text }; }
+        if (p.text !== undefined) { text(p.text, "text", true); yield { type: p.thought ? "reasoning_delta" : "text_delta", delta: p.text }; }
+        if (p.functionCall) { const call = object(p.functionCall); text(call.name, "functionCall.name"); yield { type: "action_delta", index: content.length - 1, ...(typeof call.id === "string" ? { id: call.id } : {}), name: call.name, delta: JSON.stringify(object(call.args ?? {})) }; }
       }
     }
     if (!reason) throw new InferError("INCOMPLETE_MODEL_OUTPUT", "Gemini stream ended before finishReason");
