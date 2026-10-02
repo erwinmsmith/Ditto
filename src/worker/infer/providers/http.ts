@@ -11,6 +11,8 @@ import { readSse } from "./sse.js";
 export interface HttpProviderOptions extends ProviderConfig {
   sandbox: Pick<Sandbox, "assert">;
   timeoutMs?: number;
+  /** Streaming only: maximum time without text, reasoning, action arguments or a result. Disabled by default. */
+  idleTimeoutMs?: number;
   fetch?: typeof globalThis.fetch;
 }
 const protocols = { "openai-compatible": openai, anthropic, gemini };
@@ -25,6 +27,8 @@ export function createHttpProvider(options: HttpProviderOptions): ModelProvider 
   if (!Object.hasOwn(protocols, options.kind)) throw new InferError("INVALID_INPUT", "Unsupported provider kind");
   const protocol = protocols[options.kind];
   const timeoutMs = options.timeoutMs ?? 30_000; number(timeoutMs, "timeoutMs", 1, 2 ** 31 - 1, true);
+  if (options.idleTimeoutMs !== undefined) number(options.idleTimeoutMs, "idleTimeoutMs", 1, 2 ** 31 - 1, true);
+  const idleTimeoutMs = options.idleTimeoutMs;
   const signalFor = (signal: AbortSignal) => AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]);
   async function request(input: SampleInput, signal: AbortSignal, streaming: boolean): Promise<Response> {
     validateSample(input);
@@ -52,16 +56,27 @@ export function createHttpProvider(options: HttpProviderOptions): ModelProvider 
       const output = protocol.parse(raw); validateSampleOutput(output); return output;
     },
     async *stream(input, options): AsyncIterable<ModelStreamEvent> {
-      const signal = signalFor(options.signal); const response = await request(input, signal, true);
+      const idle = new AbortController();
+      const signal = AbortSignal.any([signalFor(options.signal), idle.signal]);
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const refresh = () => {
+        if (idleTimeoutMs === undefined) return;
+        clearTimeout(timer);
+        timer = setTimeout(() => idle.abort(new InferError("PROVIDER_IDLE_TIMEOUT", "Provider stream made no generation progress")), idleTimeoutMs);
+        timer.unref();
+      };
+      refresh();
       try {
+        const response = await request(input, signal, true);
         for await (const event of protocol.stream(readSse(response, signal))) {
+          if (event.type === "result" || event.delta.length) refresh();
           if (event.type === "result") validateSampleOutput(event.output);
           yield event;
         }
       } catch (error) {
         if (error instanceof InferError && error.code === "INVALID_INPUT") throw new InferError("INVALID_MODEL_OUTPUT", error.message);
         throw error;
-      }
+      } finally { clearTimeout(timer); }
     },
   };
 }

@@ -9,7 +9,8 @@
 ```ts
 import type { SampleInput, SampleOutput } from "@codesoul-co/ditto/worker/infer";
 export type ModelStreamEvent =
-  | { type: "text_delta"; delta: string }
+  | { type: "text_delta" | "reasoning_delta"; delta: string }
+  | { type: "action_delta"; index: number; id?: string; name?: string; delta: string }
   | { type: "result"; output: SampleOutput };
 export interface ModelProvider {
   invoke(input: SampleInput, options: { signal: AbortSignal }): Promise<SampleOutput>;
@@ -17,7 +18,7 @@ export interface ModelProvider {
 }
 ```
 
-invoke is required; stream is optional. Streams yield public text deltas, then exactly one complete result with message, actions and usage, then end. Providers return SampleOutput; INFER adds the NodeResult envelope. Custom providers should honor signal. The SDK stops waiting for uncooperative calls but cannot forcibly terminate their work.
+invoke is required; stream is optional. Streams yield text, reasoning and action-argument deltas, then exactly one complete result with message, actions and usage, then end. Providers return SampleOutput; INFER adds the NodeResult envelope. Custom providers should honor signal. The SDK stops waiting for uncooperative calls but cannot forcibly terminate their work.
 
 ```ts
 import { ProviderRegistry } from "@codesoul-co/ditto/worker/infer/providers";
@@ -141,7 +142,7 @@ export async function providerRegistryApis(provider: ModelProvider, input: Sampl
 
 ### ModelProvider.stream: raw stream
 
-stream is optional. Raw streams contain text_delta and one complete result, without SDK start/step events. Falling back to invoke does not provide token streaming.
+stream is optional. Raw streams contain text_delta, reasoning_delta, action_delta and one complete result, without SDK start/step events. Falling back to invoke does not provide token streaming.
 
 ```ts
 export async function providerStream(provider: ModelProvider, input: SampleInput) {
@@ -167,3 +168,9 @@ export function httpModelProvider(options: HttpProviderOptions) {
 //   apiKey: process.env.DITTO_SHARED_PROVIDER_OPENAI_API_KEY, sandbox: runtime.services.sandbox }
 // Omit apiKey entirely when the endpoint has no authentication.
 ```
+
+### Generation progress and idle detection (0.1.2)
+
+`idleTimeoutMs` is an optional streaming-only integer (1–2^31−1), disabled by default. It starts before the request, resets on nonempty text/reasoning/action-argument deltas or the final result, and aborts with `PROVIDER_IDLE_TIMEOUT`. SSE comments and empty keepalives do not reset it. It does not limit total output or running time; `timeoutMs` and the caller signal still apply. Configure it for the provider's queue and generation latency.
+
+`action_delta.index` identifies a call within this response; `id` and `name`, when available, are accumulated values. `delta` is only the next argument fragment (Gemini provides a complete JSON object per function-call part). Fragments are untrusted and may be incomplete JSON: execute only the validated `result.output.actionRequests`. Reasoning deltas are separate from public text and may contain sensitive material; do not display or log them by default. INFER's higher-level text stream continues to emit only text.

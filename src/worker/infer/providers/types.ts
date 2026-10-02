@@ -1,5 +1,8 @@
 import type { SampleInput, SampleOutput } from "../reasoning/sample/types.js";
-export type ModelStreamEvent = { type: "text_delta"; delta: string } | { type: "result"; output: SampleOutput };
+export type ModelStreamEvent =
+  | { type: "text_delta" | "reasoning_delta"; delta: string }
+  | { type: "action_delta"; index: number; id?: string; name?: string; delta: string }
+  | { type: "result"; output: SampleOutput };
 /** Shared by Runtime services, INFER, custom integrations, and every HTTP protocol. */
 export interface ModelProvider {
   invoke(input: SampleInput, options: { signal: AbortSignal }): Promise<SampleOutput>;

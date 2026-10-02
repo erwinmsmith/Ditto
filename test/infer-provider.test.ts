@@ -116,7 +116,9 @@ test("Anthropic maps system/tools, cumulative streaming usage and preserves sign
   const signal = new AbortController().signal;
   const result = await provider.invoke({ ...toolInput, messages: [{ role: "system", content: "system" }, ...input.messages], generation: { maxTokens: 50 } }, { signal });
   const streamed = []; for await (const event of provider.stream!(toolInput, { signal })) streamed.push(event);
-  assert.deepEqual(streamed, [{ type: "text_delta", delta: "checking" }, { type: "result", output: result }]);
+  assert.deepEqual(streamed, [{ type: "reasoning_delta", delta: "private" }, { type: "text_delta", delta: "checking" },
+    { type: "action_delta", index: 2, id: "a", name: "find", delta: '{"q":' },
+    { type: "action_delta", index: 2, id: "a", name: "find", delta: '"x"}' }, { type: "result", output: result }]);
   assert.equal(result.usage?.totalTokens, 14); assert.equal(bodies[0]?.max_tokens, 50);
   await provider.invoke({ ...toolInput, messages: [...input.messages, result.message, { role: "tool", content: "found", metadata: { actionRequestId: "a" } }] }, { signal });
   const messages = bodies.at(-1)!.messages as { content: unknown[] }[];
@@ -135,7 +137,8 @@ test("Gemini maps content and function responses, retains thought signatures and
   const result = await provider.invoke({ ...toolInput, generation: { maxTokens: 50, seed: 3 }, model: { model: "test-model", providerOptions: { generationConfig: { candidateCount: 9, temperature: 0.7 } } } }, { signal });
   assert.equal(result.usage?.outputTokens, 5); assert.equal(result.actionRequests?.[0]?.id, "g1");
   const streamed = []; for await (const event of provider.stream!(toolInput, { signal })) streamed.push(event);
-  assert.deepEqual(streamed, [{ type: "text_delta", delta: "checking" }, { type: "result", output: result }]);
+  assert.deepEqual(streamed, [{ type: "text_delta", delta: "checking" },
+    { type: "action_delta", index: 1, id: "g1", name: "find", delta: '{"q":"x"}' }, { type: "result", output: result }]);
   assert.deepEqual(bodies[0]?.generationConfig, { candidateCount: 1, temperature: 0.7, maxOutputTokens: 50, seed: 3 });
   await provider.invoke({ ...toolInput, messages: [...input.messages, result.message, { role: "tool", content: '{"found":true}', metadata: { name: "find", actionRequestId: "g1" } }] }, { signal });
   const contents = bodies.at(-1)!.contents as { parts: unknown[] }[];
@@ -193,7 +196,33 @@ test("reasoning-enabled compatible tool calls preserve opaque history without em
   const signal = new AbortController().signal;
   const result = await provider.invoke(toolInput, { signal });
   const events = []; for await (const event of provider.stream!(toolInput, { signal })) events.push(event);
-  assert.deepEqual(events, [{ type: "result", output: result }]);
+  assert.deepEqual(events, [{ type: "reasoning_delta", delta: "opaque fixture" },
+    { type: "action_delta", index: 0, id: "c", name: "find", delta: "{}" }, { type: "result", output: result }]);
   await provider.invoke({ ...toolInput, messages: [...input.messages, { ...result.message, metadata: { ...result.message.metadata, actionRequests: result.actionRequests } }, { role: "tool", content: "found", metadata: { actionRequestId: "c" } }] }, { signal });
   assert.equal((bodies.at(-1)!.messages as Record<string, unknown>[])[1]?.reasoning_content, "opaque fixture");
+});
+
+test("stream idle timeout ignores heartbeats but tracks tool-only generation and releases the body", async () => {
+  let cancelled = false;
+  let heartbeat: ReturnType<typeof setInterval> | undefined;
+  const encoder = new TextEncoder();
+  const stalled = createHttpProvider({ ...options, idleTimeoutMs: 40, fetch: async () => new Response(new ReadableStream({
+    start(controller) { heartbeat = setInterval(() => controller.enqueue(encoder.encode(': keepalive\n\n')), 5); },
+    cancel() { cancelled = true; clearInterval(heartbeat); },
+  })) });
+  await assert.rejects(async () => { for await (const _ of stalled.stream!(input, { signal: new AbortController().signal })) {} }, { code: "PROVIDER_IDLE_TIMEOUT" });
+  assert.equal(cancelled, true);
+  const active = createHttpProvider({ ...options, idleTimeoutMs: 100, fetch: async () => new Response(new ReadableStream({
+    async start(controller) {
+      const send = (value: unknown) => controller.enqueue(encoder.encode(`data: ${typeof value === 'string' ? value : JSON.stringify(value)}\n\n`));
+      for (const [i, fragment] of ['{', '"q"', ':', '"x"', '}'].entries()) {
+        await new Promise(resolve => setTimeout(resolve, 30));
+        send({ choices: [{ delta: { tool_calls: [{ index: 0, ...(i === 0 ? { id: 'c', type: 'function' } : {}), function: { ...(i === 0 ? { name: 'find' } : {}), arguments: fragment } }] } }] });
+      }
+      send({ choices: [{ delta: {}, finish_reason: 'tool_calls' }] }); send('[DONE]'); controller.close();
+    },
+  })) });
+  const events = []; for await (const event of active.stream!(toolInput, { signal: new AbortController().signal })) events.push(event);
+  assert.equal(events.filter(e => e.type === 'action_delta').length, 5);
+  assert.equal(events.at(-1)?.type, 'result');
 });

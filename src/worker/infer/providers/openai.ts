@@ -71,17 +71,18 @@ export const openai: ProviderProtocol = {
   async *stream(events): AsyncIterable<ModelStreamEvent> {
       let content = ""; let reasoningContent = ""; let reason: unknown; let usage: Usage | undefined; let done = false;
       const calls = new Map<number, { id: string; name: string; arguments: string }>();
-      function consume(data: string): string | undefined {
-        if (!data) return;
-        if (data === "[DONE]") { done = true; return; }
+      function consume(data: string): ModelStreamEvent[] {
+        if (!data) return [];
+        if (data === "[DONE]") { done = true; return []; }
         return modelOutput(() => {
           const d = object(JSON.parse(data));
           if (d.error) throw new InferError("INVALID_MODEL_OUTPUT", "Provider stream reported an error");
           const nextUsage = readUsage(d.usage); if (nextUsage) usage = nextUsage;
-          list(d.choices, "choices"); if (!d.choices.length) return;
+          list(d.choices, "choices"); if (!d.choices.length) return [];
+          const progress: ModelStreamEvent[] = [];
           const choice = object(d.choices[0]); const delta = object(choice.delta ?? {});
           if (choice.finish_reason !== undefined && choice.finish_reason !== null) reason = choice.finish_reason;
-          if (delta.reasoning_content !== undefined && delta.reasoning_content !== null) { text(delta.reasoning_content, "reasoning_content", true); reasoningContent += delta.reasoning_content; }
+          if (delta.reasoning_content !== undefined && delta.reasoning_content !== null) { text(delta.reasoning_content, "reasoning_content", true); reasoningContent += delta.reasoning_content; progress.push({ type: "reasoning_delta", delta: delta.reasoning_content }); }
           if (delta.tool_calls !== undefined) {
             list(delta.tool_calls, "delta.tool_calls");
             for (const raw of delta.tool_calls) {
@@ -91,15 +92,17 @@ export const openai: ProviderProtocol = {
               if (t.type !== undefined && t.type !== "function") throw new InferError("INVALID_MODEL_OUTPUT", "Unsupported tool type");
               if (t.function !== undefined) { const f = object(t.function); if (f.name !== undefined) { text(f.name, "function name", true); c.name += f.name; } if (f.arguments !== undefined) { text(f.arguments, "arguments", true); c.arguments += f.arguments; } }
               calls.set(t.index as number, c);
+              progress.push({ type: "action_delta", index: t.index as number, id: c.id, name: c.name,
+                delta: typeof (t.function as Record<string, unknown> | undefined)?.arguments === "string" ? (t.function as { arguments: string }).arguments : "" });
             }
           }
-          if (delta.content !== undefined && delta.content !== null) { text(delta.content, "delta.content", true); content += delta.content; return delta.content; }
-          return;
+          if (delta.content !== undefined && delta.content !== null) { text(delta.content, "delta.content", true); content += delta.content; progress.push({ type: "text_delta", delta: delta.content }); }
+          return progress;
         });
       }
 
       for await (const data of events) {
-        const delta = consume(data); if (delta !== undefined) yield { type: "text_delta", delta };
+        yield* consume(data);
         if (done) break;
       }
         if (!done) throw new InferError("INCOMPLETE_MODEL_OUTPUT", "Provider stream ended before [DONE]");

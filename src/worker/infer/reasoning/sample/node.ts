@@ -17,6 +17,10 @@ export async function sampleNode(input: SampleInput, ctx: InferExecution): Promi
         if (next.done) break;
         if (output) throw new InferError("INVALID_MODEL_OUTPUT", "Provider emitted after terminal result");
         if (next.value.type === "text_delta" && typeof next.value.delta === "string") ctx.emitDelta(next.value.delta);
+        else if ((next.value.type === "reasoning_delta" || next.value.type === "action_delta") && typeof next.value.delta === "string") {
+          // Progress is observable on ModelProvider, but is not public answer text.
+          if (next.value.type === "action_delta" && (!Number.isSafeInteger(next.value.index) || next.value.index < 0)) throw new InferError("INVALID_MODEL_OUTPUT", "Invalid action delta index");
+        }
         else if (next.value.type === "result") output = next.value.output;
         else throw new InferError("INVALID_MODEL_OUTPUT", "Unknown provider stream event");
       }
